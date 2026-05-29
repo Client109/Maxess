@@ -1,0 +1,241 @@
+/* Maxxes Color System - Light Theme */
+:root {
+  /* Action Color */
+  --action-orange: #FF5C00;
+
+  /* Brand Blues */
+  --deep-navy: #2667FF;
+  --deeper-indigo: #3B28CC;
+  --light-blue: #ADD7F6;
+
+  /* Light Theme Surfaces */
+  --bg-primary: #F8F8FA;
+  --bg-card: #FFFFFF;
+  --bg-card-elevated: #F5F5F7;
+  --bg-input: #F2F2F7;
+  --off-white: #F8F8FA;
+  --pure-white: #FFFFFF;
+  --true-black: #000000;
+
+  /* Text */
+  --text-primary: #000000;
+  --text-secondary: #8E8E93;
+  --text-tertiary: #C7C7CC;
+  --system-gray: #8E8E93;
+
+  /* Borders */
+  --border-gray: #E5E5EA;
+  --border-subtle: #F0F0F0;
+
+  /* Status Colors */
+  --success-green: #34D399;
+  --warning-orange-light: rgba(255, 92, 0, 0.15);
+  --error-red: #EF4444;
+
+  /* Hero Gradient (blue) */
+  --dark-card-start: #2667FF;
+  --dark-card-end: #3B28CC;
+
+  /* Gold Tier */
+  --gold: #FFD700;
+  --gold-muted: rgba(255, 215, 0, 0.15);
+}
+
+/* Typography System */
+.page-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.card-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.section-header {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.body-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.metadata-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.micro-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.score-number {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 60px;
+  font-weight: 700;
+  color: var(--pure-white);
+  line-height: 1;
+}
+
+.xp-number {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--action-orange);
+  line-height: 1.2;
+}
+
+/* Layout System */
+.page-container {
+  max-width: 100vw;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-gray);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.card.active {
+  border: 2px solid var(--action-orange);
+}
+
+.hero-card {
+  background: linear-gradient(135deg, var(--dark-card-start) 0%, var(--dark-card-end) 100%);
+  color: var(--pure-white);
+  border: none;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+/* Component Styles */
+.tier-badge {
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--gold);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tier-badge::before {
+  content: "★";
+  color: var(--action-orange);
+}
+
+.progress-bar {
+  height: 4px;
+  background: var(--border-gray);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  background: var(--action-orange);
+  border-radius: 2px;
+  transition: width 0.6s ease-out;
+}
+
+.filter-chip {
+  border: 1.5px solid var(--border-gray);
+  border-radius: 99px;
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-chip.active {
+  border-color: var(--action-orange);
+  color: var(--action-orange);
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.active {
+  background: var(--success-green);
+  color: var(--true-black);
+}
+
+.status-badge.starts-soon {
+  background: var(--action-orange);
+  color: var(--pure-white);
+}
+
+.status-badge.limited {
+  background: var(--warning-orange-light);
+  color: var(--action-orange);
+}
+
+.status-badge.waiting {
+  background: var(--border-gray);
+  color: var(--text-secondary);
+}
+
+/* Touch Targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Animations */
+@keyframes countUp {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-count-up {
+  animation: countUp 0.8s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}

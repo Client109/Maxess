@@ -1,0 +1,61 @@
+[
+  {
+    "name": "Bronze",
+    "min_xp": 0,
+    "xp_threshold": 0,
+    "color_hex": "#CD7F32",
+    "perks": [
+      "Community membership",
+      "Standard event access",
+      "Basic Maxxes feed"
+    ]
+  },
+  {
+    "name": "Silver",
+    "min_xp": 2500,
+    "xp_threshold": 2500,
+    "color_hex": "#C0C0C0",
+    "perks": [
+      "Priority event notifications",
+      "Early bird pricing on select events",
+      "Silver badge on profile"
+    ]
+  },
+  {
+    "name": "Gold",
+    "min_xp": 5000,
+    "xp_threshold": 5000,
+    "color_hex": "#FFD700",
+    "perks": [
+      "Presale access on all events",
+      "Early entry at partner venues",
+      "Verified fan status",
+      "Monthly XP bonus"
+    ]
+  },
+  {
+    "name": "Platinum",
+    "min_xp": 10000,
+    "xp_threshold": 10000,
+    "color_hex": "#E5E4E2",
+    "perks": [
+      "VIP lounge access",
+      "Meet & greet eligibility",
+      "Exclusive Platinum events",
+      "1.5x XP multiplier"
+    ]
+  },
+  {
+    "name": "Diamond",
+    "min_xp": 25000,
+    "xp_threshold": 25000,
+    "color_hex": "#B9F2FF",
+    "perks": [
+      "Backstage passes",
+      "First-access artist presale",
+      "Personal fan concierge",
+      "2x XP multiplier",
+      "Lifetime Diamond badge"
+    ]
+  }
+]

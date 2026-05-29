@@ -1,0 +1,12 @@
+.env
+.svelte-kit
+build
+node_modules
+dist
+.DS_Store
+*.log
+
+/../generated/prisma
+
+# SpecStory history (may contain secrets from CLI sessions)
+.specstory/history/

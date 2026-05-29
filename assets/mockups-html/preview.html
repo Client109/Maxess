@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Maxess Fan Access Platform</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#05050d;--panel:#0d0d1b;--panel2:#131326;--stroke:#242441;--muted:#6d6d94;--text:#f4f4ff;
+  --gold:#e8b84b;--purple:#7f77dd;--green:#43d69a;--red:#ff6b6b;--blue:#6bb7ff;
+}
+body{min-height:100vh;background:radial-gradient(circle at top,#191735 0,#070711 42%,#030306 100%);font-family:"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center;padding:28px;}
+.mx-shell{display:grid;grid-template-columns:392px minmax(620px,960px);gap:24px;align-items:start;width:min(1380px,100%);} 
+.mx-phone-wrap{display:flex;justify-content:center;}
+.mx-phone{width:376px;background:#06060f;border-radius:46px;overflow:hidden;border:1px solid #24243e;box-shadow:0 30px 90px rgba(0,0,0,.5);} 
+.mx-status{display:flex;justify-content:space-between;align-items:center;padding:15px 27px 8px;color:#f0f0ff;}
+.mx-time{font-size:15px;font-weight:800;}
+.mx-icons{display:flex;gap:5px;align-items:center;}
+.mx-screens{min-height:680px;max-height:680px;overflow:hidden;position:relative;}
+.mx-screen{display:none;min-height:680px;overflow-y:auto;padding-bottom:16px;scrollbar-width:none;}
+.mx-screen::-webkit-scrollbar{display:none;}
+.mx-screen.active{display:block;animation:fadeUp .25s ease;}
+@keyframes fadeUp{from{opacity:.3;transform:translateY(6px)}to{opacity:1;transform:none}}
+.mx-nav{background:#0c0c1e;border-top:1px solid #1c1c30;display:flex;justify-content:space-around;padding:10px 0 20px;}
+.mx-tab{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 7px;border-radius:13px;min-width:58px;}
+.mx-tab .ico{font-size:18px;color:#33335a;}
+.mx-tab .lbl{font-size:8px;font-weight:800;color:#33335a;letter-spacing:.8px;text-transform:uppercase;}
+.mx-tab.active .ico,.mx-tab.active .lbl{color:var(--gold);}
+.mx-header{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 20px 11px;}
+.eyebrow{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.title{font-size:24px;font-weight:900;letter-spacing:-.6px;color:var(--text);margin-top:3px;}
+.circle-btn{width:38px;height:38px;background:#151526;border:1px solid #23233e;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;}
+.pill{display:inline-flex;align-items:center;gap:7px;background:#1a1530;border:1px solid #3a2a10;border-radius:100px;padding:5px 12px 5px 8px;margin:0 20px 14px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 15px rgba(232,184,75,.7);}
+.pill span{font-size:10px;font-weight:800;color:var(--gold);letter-spacing:1px;text-transform:uppercase;}
+.card-stack{position:relative;height:232px;margin:0 20px;cursor:pointer;}
+.fan-card{position:absolute;left:0;right:0;height:190px;border-radius:22px;overflow:hidden;transition:all .45s cubic-bezier(.34,1.4,.64,1);border:1px solid rgba(255,255,255,.08);}
+.card-ts{background:linear-gradient(135deg,#271055,#11051f);z-index:4;top:0;}
+.card-lakers{background:linear-gradient(135deg,#180438,#0e0720);z-index:3;top:14px;transform:scale(.97);}
+.card-coach{background:linear-gradient(135deg,#071e15,#07100c);z-index:2;top:26px;transform:scale(.94);}
+.card-sofi{background:linear-gradient(135deg,#06162f,#06101e);z-index:1;top:36px;transform:scale(.91);}
+.card-stack.fanned .card-ts{transform:translateX(-36px) rotate(-7deg) scale(.98);top:4px;}
+.card-stack.fanned .card-lakers{transform:translateX(-12px) rotate(-2deg) scale(1);top:0;}
+.card-stack.fanned .card-coach{transform:translateX(18px) rotate(4deg) scale(.98);top:4px;}
+.card-stack.fanned .card-sofi{transform:translateX(42px) rotate(8deg) scale(.95);top:12px;}
+.card-in{padding:17px 19px;height:100%;display:flex;flex-direction:column;justify-content:space-between;position:relative;z-index:2;}
+.card-brand{font-size:10px;letter-spacing:5px;color:rgba(255,255,255,.35);font-weight:800;text-transform:uppercase;}
+.card-main{font-size:29px;font-weight:950;color:#fff;letter-spacing:-.7px;line-height:.96;}
+.card-foot{display:flex;justify-content:space-between;align-items:flex-end;}
+.meta-label{font-size:9px;letter-spacing:1.4px;color:rgba(255,255,255,.35);font-weight:800;text-transform:uppercase;}
+.meta-value{font-size:14px;font-weight:900;color:rgba(255,255,255,.85);letter-spacing:.4px;}
+.grade{width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.22);background:rgba(0,0,0,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.grade strong{font-size:18px;line-height:1;}.grade small{font-size:6px;letter-spacing:1px;color:rgba(255,255,255,.45);font-weight:900;text-transform:uppercase;}
+.shimmer{position:absolute;top:-50%;left:0;width:20%;height:200%;background:rgba(255,255,255,.055);transform:skewX(-22deg);animation:swipe 4.2s ease-in-out infinite;pointer-events:none;z-index:1;}
+@keyframes swipe{0%,100%{left:-35%;opacity:0}8%{opacity:1}52%{left:130%;opacity:1}60%{opacity:0}61%,99%{left:130%;opacity:0}}
+.hint{text-align:center;font-size:9px;color:#37375f;padding:6px 0 4px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;}
+.panel{margin:12px 20px 0;background:var(--panel);border:1px solid #1e1e35;border-radius:17px;padding:14px;}
+.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.panel-label{font-size:10px;font-weight:900;color:var(--muted);letter-spacing:1.4px;text-transform:uppercase;}
+.panel-value{font-size:18px;font-weight:950;color:var(--gold);}
+.progress{height:6px;background:#1a1a32;border-radius:999px;overflow:hidden;}
+.progress>span{display:block;height:100%;width:78%;background:linear-gradient(90deg,var(--gold),#ffe08a);border-radius:999px;}
+.sub{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.35;}.sub strong{color:var(--gold);}
+.section-label{font-size:10px;font-weight:900;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;padding:16px 20px 9px;display:block;}
+.feed{padding:0 20px 18px;display:flex;flex-direction:column;gap:8px;}
+.row{display:flex;align-items:center;gap:11px;background:var(--panel);border-radius:14px;padding:11px;border:1px solid #1e1e35;}
+.row-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#151530;}
+.row-text{flex:1;min-width:0}.row-name{font-size:12px;font-weight:850;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.row-score{font-size:13px;font-weight:950;color:var(--gold);}
+.detail-top{display:flex;align-items:center;gap:11px;padding:14px 20px;}
+.back{width:34px;height:34px;background:#151526;border:1px solid #23233e;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;color:#fff;}
+.detail-title{font-size:17px;font-weight:900;}
+.detail-card{margin:0 20px 14px;height:208px;border-radius:23px;overflow:hidden;background:linear-gradient(135deg,#271055,#11051f);position:relative;border:1px solid rgba(255,255,255,.08);}
+.big-card-in{padding:20px 22px;height:100%;display:flex;flex-direction:column;justify-content:space-between;position:relative;z-index:2;}
+.big-card-title{font-size:36px;font-weight:950;letter-spacing:-1px;line-height:.96;}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:0 20px 13px;}
+.metric{background:var(--panel);border-radius:15px;padding:13px;border:1px solid #1e1e35;}.metric .m-ico{font-size:15px;margin-bottom:5px}.metric .m-val{font-size:22px;font-weight:950;letter-spacing:-.4px}.metric .m-lbl{font-size:9px;font-weight:900;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.tier-rail{display:flex;gap:5px;justify-content:space-between;}.tier-item{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}.tier-bubble{width:43px;height:43px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:950;letter-spacing:.5px;text-transform:uppercase}.tier-bubble.done{background:var(--gold);color:#07060a}.tier-bubble.now{background:#1a1530;border:2px solid var(--gold);color:var(--gold)}.tier-bubble.lock{background:#111120;border:1px solid #22223e;color:#3a3a65}.tier-label{font-size:8px;color:var(--muted);font-weight:800;text-transform:uppercase;}
+.reward-list{padding:0 20px 20px;display:flex;flex-direction:column;gap:9px;}.reward{background:var(--panel);border-radius:18px;overflow:hidden;border:1px solid #1e1e35;cursor:pointer}.reward.locked{opacity:.45}.reward-top{padding:13px;display:flex;align-items:center;gap:11px}.reward-ico{width:47px;height:47px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;background:#151530;flex-shrink:0}.reward-info{flex:1}.reward-name{font-size:13px;font-weight:900}.reward-det{font-size:11px;color:var(--muted);margin-top:2px}.badge{background:#1a1530;border:1px solid #3a2a10;border-radius:100px;padding:3px 8px;font-size:9px;font-weight:850;color:var(--gold);letter-spacing:.5px}.reward-act{background:var(--gold);padding:11px 15px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:950;color:#07060a}.reward-act.locked{background:#151526;color:#3a3a65;}
+.ticket-hero{margin:0 20px 13px;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,#1b123d,#090916);border:1px solid #272745;}.ticket-strip{padding:16px;display:flex;gap:14px;align-items:center;border-bottom:1px dashed #38385b;}.ticket-date{width:58px;height:58px;background:#e8b84b;color:#090912;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:950}.ticket-date span{font-size:10px;letter-spacing:1px;text-transform:uppercase}.ticket-date strong{font-size:21px}.ticket-main{flex:1}.ticket-main h3{font-size:17px;line-height:1.1}.ticket-main p{font-size:11px;color:var(--muted);margin-top:3px}.ticket-bottom{padding:13px 16px;display:flex;justify-content:space-between;align-items:center}.access-tag{font-size:10px;font-weight:900;color:var(--green);letter-spacing:1px;text-transform:uppercase}.cta{background:var(--gold);color:#07060a;border:none;border-radius:12px;padding:10px 12px;font-size:12px;font-weight:950;cursor:pointer;}
+.connect-grid{padding:0 20px 18px;display:grid;grid-template-columns:1fr;gap:8px}.connect{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid #1e1e35;border-radius:15px;padding:12px}.connect strong{font-size:13px}.connect small{display:block;color:var(--muted);font-size:10px;margin-top:2px}.toggle{width:40px;height:23px;background:#29294b;border-radius:999px;padding:3px}.toggle.on{background:#2f805f}.toggle span{display:block;width:17px;height:17px;border-radius:50%;background:#fff;transform:translateX(0);transition:.2s}.toggle.on span{transform:translateX(17px)}
+.biz-wrap{background:rgba(6,6,15,.78);border:1px solid #24243e;border-radius:28px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.32);backdrop-filter:blur(18px);}.biz-top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:18px}.biz-kicker{color:var(--gold);font-size:11px;font-weight:950;letter-spacing:1.8px;text-transform:uppercase}.biz-title{font-size:31px;font-weight:950;letter-spacing:-1px;margin-top:5px}.biz-copy{color:#a2a2c0;font-size:14px;line-height:1.55;margin-top:7px;max-width:690px}.partner-select{background:#111124;border:1px solid #29294a;color:#f4f4ff;border-radius:14px;padding:11px 13px;font-weight:800;outline:none}.biz-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.kpi{background:#0d0d1b;border:1px solid #24243e;border-radius:18px;padding:15px}.kpi small{font-size:10px;color:var(--muted);font-weight:900;letter-spacing:1.2px;text-transform:uppercase}.kpi strong{display:block;font-size:25px;margin-top:8px;letter-spacing:-.8px}.kpi span{display:block;color:var(--green);font-size:11px;font-weight:850;margin-top:5px}.biz-two{display:grid;grid-template-columns:1.05fr .95fr;gap:14px}.desk-card{background:#0d0d1b;border:1px solid #24243e;border-radius:20px;padding:16px;min-height:260px}.desk-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px}.desk-head h3{font-size:16px}.desk-head small{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:1px}.segment{display:grid;grid-template-columns:110px 1fr 62px;gap:10px;align-items:center;margin:12px 0}.seg-name{font-size:12px;font-weight:850}.seg-bar{height:9px;background:#191930;border-radius:999px;overflow:hidden}.seg-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:999px}.seg-val{font-size:12px;text-align:right;color:#d8d8ed;font-weight:900}.campaign{display:flex;align-items:center;gap:12px;background:#111124;border:1px solid #252542;border-radius:15px;padding:12px;margin-bottom:9px}.campaign-ico{width:38px;height:38px;border-radius:12px;background:#181836;display:flex;align-items:center;justify-content:center}.campaign strong{font-size:13px}.campaign p{font-size:11px;color:var(--muted);margin-top:2px}.campaign .status{margin-left:auto;color:var(--green);font-size:10px;font-weight:900;letter-spacing:1px}.insight{padding:13px;border-radius:16px;background:linear-gradient(135deg,#15152b,#0d0d1b);border:1px solid #24243e;margin-top:11px;color:#babada;font-size:13px;line-height:1.45}.insight strong{color:var(--gold)}
+@media(max-width:1040px){body{align-items:flex-start}.mx-shell{grid-template-columns:1fr}.biz-grid{grid-template-columns:repeat(2,1fr)}.biz-two{grid-template-columns:1fr}.mx-phone-wrap{order:1}.biz-wrap{order:2}}
+@media(max-width:560px){body{padding:12px}.mx-phone{width:100%;max-width:376px}.biz-grid{grid-template-columns:1fr}.biz-top{flex-direction:column}.biz-title{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="mx-shell">
+  <div class="mx-phone-wrap">
+    <div class="mx-phone">
+      <div class="mx-status"><span class="mx-time">9:41</span><div class="mx-icons"><span>▮▮▮</span><span>⌁</span><span>▰</span></div></div>
+      <div class="mx-screens">
+        <section class="mx-screen active" id="s-home">
+          <div class="mx-header"><div><div class="eyebrow">Good evening</div><div class="title">Kyle's Access</div></div><div class="circle-btn">🔔</div></div>
+          <div class="pill"><div class="dot"></div><span>Gold Tier Active</span></div>
+          <div class="card-stack" id="cardStack" onclick="fanCards(event)">
+            <div class="fan-card card-sofi" onclick="openDetail(event,'SoFi Stadium','Venue','Silver','2','#06162f')"><div class="shimmer" style="animation-delay:2.4s"></div><div class="card-in"><div class="card-brand">MAXESS</div><div class="card-main">SOFI<br>STADIUM</div><div class="card-foot"><div><div class="meta-label">Tier</div><div class="meta-value">Silver</div></div><div class="grade"><strong>2</strong><small>SLVR</small></div></div></div></div>
+            <div class="fan-card card-coach" onclick="openDetail(event,'Coachella','Festival','Bronze','1','#071e15')"><div class="shimmer" style="animation-delay:1.8s"></div><div class="card-in"><div class="card-brand">MAXESS</div><div class="card-main">COACHELLA</div><div class="card-foot"><div><div class="meta-label">Tier</div><div class="meta-value">Bronze</div></div><div class="grade"><strong>1</strong><small>BRNZ</small></div></div></div></div>
+            <div class="fan-card card-lakers" onclick="openDetail(event,'LA Lakers','Team','Silver','2','#140030')"><div class="shimmer" style="animation-delay:1.1s"></div><div class="card-in"><div class="card-brand">MAXESS</div><div class="card-main">LA<br>LAKERS</div><div class="card-foot"><div><div class="meta-label">Tier</div><div class="meta-value">Silver</div></div><div class="grade"><strong>2</strong><small>SLVR</small></div></div></div></div>
+            <div class="fan-card card-ts" onclick="openDetail(event,'Taylor Swift','Artist','Gold','3','#1E0A40')"><div class="shimmer" style="animation-delay:.4s"></div><div class="card-in"><div class="card-brand">MAXESS</div><div class="card-main">TAYLOR<br>SWIFT</div><div class="card-foot"><div><div class="meta-label">Tier</div><div class="meta-value">Gold</div></div><div class="grade"><strong>3</strong><small>GOLD</small></div></div></div></div>
+          </div>
+          <div class="hint" id="stackHint">Tap stack to expand · 4 access cards</div>
+          <div class="panel"><div class="panel-head"><div class="panel-label">Monthly Fan Score</div><div class="panel-value">6,240 XP</div></div><div class="progress"><span></span></div><div class="sub"><strong>1,760 XP</strong> to Platinum · Verified by listening, watch time, purchases, and attendance.</div></div>
+          <span class="section-label">Recent Signals</span>
+          <div class="feed">
+            <div class="row"><div class="row-ico" style="background:#1e0a40">🎵</div><div class="row-text"><div class="row-name">Taylor Swift · 3h listening</div><div class="row-sub">Spotify connected · 2 hours ago</div></div><div class="row-score">+9 XP</div></div>
+            <div class="row"><div class="row-ico" style="background:#140030">🏀</div><div class="row-text"><div class="row-name">Lakers vs. Warriors</div><div class="row-sub">Attended · Crypto.com Arena</div></div><div class="row-score">+200</div></div>
+            <div class="row"><div class="row-ico" style="background:#1a120a">🛍️</div><div class="row-text"><div class="row-name">Eras Tour Merch · $87</div><div class="row-sub">Official artist store · 2 days ago</div></div><div class="row-score">+87</div></div>
+            <div class="row"><div class="row-ico" style="background:#071510">📍</div><div class="row-text"><div class="row-name">Coachella 2025 Check-in</div><div class="row-sub">QR scan · Indio, CA</div></div><div class="row-score">+200</div></div>
+          </div>
+        </section>
+
+        <section class="mx-screen" id="s-detail">
+          <div class="detail-top"><div class="back" onclick="go('home')">←</div><div class="detail-title" id="detailName">Taylor Swift</div></div>
+          <div class="detail-card" id="detailCard"><div class="shimmer"></div><div class="big-card-in"><div style="display:flex;justify-content:space-between"><div class="card-brand">MAXESS</div><div class="eyebrow" id="detailType">ARTIST</div></div><div><div class="eyebrow" style="margin-bottom:5px">Fan Card</div><div class="big-card-title" id="detailBig">TAYLOR<br>SWIFT</div></div><div class="card-foot"><div><div class="meta-label" id="detailTier">Gold Tier</div><div class="meta-value">Verified Fan Access</div></div><div class="grade"><strong id="detailLevel">3</strong><small id="detailCode">GOLD</small></div></div></div></div>
+          <span class="section-label">Data Signals</span>
+          <div class="grid2">
+            <div class="metric"><div class="m-ico">🎵</div><div class="m-val">847<span style="font-size:13px;color:var(--muted)">h</span></div><div class="m-lbl">Listening</div></div>
+            <div class="metric"><div class="m-ico">📺</div><div class="m-val">124<span style="font-size:13px;color:var(--muted)">h</span></div><div class="m-lbl">Watch Time</div></div>
+            <div class="metric"><div class="m-ico">🛍️</div><div class="m-val">$340</div><div class="m-lbl">Purchases</div></div>
+            <div class="metric"><div class="m-ico">📍</div><div class="m-val">3</div><div class="m-lbl">Events</div></div>
+          </div>
+          <div class="panel"><div class="panel-head"><div><div class="panel-label">Level 3 Gold</div></div><div class="panel-value">78%</div></div><div class="progress"><span></span></div><div class="sub"><strong>1,760 XP</strong> to Platinum · Unlock VIP ballots and soundcheck access.</div></div>
+          <span class="section-label">How to Earn</span>
+          <div class="feed">
+            <div class="row"><div class="row-ico">🎵</div><div class="row-text"><div class="row-name">1 hour on Spotify or Apple Music</div><div class="row-sub">Verified artist listening</div></div><div class="row-score">+3</div></div>
+            <div class="row"><div class="row-ico">📺</div><div class="row-text"><div class="row-name">Watch a game or concert stream</div><div class="row-sub">Partner broadcast data</div></div><div class="row-score">+25</div></div>
+            <div class="row"><div class="row-ico">📍</div><div class="row-text"><div class="row-name">Attend a live event</div><div class="row-sub">Ticket scan or venue QR</div></div><div class="row-score">+200</div></div>
+            <div class="row"><div class="row-ico">🛍️</div><div class="row-text"><div class="row-name">Every $1 official purchase</div><div class="row-sub">Merch, tickets, memberships</div></div><div class="row-score">+1</div></div>
+          </div>
+        </section>
+
+        <section class="mx-screen" id="s-tickets">
+          <div class="mx-header"><div><div class="eyebrow">Unlocked Access</div><div class="title">Tickets</div></div><div class="circle-btn">🎟️</div></div>
+          <div class="ticket-hero"><div class="ticket-strip"><div class="ticket-date"><span>Jun</span><strong>14</strong></div><div class="ticket-main"><h3>Coachella 2026 Loyalty Presale</h3><p>Gold+ fans get early queue access before public sale.</p></div></div><div class="ticket-bottom"><span class="access-tag">Eligible · Gold Tier</span><button class="cta">Access</button></div></div>
+          <span class="section-label">Recommended Drops</span>
+          <div class="reward-list">
+            <div class="reward"><div class="reward-top"><div class="reward-ico">🏟️</div><div class="reward-info"><div class="reward-name">SoFi Stadium Suite Upgrade</div><div class="reward-det">Raffle based on venue loyalty score</div></div><div class="badge">SLV+</div></div><div class="reward-act">Enter Raffle <span>→</span></div></div>
+            <div class="reward"><div class="reward-top"><div class="reward-ico">🏀</div><div class="reward-info"><div class="reward-name">Lakers Courtside Ballot</div><div class="reward-det">Crypto.com Arena · Dec 12</div></div><div class="badge">GOLD</div></div><div class="reward-act">Join Ballot <span>→</span></div></div>
+            <div class="reward locked"><div class="reward-top"><div class="reward-ico">🤝</div><div class="reward-info"><div class="reward-name">Meet & Greet Experience</div><div class="reward-det">Requires Platinum tier</div></div><div class="badge">PLAT</div></div><div class="reward-act locked">Locked 🔒</div></div>
+          </div>
+        </section>
+
+        <section class="mx-screen" id="s-rewards">
+          <div class="mx-header"><div><div class="eyebrow">Fan Benefits</div><div class="title">Rewards</div></div><div class="circle-btn">⭐</div></div>
+          <div class="panel"><div class="panel-label" style="color:var(--gold);margin-bottom:12px">Gold Tier Active</div><div class="tier-rail"><div class="tier-item"><div class="tier-bubble done">BRZ</div><div class="tier-label">Bronze</div></div><div class="tier-item"><div class="tier-bubble done">SLV</div><div class="tier-label">Silver</div></div><div class="tier-item"><div class="tier-bubble now">GLD</div><div class="tier-label">Gold</div></div><div class="tier-item"><div class="tier-bubble lock">PLT</div><div class="tier-label">Plat</div></div><div class="tier-item"><div class="tier-bubble lock">DMD</div><div class="tier-label">Diam</div></div></div></div>
+          <span class="section-label">Available Now</span>
+          <div class="reward-list">
+            <div class="reward"><div class="reward-top"><div class="reward-ico">🎫</div><div class="reward-info"><div class="reward-name">48hr Presale Window</div><div class="reward-det">Artist, team, and festival partners</div></div><div class="badge">GOLD ✓</div></div><div class="reward-act">Claim Access <span>→</span></div></div>
+            <div class="reward"><div class="reward-top"><div class="reward-ico">👕</div><div class="reward-info"><div class="reward-name">Priority Merch Drops</div><div class="reward-det">Early access to limited releases</div></div><div class="badge">GOLD ✓</div></div><div class="reward-act">Shop Now <span>→</span></div></div>
+            <div class="reward"><div class="reward-top"><div class="reward-ico">🎬</div><div class="reward-info"><div class="reward-name">Behind-the-Scenes Content</div><div class="reward-det">Unlocked from verified engagement</div></div><div class="badge">GOLD ✓</div></div><div class="reward-act">Watch <span>→</span></div></div>
+          </div>
+        </section>
+
+        <section class="mx-screen" id="s-profile">
+          <div class="mx-header"><div><div class="eyebrow">Data Wallet</div><div class="title">Profile</div></div><div class="circle-btn">👤</div></div>
+          <div class="panel"><div class="panel-head"><div><div class="panel-label">Verified Fan ID</div><div class="panel-value">MX-4921</div></div><div class="badge">PRIVATE</div></div><div class="sub">You control connected sources. Partners see eligibility and aggregated insights, not raw personal data by default.</div></div>
+          <span class="section-label">Connected Sources</span>
+          <div class="connect-grid">
+            <div class="connect"><div><strong>Spotify</strong><small>Listening hours and artist affinity</small></div><div class="toggle on"><span></span></div></div>
+            <div class="connect"><div><strong>Apple Music</strong><small>Optional listening import</small></div><div class="toggle"><span></span></div></div>
+            <div class="connect"><div><strong>Ticketmaster / AXS</strong><small>Ticket scans and event history</small></div><div class="toggle on"><span></span></div></div>
+            <div class="connect"><div><strong>Shopify Stores</strong><small>Official merch purchase history</small></div><div class="toggle on"><span></span></div></div>
+            <div class="connect"><div><strong>Sports Broadcasts</strong><small>Watch time from partner platforms</small></div><div class="toggle on"><span></span></div></div>
+          </div>
+        </section>
+      </div>
+      <nav class="mx-nav">
+        <div class="mx-tab active" id="tab-home" onclick="go('home')"><div class="ico">⌂</div><div class="lbl">Home</div></div>
+        <div class="mx-tab" id="tab-detail" onclick="go('detail')"><div class="ico">▣</div><div class="lbl">Cards</div></div>
+        <div class="mx-tab" id="tab-tickets" onclick="go('tickets')"><div class="ico">🎟</div><div class="lbl">Tickets</div></div>
+        <div class="mx-tab" id="tab-rewards" onclick="go('rewards')"><div class="ico">★</div><div class="lbl">Rewards</div></div>
+        <div class="mx-tab" id="tab-profile" onclick="go('profile')"><div class="ico">●</div><div class="lbl">Profile</div></div>
+      </nav>
+    </div>
+  </div>
+
+  <aside class="biz-wrap">
+    <div class="biz-top"><div><div class="biz-kicker">Partner Intelligence Dashboard</div><h1 class="biz-title">Maxess turns verified fandom into smarter live-event access.</h1><p class="biz-copy">A venue, festival, team, or artist embeds the Maxess widget to classify fans by engagement signals, manage presales and perks, and understand demand before tickets go on sale.</p></div><select class="partner-select" onchange="partnerChange(this.value)"><option>Coachella</option><option>SoFi Stadium</option><option>Crypto.com Arena</option><option>LA Lakers</option></select></div>
+    <div class="biz-grid">
+      <div class="kpi"><small>Eligible Fans</small><strong id="kpiFans">83.4K</strong><span>+18% from last campaign</span></div>
+      <div class="kpi"><small>Predicted Sell-Through</small><strong id="kpiSell">91%</strong><span>Gold+ segment</span></div>
+      <div class="kpi"><small>Avg Fan Score</small><strong id="kpiScore">6,240</strong><span>verified XP</span></div>
+      <div class="kpi"><small>Campaign Revenue</small><strong id="kpiRev">$4.8M</strong><span>projected gross</span></div>
+    </div>
+    <div class="biz-two">
+      <div class="desk-card"><div class="desk-head"><h3>Fan Segments</h3><small>Live audience model</small></div>
+        <div class="segment"><div class="seg-name">Superfans</div><div class="seg-bar"><span style="width:88%"></span></div><div class="seg-val">31.2K</div></div>
+        <div class="segment"><div class="seg-name">High Spend</div><div class="seg-bar"><span style="width:66%"></span></div><div class="seg-val">22.9K</div></div>
+        <div class="segment"><div class="seg-name">Local Fans</div><div class="seg-bar"><span style="width:76%"></span></div><div class="seg-val">28.4K</div></div>
+        <div class="segment"><div class="seg-name">Streaming Heavy</div><div class="seg-bar"><span style="width:58%"></span></div><div class="seg-val">19.7K</div></div>
+        <div class="segment"><div class="seg-name">Dormant</div><div class="seg-bar"><span style="width:28%"></span></div><div class="seg-val">8.1K</div></div>
+        <div class="insight"><strong>Insight:</strong> Gold+ fans with 500+ listening hours and one prior venue scan are projected to convert 3.4x higher than general public traffic.</div>
+      </div>
+      <div class="desk-card"><div class="desk-head"><h3>Campaign Manager</h3><small>Access rules</small></div>
+        <div class="campaign"><div class="campaign-ico">🎫</div><div><strong>Gold+ Presale</strong><p>48-hour window for verified fans.</p></div><div class="status">LIVE</div></div>
+        <div class="campaign"><div class="campaign-ico">🏟️</div><div><strong>Venue Loyalty Upgrade</strong><p>Suite raffle for SoFi repeat attendees.</p></div><div class="status">READY</div></div>
+        <div class="campaign"><div class="campaign-ico">👕</div><div><strong>Merch Drop Boost</strong><p>Priority access for high-purchase fans.</p></div><div class="status">DRAFT</div></div>
+        <div class="campaign"><div class="campaign-ico">📊</div><div><strong>Demand Forecast</strong><p>Predict regional sell-through by tier.</p></div><div class="status">AUTO</div></div>
+        <div class="insight"><strong>Monetization:</strong> subscription dashboard + campaign fees + transaction fee + anonymized aggregate fan intelligence reports.</div>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+let fanned=false;
+function fanCards(e){
+  fanned=!fanned;
+  document.getElementById('cardStack').classList.toggle('fanned',fanned);
+  document.getElementById('stackHint').textContent=fanned?'Tap a card to view detail · verified access':'Tap stack to expand · 4 access cards';
+}
+function go(name){
+  document.querySelectorAll('.mx-screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.mx-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('s-'+name).classList.add('active');
+  const tab=document.getElementById('tab-'+name);
+  if(tab)tab.classList.add('active');
+}
+function openDetail(e,name,type,tier,level,color){
+  if(!fanned){return;}
+  e.stopPropagation();
+  const code={Bronze:'BRNZ',Silver:'SLVR',Gold:'GOLD',Platinum:'PLAT',Diamond:'DIAM'}[tier]||tier.toUpperCase();
+  document.getElementById('detailName').textContent=name;
+  document.getElementById('detailType').textContent=type;
+  document.getElementById('detailTier').textContent=tier+' Tier';
+  document.getElementById('detailLevel').textContent=level;
+  document.getElementById('detailCode').textContent=code;
+  document.getElementById('detailBig').innerHTML=name.toUpperCase().replace(' ','<br>');
+  document.getElementById('detailCard').style.background='linear-gradient(135deg,'+color+',#080812)';
+  go('detail');
+}
+function partnerChange(name){
+  const data={
+    'Coachella':['83.4K','91%','6,240','$4.8M'],
+    'SoFi Stadium':['61.8K','84%','5,710','$3.2M'],
+    'Crypto.com Arena':['44.6K','79%','5,980','$2.1M'],
+    'LA Lakers':['128K','93%','7,120','$8.5M']
+  }[name];
+  document.getElementById('kpiFans').textContent=data[0];
+  document.getElementById('kpiSell').textContent=data[1];
+  document.getElementById('kpiScore').textContent=data[2];
+  document.getElementById('kpiRev').textContent=data[3];
+}
+</script>
+</body>
+</html>

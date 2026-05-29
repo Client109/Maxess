@@ -1,0 +1,237 @@
+// Prisma schema for Maxxes - Based on existing types and PostgreSQL requirements
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User/Fan Profile
+model User {
+  id              String   @id @default(cuid())
+  fan_id          String   @unique // For compatibility with existing frontend
+  email           String?  @unique
+  name            String
+  avatar_initials String
+  city            String
+  member_since    DateTime @default(now())
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Fan profile data (flatten into User for simplicity)
+  xp_total        Int     @default(0)
+  current_tier    Tier    @default(GENERAL)
+  streak_days     Int     @default(0)
+  rank            Int?
+  percentile      Int?
+  top_artist      String?
+  top_venue       String?
+  events_attended Int     @default(0)
+
+  // API integration fields
+  spotify_id      String?
+  apple_music_id  String?
+  discord_id      String?
+  lastfm_username String?
+
+  // Relationships
+  event_interactions UserEvent[]
+  challenge_progress UserChallenge[]
+  xp_transactions    XpTransaction[]
+  friend_activities  FriendActivity[] @relation("UserFriendActivities")
+  recent_activities  RecentActivity[]
+
+  @@map("users")
+}
+
+// Events
+model Event {
+  id         String        @id @default(cuid())
+  event_id   String        @unique // For frontend compatibility
+  title      String
+  subtitle   String?
+  artist     String?
+  venue      String
+  city       String
+  date       DateTime
+  category   EventCategory
+  image_url  String?
+  status     String? // "upcoming", "live", "ended"
+  trending   Boolean       @default(false)
+  featured   Boolean       @default(false)
+  created_at DateTime      @default(now())
+
+  // Relationships
+  user_events UserEvent[]
+
+  @@map("events")
+}
+
+// User-Event interactions (bookmarks, attendance, etc.)
+model UserEvent {
+  id         String   @id @default(cuid())
+  user_id    String
+  event_id   String
+  bookmarked Boolean  @default(false)
+  notify_me  Boolean  @default(false)
+  attended   Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+
+  @@unique([user_id, event_id])
+  @@map("user_events")
+}
+
+// Challenges
+model Challenge {
+  id              String   @id @default(cuid())
+  challenge_id    String   @unique // For frontend compatibility
+  title           String
+  description     String?
+  category        String // "Attendance", "Discovery", "Social", etc.
+  xp_reward       Int
+  difficulty      String   @default("Medium")
+  tasks           Json // Array of task objects
+  progress_target Int      @default(100)
+  active          Boolean  @default(true)
+  created_at      DateTime @default(now())
+
+  user_challenges UserChallenge[]
+
+  @@map("challenges")
+}
+
+// User Challenge Progress
+model UserChallenge {
+  id              String    @id @default(cuid())
+  user_id         String
+  challenge_id    String
+  completed       Boolean   @default(false)
+  progress        Int       @default(0) // Progress percentage (0-100)
+  tasks_completed Json      @default("[]") // Array of completed task IDs
+  completed_at    DateTime?
+  created_at      DateTime  @default(now())
+
+  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challenge_id], references: [challenge_id], onDelete: Cascade)
+
+  @@unique([user_id, challenge_id])
+  @@map("user_challenges")
+}
+
+// XP Transaction Log
+model XpTransaction {
+  id          String   @id @default(cuid())
+  user_id     String
+  amount      Int
+  source      String // "Event Attendance", "Venue Check-ins", "Challenges", etc.
+  reference   String? // Event ID, Challenge ID, etc.
+  description String?
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("xp_transactions")
+}
+
+// Passes (Access tier rewards)
+model Pass {
+  id          String     @id @default(cuid())
+  pass_id     String     @unique
+  user_id     String?
+  title       String
+  description String?
+  tier        Tier
+  status      PassStatus @default(AVAILABLE)
+  valid_until DateTime?
+  created_at  DateTime   @default(now())
+  claimed_at  DateTime?
+
+  @@map("passes")
+}
+
+// Friend Activity (social feed)
+model FriendActivity {
+  id          String   @id @default(cuid())
+  user_id     String
+  friend_name String
+  activity    String
+  xp_change   Int?
+  created_at  DateTime @default(now())
+
+  user User @relation("UserFriendActivities", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("friend_activities")
+}
+
+// Recent Activity (user's own activity log)
+model RecentActivity {
+  id          String   @id @default(cuid())
+  user_id     String
+  activity    String
+  description String?
+  xp_earned   Int      @default(0)
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("recent_activities")
+}
+
+// Leaderboard (computed/cached view)
+model LeaderboardEntry {
+  id          String   @id @default(cuid())
+  user_id     String
+  name        String
+  xp_total    Int
+  tier        Tier
+  rank        Int
+  city        String?
+  period      Period   @default(ALL_TIME) // WEEKLY, MONTHLY, ALL_TIME
+  computed_at DateTime @default(now())
+
+  @@unique([user_id, period])
+  @@index([period, rank])
+  @@map("leaderboard")
+}
+
+// Enums
+enum Tier {
+  GENERAL
+  LOYAL
+  SUPERFAN
+  ELITE
+
+  @@map("tier")
+}
+
+enum EventCategory {
+  MUSIC
+  SPORTS
+  THEATER
+  COMEDY
+  OTHER
+
+  @@map("event_category")
+}
+
+enum PassStatus {
+  AVAILABLE
+  CLAIMED
+  ACTIVE
+  EXPIRED
+
+  @@map("pass_status")
+}
+
+enum Period {
+  WEEKLY
+  MONTHLY
+  ALL_TIME
+
+  @@map("period")
+}

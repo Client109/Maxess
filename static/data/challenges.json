@@ -1,0 +1,83 @@
+[
+  {
+    "challenge_id": "ch_001",
+    "id": "ch_001",
+    "title": "Show Up",
+    "subtitle": "Attend a verified live event",
+    "reward_name": "Early Entry Pass",
+    "thumbnail_image": "🎤",
+    "is_limited": true,
+    "expires_in": "3 days left",
+    "progress_fraction": 1.0,
+    "tasks": [
+      { "task_id": "ch_001_t1", "description": "Purchase a ticket to any Maxxes event", "is_complete": true },
+      { "task_id": "ch_001_t2", "description": "Check in at the venue on event day", "is_complete": true },
+      { "task_id": "ch_001_t3", "description": "Submit your post-event recap", "is_complete": true }
+    ]
+  },
+  {
+    "challenge_id": "ch_002",
+    "id": "ch_002",
+    "title": "Stream 5 Hours",
+    "subtitle": "Log 5 hours of music this week",
+    "reward_name": "500 Bonus XP",
+    "thumbnail_image": "🎧",
+    "is_limited": false,
+    "expires_in": "This week",
+    "progress_fraction": 0.33,
+    "tasks": [
+      { "task_id": "ch_002_t1", "description": "Stream 1 hour of music", "is_complete": true },
+      { "task_id": "ch_002_t2", "description": "Stream 3 hours total", "is_complete": false },
+      { "task_id": "ch_002_t3", "description": "Stream 5 hours total", "is_complete": false }
+    ]
+  },
+  {
+    "challenge_id": "ch_003",
+    "id": "ch_003",
+    "title": "Streak Keeper",
+    "subtitle": "Stay active for 7 days straight",
+    "reward_name": "1.5x Streak Multiplier",
+    "thumbnail_image": "🔥",
+    "is_limited": false,
+    "expires_in": "Ongoing",
+    "progress_fraction": 0.67,
+    "tasks": [
+      { "task_id": "ch_003_t1", "description": "Log activity 3 days in a row", "is_complete": true },
+      { "task_id": "ch_003_t2", "description": "Log activity 5 days in a row", "is_complete": true },
+      { "task_id": "ch_003_t3", "description": "Log activity 7 days in a row", "is_complete": false }
+    ]
+  },
+  {
+    "challenge_id": "ch_004",
+    "id": "ch_004",
+    "title": "Top 10 Climber",
+    "subtitle": "Break into the city leaderboard top 10",
+    "reward_name": "Diamond Leaderboard Badge",
+    "thumbnail_image": "🏆",
+    "is_limited": true,
+    "expires_in": "5 days left",
+    "progress_fraction": 0.75,
+    "tasks": [
+      { "task_id": "ch_004_t1", "description": "Reach the top 25 in your city", "is_complete": true },
+      { "task_id": "ch_004_t2", "description": "Reach the top 20 in your city", "is_complete": true },
+      { "task_id": "ch_004_t3", "description": "Reach the top 15 in your city", "is_complete": true },
+      { "task_id": "ch_004_t4", "description": "Finish in the top 10 this week", "is_complete": false }
+    ]
+  },
+  {
+    "challenge_id": "ch_005",
+    "id": "ch_005",
+    "title": "Share Your Recap",
+    "subtitle": "Document and share your fan experience",
+    "reward_name": "Social Booster Badge",
+    "thumbnail_image": "📸",
+    "is_limited": false,
+    "expires_in": "2 weeks left",
+    "progress_fraction": 0.0,
+    "tasks": [
+      { "task_id": "ch_005_t1", "description": "Attend an upcoming event", "is_complete": false },
+      { "task_id": "ch_005_t2", "description": "Write your fan recap", "is_complete": false },
+      { "task_id": "ch_005_t3", "description": "Share your recap to the feed", "is_complete": false }
+    ]
+  }
+]

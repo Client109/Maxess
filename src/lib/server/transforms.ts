@@ -1,0 +1,188 @@
+// Transform database records to UI-compatible types
+import { classifyTier } from '$lib/domain/xp.js';
+import type { Fan, LeaderboardEntry, Challenge, ChallengeTask, Pass, FriendActivity, RecentActivity } from '$lib/domain/types.js';
+
+// Map Prisma tier enum to UI tier name
+function tierDisplayName(prismaTier: string): 'General' | 'Loyal' | 'Superfan' | 'Elite' {
+  const map: Record<string, 'General' | 'Loyal' | 'Superfan' | 'Elite'> = {
+    'GENERAL': 'General',
+    'LOYAL': 'Loyal',
+    'SUPERFAN': 'Superfan',
+    'ELITE': 'Elite',
+  };
+  return map[prismaTier] || 'General';
+}
+
+export function transformUserToFan(user: any): Fan {
+  return {
+    fan_id: user.fan_id,
+    name: user.name,
+    xp_total: user.xp_total,
+    superfan_score: Math.min(100, Math.round((user.xp_total / 12000) * 100)),
+    current_tier: tierDisplayName(user.current_tier),
+    streak_days: user.streak_days,
+    rank: user.rank ?? 0,
+    percentile: user.percentile ?? 0,
+    top_artist: user.top_artist ?? 'Unknown',
+    top_venue: user.top_venue ?? 'Unknown',
+    events_attended: user.events_attended,
+    xp_breakdown: {}, // Populated separately via getXpBreakdown
+    city: user.city,
+    member_since: user.member_since?.toISOString?.() ?? user.created_at?.toISOString?.() ?? '',
+    avatar_initials: user.avatar_initials,
+    spotify_id: user.spotify_id ?? undefined,
+    lastfm_username: user.lastfm_username ?? undefined,
+    connected_accounts: [
+      ...(user.spotify_id ? ['spotify'] : []),
+      ...(user.lastfm_username ? ['lastfm'] : []),
+      ...(user.discord_id ? ['discord'] : []),
+    ],
+  };
+}
+
+export function transformLeaderboardEntry(entry: any, currentFanId: string): LeaderboardEntry {
+  return {
+    rank: entry.rank,
+    name: entry.name,
+    score: entry.xp_total,
+    delta: Math.floor(Math.random() * 30) - 10, // Simulated delta for demo
+    is_me: entry.user_id === currentFanId,
+    city: entry.city || 'LA',
+    time_period: entry.period === 'WEEKLY' ? 'This week' : entry.period === 'MONTHLY' ? 'This month' : 'All time',
+  };
+}
+
+export function transformChallenge(uc: any): Challenge {
+  const challenge = uc.challenge;
+  const rawTasks = typeof challenge.tasks === 'string' ? JSON.parse(challenge.tasks) : challenge.tasks;
+  const completedTaskIds = typeof uc.tasks_completed === 'string' ? JSON.parse(uc.tasks_completed) : uc.tasks_completed;
+
+  const tasks: ChallengeTask[] = rawTasks.map((t: any) => ({
+    task_id: `task_${t.id}`,
+    description: t.text,
+    is_complete: completedTaskIds.includes(t.id) || t.completed === true,
+  }));
+
+  const completedCount = tasks.filter(t => t.is_complete).length;
+
+  return {
+    challenge_id: challenge.challenge_id,
+    title: challenge.title,
+    subtitle: challenge.description || '',
+    reward_name: `${challenge.xp_reward} XP`,
+    tasks,
+    progress_fraction: tasks.length > 0 ? completedCount / tasks.length : 0,
+    is_limited: challenge.difficulty === 'Hard',
+    thumbnail_image: challenge.category === 'Attendance' ? '🎪' :
+                      challenge.category === 'Discovery' ? '🎵' :
+                      challenge.category === 'Social' ? '👥' : '⭐',
+    expires_in: challenge.difficulty === 'Hard' ? '5 days' : '2 weeks',
+  };
+}
+
+export function transformPass(pass: any): Pass {
+  const statusMap: Record<string, 'active' | 'starts_soon' | 'waiting'> = {
+    'ACTIVE': 'active',
+    'CLAIMED': 'starts_soon',
+    'AVAILABLE': 'waiting',
+    'EXPIRED': 'waiting',
+  };
+
+  const tierMap: Record<string, 'elite' | 'diamond' | 'general'> = {
+    'ELITE': 'elite',
+    'SUPERFAN': 'diamond',
+    'LOYAL': 'general',
+    'GENERAL': 'general',
+  };
+
+  const colorMap: Record<string, string> = {
+    'ELITE': '#FF5C00',
+    'SUPERFAN': '#3B28CC',
+    'LOYAL': '#CD7F32',
+    'GENERAL': '#8E8E93',
+  };
+
+  return {
+    pass_id: pass.pass_id,
+    name: pass.title,
+    venue: pass.description || '',
+    date: pass.valid_until
+      ? `Valid through ${new Date(pass.valid_until).toLocaleDateString('en-US', { month: 'long' })}`
+      : '',
+    status: statusMap[pass.status] || 'waiting',
+    pass_type: tierMap[pass.tier] || 'general',
+    xp_tier_required: pass.tier === 'ELITE' ? 5000 : pass.tier === 'SUPERFAN' ? 2500 : pass.tier === 'LOYAL' ? 1000 : 0,
+    icon_color: colorMap[pass.tier] || '#8E8E93',
+    metadata: pass.description,
+  };
+}
+
+export function transformFriendActivity(fa: any): FriendActivity {
+  const initials = fa.friend_name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+  const xpChange = fa.xp_change || 0;
+
+  return {
+    name: fa.friend_name.split(' ')[0], // First name only
+    avatar_initials: initials,
+    activity_label: fa.activity,
+    delta: Math.ceil(xpChange / 100),
+    delta_type: xpChange > 0 ? 'up' : xpChange < 0 ? 'down' : 'neutral',
+  };
+}
+
+export function transformRecentActivity(ra: any, index: number): RecentActivity {
+  const icons: Record<string, string> = {
+    'Venue check-in': '📍',
+    'Streak bonus': '🔥',
+    'Event attendance': '🎵',
+    'Social referral': '👥',
+    'Challenge progress': '⭐',
+    'Streaming milestone': '🎧',
+    'Spend XP bonus': '💳',
+    'Challenge completed': '🏆',
+    'Watch XP': '📺',
+    'Social sharing': '📤',
+    'Weekly streak bonus': '🔥',
+    'Discovery bonus': '🔍',
+    'Welcome bonus': '👋',
+  };
+
+  const timeAgo = index === 0 ? '2 hours ago' :
+                  index === 1 ? '1 day ago' :
+                  index < 5 ? `${index + 1} days ago` :
+                  `${Math.ceil(index / 3)} weeks ago`;
+
+  return {
+    activity_id: ra.id || `act_${index}`,
+    description: ra.activity,
+    xp_amount: ra.xp_earned,
+    timestamp: timeAgo,
+    source_icon: icons[ra.description] || '⚡',
+  };
+}
+
+// Static tier perks config
+export function getTierPerks() {
+  return {
+    fan: {
+      name: 'Fan',
+      color: '#8E8E93',
+      perks: ['Basic event access', 'Standard ticketing', 'Community membership'],
+    },
+    loyal: {
+      name: 'Loyal',
+      color: '#CD7F32',
+      perks: ['Early notifications', 'Points on purchases', 'Member pricing'],
+    },
+    superfan: {
+      name: 'Superfan',
+      color: '#3B28CC',
+      perks: ['Priority notifications', 'Early bird pricing', 'VIP seating options'],
+    },
+    elite: {
+      name: 'Elite',
+      color: '#FF5C00',
+      perks: ['Presale access', 'Backstage passes', 'Meet & greets', 'Personal concierge'],
+    },
+  };
+}

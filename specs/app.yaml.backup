@@ -1,0 +1,719 @@
+app_spec:
+  name: "Maxxes Fan Loyalty & Intelligence Platform"
+  version: "0.3"
+  status: "MVP spec updated with PostgreSQL backend schema and validation layer"
+
+  product_direction:
+    description: "Maxxes is a fan loyalty and business intelligence platform for live events. It ranks fans using XP, classifies them into Bronze-Diamond tiers, and gives venues actionable audience intelligence."
+    mvp_focus: "Fan Ranking Widget + Venue Intel Dashboard"
+    business_positioning: "Maxxes sits between fans, venues, artists, ticketing platforms, streaming platforms, and sponsors as the audience intelligence layer."
+    questions_answered:
+      - "Which fans are most valuable to this venue, team, or artist?"
+      - "What tier does each fan belong to?"
+      - "Which fans should receive priority access, rewards, or VIP offers?"
+      - "Where are retention weak points and lapse risks?"
+      - "What should venue or artist leadership know about audience value?"
+
+  mvp_boundary:
+    build:
+      - "One fan-facing My Journey screen."
+      - "One operator-facing Venue Intel Dashboard."
+      - "XP score card with Bronze-Diamond tier badge."
+      - "Ranked fan leaderboard sorted by total XP."
+      - "Rewards/perk eligibility panel based on tier."
+      - "Venue intelligence brief showing top fans, tier distribution, revenue projection, lapse risks, and recommendation cards."
+      - "Rules-based recommendation engine using mock data."
+      - "Seeded PostgreSQL-compatible mock data."
+      - "Data assumptions panel that clearly states live API integrations are mocked."
+    do_not_build_v1:
+      - "Full Ticketmaster, Spotify, Instagram, POS, or Eventbrite API integrations."
+      - "Payments."
+      - "Authentication and user management beyond mock users."
+      - "Machine-learning prediction system."
+      - "Full event management platform."
+      - "Realtime websocket updates."
+      - "Sponsor billing system."
+
+  users:
+    primary:
+      - role: "Venue manager / operator"
+        cares_about:
+          - "Identifying high-value fans."
+          - "Prioritizing premium access."
+          - "Finding lapse risks."
+          - "Improving campaign targeting."
+          - "Proving audience value to sponsors."
+      - role: "Artist/team manager"
+        cares_about:
+          - "Knowing the most loyal fans."
+          - "Rewarding real engagement."
+          - "Increasing retention and repeat attendance."
+    secondary:
+      - role: "Fan"
+        cares_about:
+          - "Seeing XP progress."
+          - "Understanding tier status."
+          - "Unlocking rewards, presale access, and VIP perks."
+      - role: "Sponsor/partner"
+        cares_about:
+          - "Knowing which audience segments respond to campaigns."
+          - "Measuring campaign lift and activation value."
+
+  core_user_story:
+    fan:
+      before: "A fan attends events, streams music, buys merch, posts online, and completes challenges, but none of that loyalty is connected."
+      app_response:
+        - "Log each behavior as a FanEvent."
+        - "Create XPTransaction records for earned XP."
+        - "Update the fan's xp_total, current_tier, streak_days, and next milestone."
+        - "Show unlocked perks and leaderboard position."
+      after: "The fan sees their loyalty measured and knows what they can access next."
+    venue:
+      before: "The venue has ticket sales, POS activity, and social signals, but no ranked view of fan value."
+      app_response:
+        - "Aggregate fan behavior into VenueSummary."
+        - "Show top fans, tier distribution, projected revenue, lapse risks, and recommendations."
+        - "Recommend actions such as presale priority, VIP upgrades, re-engagement offers, and sponsor activations."
+      after: "The venue can make targeted revenue and retention decisions."
+
+  dashboard_layout:
+    design_style: "Early-stage SaaS business intelligence dashboard, not an entertainment landing page."
+    fan_view_my_journey:
+      zones:
+        - zone: "Header"
+          contents: ["Fan name", "Preferred team/artist", "Current tier", "XP total"]
+        - zone: "Superfan Score Card"
+          contents: ["Circular XP gauge", "Tier badge", "XP breakdown", "Streak counter", "Next milestone gap"]
+        - zone: "Leaderboard Preview"
+          contents: ["Rank", "Top fans", "XP totals", "Tier filters"]
+        - zone: "Perks Panel"
+          contents: ["Unlocked rewards", "Locked rewards", "XP cost", "Tier required"]
+        - zone: "Challenges Panel"
+          contents: ["Active challenges", "Progress", "XP reward", "Deadline"]
+    operator_view_venue_intel:
+      zones:
+        - zone: "Top KPIs"
+          contents: ["Active fans", "Gold+ fans", "At-risk fans", "Presale conversion rate", "Reward redemption rate"]
+        - zone: "Tier Distribution"
+          contents: ["Bronze", "Silver", "Gold", "Platinum", "Diamond"]
+        - zone: "Fan Leaderboard"
+          contents: ["Top 100 fans", "XP", "Tier", "Last event date", "Streak", "Perk eligibility"]
+        - zone: "Business Intelligence Brief"
+          contents: ["Top fan profiles", "Projected revenue", "Social reach estimate", "Lapse risks", "Campaign lift"]
+        - zone: "Recommendation Queue"
+          contents: ["Trigger condition", "Target segment", "Recommended action", "Business rationale"]
+        - zone: "Data Assumptions"
+          contents: ["Mock data notice", "No live integrations", "XP rules", "Tier thresholds"]
+
+  components:
+    fan:
+      - "src/lib/components/fan/FanHome.svelte"
+      - "src/lib/components/fan/SuperfanScoreCard.svelte"
+      - "src/lib/components/fan/TierBadge.svelte"
+      - "src/lib/components/fan/NextMilestoneTracker.svelte"
+      - "src/lib/components/fan/RewardsPreview.svelte"
+      - "src/lib/components/fan/ChallengesPanel.svelte"
+    operator:
+      - "src/lib/components/operator/VenueIntelDashboard.svelte"
+      - "src/lib/components/operator/FanLeaderboard.svelte"
+      - "src/lib/components/operator/TierDistributionChart.svelte"
+      - "src/lib/components/operator/VenueSummaryCards.svelte"
+      - "src/lib/components/operator/LapseRiskAlerts.svelte"
+      - "src/lib/components/operator/RevenueProjectionPanel.svelte"
+      - "src/lib/components/operator/RecommendationQueue.svelte"
+      - "src/lib/components/operator/DataAssumptionsPanel.svelte"
+    shared:
+      - "src/lib/components/shared/TierBadge.svelte"
+      - "src/lib/components/shared/XPBreakdown.svelte"
+      - "src/lib/components/shared/StatusBadge.svelte"
+
+  backend:
+    database:
+      technology: "PostgreSQL"
+      reason: "Relational data fits the MVP because fans, events, XP transactions, rewards, campaigns, redemptions, and venue summaries have clear relationships and need reliable joins."
+      implementation_mode_v1: "Seeded PostgreSQL schema or PostgreSQL-compatible mock JSON payloads."
+      future_mode: "Real API ingestion from ticketing, streaming, social, POS, and venue systems."
+    canonical_entities:
+      - "fans"
+      - "fan_events"
+      - "xp_transactions"
+      - "challenges"
+      - "challenge_progress"
+      - "rewards"
+      - "reward_redemptions"
+      - "campaigns"
+      - "venue_summaries"
+      - "venues"
+      - "partners"
+      - "events"
+
+  data_model:
+    enums:
+      fan_tier: ["Bronze", "Silver", "Gold", "Platinum", "Diamond"]
+      signal_type:
+        - "verified_attendance"
+        - "watch_time"
+        - "listening_time"
+        - "in_venue_spend"
+        - "challenge_completion"
+        - "social_amplification"
+        - "friend_recruitment"
+        - "qr_activation"
+      source_platform:
+        - "maxxes"
+        - "ticketmaster_mock"
+        - "spotify_mock"
+        - "instagram_mock"
+        - "venue_pos_mock"
+        - "eventbrite_mock"
+        - "manual_seed"
+      reward_category:
+        - "presale"
+        - "vip"
+        - "backstage"
+        - "merch_discount"
+        - "food_beverage"
+        - "sponsor_activation"
+      redemption_status: ["available", "reserved", "redeemed", "expired", "cancelled"]
+      campaign_type: ["presale", "retention", "sponsor", "upsell", "challenge", "social"]
+      audience_segment:
+        - "New Fans"
+        - "Casual Fans"
+        - "Core Fans"
+        - "Superfans"
+        - "Diamond Fans"
+        - "At-Risk High-Value Fans"
+        - "Promo-Responsive Fans"
+        - "High-Spend / Low-Attendance"
+        - "High-Attendance / Low-Spend"
+
+    tables:
+      venues:
+        primary_key: "venue_id"
+        fields:
+          venue_id: "uuid"
+          venue_name: "text"
+          city: "text"
+          state: "text"
+          capacity: "integer"
+          created_at: "timestamp"
+      events:
+        primary_key: "event_id"
+        fields:
+          event_id: "uuid"
+          venue_id: "uuid foreign key -> venues.venue_id"
+          event_name: "text"
+          event_type: "text"
+          artist_or_team: "text"
+          event_date: "date"
+          doors_time: "time"
+          start_time: "time"
+          expected_attendance: "integer"
+      fans:
+        primary_key: "fan_id"
+        fields:
+          fan_id: "uuid"
+          fan_name: "text"
+          city: "text"
+          preferred_team_artist: "text"
+          current_tier: "fan_tier"
+          xp_total: "integer"
+          streak_days: "integer"
+          last_event_date: "date | null"
+          created_at: "timestamp"
+      fan_events:
+        primary_key: "fan_event_id"
+        fields:
+          fan_event_id: "uuid"
+          fan_id: "uuid foreign key -> fans.fan_id"
+          event_id: "uuid foreign key -> events.event_id | null"
+          venue_id: "uuid foreign key -> venues.venue_id | null"
+          campaign_id: "uuid foreign key -> campaigns.campaign_id | null"
+          signal_type: "signal_type"
+          source_platform: "source_platform"
+          duration_minutes: "integer | null"
+          amount_usd: "numeric(10,2) | null"
+          social_reach: "integer | null"
+          metadata: "jsonb"
+          occurred_at: "timestamp"
+      xp_transactions:
+        primary_key: "xp_transaction_id"
+        fields:
+          xp_transaction_id: "uuid"
+          fan_id: "uuid foreign key -> fans.fan_id"
+          source_event_id: "uuid foreign key -> fan_events.fan_event_id"
+          xp_earned: "integer"
+          multiplier: "numeric(4,2)"
+          xp_reason: "text"
+          calculated_at: "timestamp"
+      challenges:
+        primary_key: "challenge_id"
+        fields:
+          challenge_id: "uuid"
+          challenge_name: "text"
+          challenge_type: "text"
+          required_action: "text"
+          xp_reward: "integer"
+          sponsor_id: "uuid foreign key -> partners.partner_id | null"
+          active_start: "timestamp"
+          active_end: "timestamp"
+      challenge_progress:
+        primary_key: "challenge_progress_id"
+        fields:
+          challenge_progress_id: "uuid"
+          fan_id: "uuid foreign key -> fans.fan_id"
+          challenge_id: "uuid foreign key -> challenges.challenge_id"
+          current_progress: "integer"
+          target_progress: "integer"
+          completed_at: "timestamp | null"
+      partners:
+        primary_key: "partner_id"
+        fields:
+          partner_id: "uuid"
+          partner_name: "text"
+          partner_category: "text"
+      rewards:
+        primary_key: "reward_id"
+        fields:
+          reward_id: "uuid"
+          reward_name: "text"
+          tier_required: "fan_tier"
+          xp_cost: "integer"
+          quantity_available: "integer"
+          reward_category: "reward_category"
+          partner_id: "uuid foreign key -> partners.partner_id | null"
+          active_start: "timestamp"
+          active_end: "timestamp"
+      reward_redemptions:
+        primary_key: "redemption_id"
+        fields:
+          redemption_id: "uuid"
+          reward_id: "uuid foreign key -> rewards.reward_id"
+          fan_id: "uuid foreign key -> fans.fan_id"
+          xp_spent: "integer"
+          status: "redemption_status"
+          redeemed_at: "timestamp | null"
+      campaigns:
+        primary_key: "campaign_id"
+        fields:
+          campaign_id: "uuid"
+          campaign_name: "text"
+          campaign_type: "campaign_type"
+          audience_segment: "audience_segment"
+          offer_type: "text"
+          channel: "text"
+          start_date: "date"
+          end_date: "date"
+      venue_summaries:
+        primary_key: "venue_summary_id"
+        fields:
+          venue_summary_id: "uuid"
+          venue_id: "uuid foreign key -> venues.venue_id"
+          generated_at: "timestamp"
+          avg_xp: "numeric(10,2)"
+          tier_distribution: "jsonb"
+          presale_conversion_rate: "numeric(5,2)"
+          churn_flag_count: "integer"
+          projected_revenue: "numeric(12,2)"
+          social_reach_estimate: "integer"
+          top_fans_snapshot: "jsonb"
+
+  xp_scoring:
+    governing_rule: "Use XP and Bronze-Diamond tiers. Do not use the older 0-100 point scale for fan value."
+    earning_rules:
+      verified_event_attendance: "+200 XP per verified event"
+      watch_time: "+5 XP per hour"
+      listening_time: "+3 XP per hour"
+      in_venue_or_merch_spend: "+1 XP per $1 spent"
+      challenge_completion: "+100 to +1500 XP"
+      streak_modifier: "1.0x to 2.0x on selected base XP"
+      post_event_social_amplification: "+10 to +50 XP per reach-adjusted post"
+      friend_recruitment: "+75 XP per converted referral"
+    rfm_overlay:
+      recency: "XP from the past 30 days is weighted 2x over XP older than 90 days."
+      frequency: "Streak multiplier rewards consistent engagement."
+      monetary: "Spend XP counts but should be capped at 20% of score weight to avoid wealth-only rankings."
+    tier_thresholds:
+      Bronze: "0-2499 XP"
+      Silver: "2500-4999 XP"
+      Gold: "5000-9999 XP"
+      Platinum: "10000-24999 XP"
+      Diamond: "25000+ XP"
+    implementation_contract:
+      function_name: "calculateFanXP"
+      inputs:
+        - "fan_events"
+        - "xp_transactions"
+        - "streak_days"
+        - "activity windows: 7, 30, 90 days"
+      returns:
+        - "xp_total"
+        - "current_tier"
+        - "xp_last_30_days"
+        - "xp_last_90_days"
+        - "next_milestone_gap"
+        - "xp_breakdown_by_signal_type"
+
+  recommendation_engine:
+    implementation_rule: "Rules-based for v1; transparent and testable."
+    cards:
+      - name: "Activate New Fans"
+        trigger: "Moderate early XP but no ticket purchase or attendance within 30 days."
+        action: "Offer low-barrier challenge and first-ticket incentive."
+      - name: "At-Risk Gold+ Fans"
+        trigger: "Gold, Platinum, or Diamond fan has no FanEvent in 30-60 days or XP declines materially."
+        action: "Trigger re-engagement campaign or exclusive perk offer."
+      - name: "Presale Access Rule"
+        trigger: "Upcoming high-demand event with constrained premium inventory."
+        action: "Apply XP threshold or Gold+ tier gate for early access."
+      - name: "VIP Candidate List"
+        trigger: "Scarce premium experience available."
+        action: "Sort eligible fans by XP plus recent attendance."
+      - name: "Best Partner-Fit Segment"
+        trigger: "Sponsor asks which fan segment responds best to their category."
+        action: "Recommend partner-fit segments based on spend and engagement overlap."
+
+  api_contract_v1:
+    endpoints:
+      - method: "GET"
+        path: "/api/fans/:fan_id"
+        returns: "Fan profile with XP, tier, streak, and next milestone."
+      - method: "GET"
+        path: "/api/fans/:fan_id/xp-breakdown"
+        returns: "XP breakdown by signal type and time window."
+      - method: "GET"
+        path: "/api/venues/:venue_id/leaderboard"
+        returns: "Ranked fan list with tier, XP, attendance count, streak, and perk eligibility."
+      - method: "GET"
+        path: "/api/venues/:venue_id/summary"
+        returns: "VenueSummary KPIs for operator dashboard."
+      - method: "GET"
+        path: "/api/venues/:venue_id/recommendations"
+        returns: "Rules-based recommendation cards."
+      - method: "GET"
+        path: "/api/rewards"
+        returns: "Reward catalog filtered by tier or venue."
+      - method: "POST"
+        path: "/api/rewards/:reward_id/redeem"
+        returns: "RewardRedemption mock response."
+
+  seed_data_targets:
+    fans: "25-50 mock fans across all 5 tiers"
+    venues: "2-3 venues"
+    events: "5-10 events"
+    fan_events: "250-500 behavior logs covering 90 days"
+    xp_transactions: "One transaction per XP-earning FanEvent"
+    challenges: "8-12 active/past challenges"
+    rewards: "10-20 rewards across tiers"
+    campaigns: "5-8 mock campaigns"
+    venue_summaries: "One generated summary per venue"
+
+  frontend_stack:
+    core_recommendation: "SvelteKit with TypeScript"
+    packages:
+      - need: "App framework"
+        recommendation: "SvelteKit + TypeScript"
+      - need: "Styling"
+        recommendation: "Tailwind CSS"
+      - need: "UI components"
+        recommendation: "shadcn-svelte"
+      - need: "Icons"
+        recommendation: "@lucide/svelte"
+      - need: "Charts"
+        recommendation: "layerchart"
+      - need: "Data tables"
+        recommendation: "@tanstack/svelte-table"
+      - need: "Runtime validation"
+        recommendation: "zod"
+      - need: "Date/time utilities"
+        recommendation: "date-fns"
+      - need: "Unit tests"
+        recommendation: "vitest"
+      - need: "End-to-end tests"
+        recommendation: "@playwright/test"
+    avoid_v1:
+      - "Auth packages."
+      - "Realtime websocket packages."
+      - "AI SDK packages."
+      - "Payments."
+      - "Heavy enterprise charting suites."
+
+  project_structure:
+    tree: |
+      src/
+        routes/
+          +layout.svelte
+          +page.svelte
+          api/
+            fans/
+            venues/
+            rewards/
+        lib/
+          components/
+            fan/
+            operator/
+            shared/
+            ui/
+          data/
+            seed-fans.json
+            seed-fan-events.json
+            seed-xp-transactions.json
+            seed-rewards.json
+            seed-campaigns.json
+            seed-venue-summaries.json
+          domain/
+            types.ts
+            schemas.ts
+            xp-scoring.ts
+            tiering.ts
+            segmentation.ts
+            recommendations.ts
+            revenue-projection.ts
+            leaderboard.ts
+          state/
+            selectedFan.svelte.ts
+            selectedVenue.svelte.ts
+          styles/
+            tokens.css
+      db/
+        schema.sql
+        seed.sql
+      tests/
+        unit/
+          xp-scoring.test.ts
+          tiering.test.ts
+          recommendations.test.ts
+          leaderboard.test.ts
+        e2e/
+          demo-flow.spec.ts
+
+  validation_layer:
+    purpose: "Ensure Maxxes data is accurate, coherent, explainable, and consistent across the PostgreSQL backend, XP scoring logic, API responses, and dashboard UI."
+    validation_ownership:
+      backend: "Enforce database constraints, foreign keys, enums, non-negative values, and source-of-truth calculations."
+      domain_logic: "Validate XP rules, tier thresholds, reward eligibility, lapse rules, segmentation, and recommendation triggers."
+      frontend: "Validate API payloads before rendering and prevent impossible UI states."
+      qa_docs: "Test edge cases, document assumptions, and confirm that screenshots match approved business rules."
+
+    database_level:
+      identity_and_relationships:
+        - rule: "Every core record must have a unique primary key."
+          applies_to: ["fans", "venues", "events", "fan_events", "xp_transactions", "challenges", "rewards", "campaigns", "venue_summaries"]
+          enforcement: "PostgreSQL primary key constraints."
+        - rule: "Every fan_event must reference an existing fan."
+          applies_to: ["fan_events.fan_id"]
+          enforcement: "Foreign key -> fans.fan_id."
+        - rule: "Every xp_transaction must reference an existing fan and source fan_event."
+          applies_to: ["xp_transactions.fan_id", "xp_transactions.source_event_id"]
+          enforcement: "Foreign keys -> fans.fan_id and fan_events.fan_event_id."
+        - rule: "Every reward_redemption must reference an existing reward and fan."
+          applies_to: ["reward_redemptions.reward_id", "reward_redemptions.fan_id"]
+          enforcement: "Foreign keys -> rewards.reward_id and fans.fan_id."
+        - rule: "Venue summaries must reference a valid venue."
+          applies_to: ["venue_summaries.venue_id"]
+          enforcement: "Foreign key -> venues.venue_id."
+
+      type_and_enum_checks:
+        - rule: "current_tier must be one of Bronze, Silver, Gold, Platinum, or Diamond."
+          applies_to: ["fans.current_tier", "rewards.tier_required"]
+          enforcement: "fan_tier enum or check constraint."
+        - rule: "signal_type must use approved XP signal categories only."
+          applies_to: ["fan_events.signal_type"]
+          enforcement: "signal_type enum."
+        - rule: "source_platform must identify whether the signal came from mock data or a future integration source."
+          applies_to: ["fan_events.source_platform"]
+          enforcement: "source_platform enum."
+        - rule: "redemption status must stay within allowed workflow states."
+          applies_to: ["reward_redemptions.status"]
+          enforcement: "redemption_status enum."
+
+      numeric_and_date_checks:
+        - rule: "XP values cannot be negative."
+          applies_to: ["fans.xp_total", "xp_transactions.xp_earned", "rewards.xp_cost", "challenges.xp_reward"]
+          enforcement: "CHECK value >= 0."
+        - rule: "Money values cannot be negative."
+          applies_to: ["fan_events.amount_usd", "venue_summaries.projected_revenue"]
+          enforcement: "CHECK value >= 0."
+        - rule: "Counts cannot be negative."
+          applies_to: ["venues.capacity", "events.expected_attendance", "rewards.quantity_available", "venue_summaries.churn_flag_count", "fan_events.social_reach"]
+          enforcement: "CHECK value >= 0."
+        - rule: "Challenge, reward, and campaign end dates must be after start dates."
+          applies_to: ["challenges.active_start/active_end", "rewards.active_start/active_end", "campaigns.start_date/end_date"]
+          enforcement: "CHECK end > start."
+        - rule: "Percentage fields must stay between 0 and 100."
+          applies_to: ["venue_summaries.presale_conversion_rate"]
+          enforcement: "CHECK value BETWEEN 0 AND 100."
+
+    business_logic_level:
+      xp_integrity:
+        - rule: "A fan's xp_total must equal the sum of valid xp_transactions after approved multipliers and recency logic are applied."
+          reason: "Prevents the dashboard from showing unsupported fan value totals."
+          test: "Compare stored fan xp_total against calculateFanXP output."
+        - rule: "Each XPTransaction must have a clear xp_reason tied to a FanEvent signal_type."
+          reason: "Keeps XP explainable and auditable."
+          test: "Assert xp_reason is present and source_event_id exists."
+        - rule: "Spend XP can contribute to the fan score but should not exceed the approved 20% monetary-weight cap."
+          reason: "Prevents wealth-only rankings."
+          test: "Create high-spend/low-attendance fan and confirm cap is applied."
+
+      tier_coherence:
+        - rule: "Fan tier must match official XP thresholds."
+          thresholds:
+            Bronze: "0-2499"
+            Silver: "2500-4999"
+            Gold: "5000-9999"
+            Platinum: "10000-24999"
+            Diamond: "25000+"
+          test: "Run boundary tests at 0, 2499, 2500, 4999, 5000, 9999, 10000, 24999, and 25000 XP."
+        - rule: "Tier badges, perk locks, and leaderboard filters must all use the same backend tier value."
+          reason: "Prevents the fan view and operator view from disagreeing."
+          test: "Render the same fan in both dashboards and compare tier display."
+
+      reward_and_redemption_rules:
+        - rule: "A fan can only redeem a reward if their current_tier meets or exceeds reward.tier_required."
+          test: "Attempt redemption below required tier and expect rejection."
+        - rule: "A fan must have enough available XP for rewards that require xp_cost."
+          test: "Attempt redemption with insufficient XP and expect rejection."
+        - rule: "Reward quantity_available cannot drop below zero."
+          test: "Redeem last available reward and confirm next redemption is blocked or marked unavailable."
+        - rule: "Expired rewards cannot be redeemed."
+          test: "Attempt redemption after active_end and expect rejection."
+
+      recommendation_rules:
+        - rule: "At-risk fan alerts can only apply to Gold, Platinum, or Diamond fans with declining or inactive recent behavior."
+          test: "Bronze/Silver fans should not trigger At-Risk Gold+ cards."
+        - rule: "Presale Access Rule cards must use approved tier gates or XP thresholds."
+          test: "Gold+ mock fans appear eligible; lower tiers remain in standard access unless explicitly allowed."
+        - rule: "VIP Candidate List must sort eligible fans by XP plus recent attendance."
+          test: "Fans with stale XP but no recent attendance should not outrank equally strong active fans."
+        - rule: "Recommendation cards must include trigger condition, target audience, recommended action, and business rationale."
+          test: "Validate recommendation API response shape with zod schema."
+
+      venue_summary_integrity:
+        - rule: "VenueSummary must be generated from Fan, FanEvent, XPTransaction, RewardRedemption, and Campaign data rather than typed manually."
+          reason: "Keeps the operator dashboard connected to real backend logic."
+          test: "Regenerate summary from seed data and compare KPI outputs."
+        - rule: "Projected revenue must use the approved formula documented in revenue-projection.ts."
+          test: "Unit test projected_revenue from known avg_spend_per_visit, superfan_count, and events_remaining."
+        - rule: "Tier distribution must add up to the number of fans included in the selected venue or event scope."
+          test: "Sum tier_distribution buckets and compare against filtered fan count."
+
+    api_and_runtime_validation:
+      recommended_tool: "zod"
+      rules:
+        - "Define schemas in src/lib/domain/schemas.ts for Fan, FanEvent, XPTransaction, Reward, RewardRedemption, Campaign, VenueSummary, and RecommendationCard."
+        - "Validate seeded JSON before it is used by the app."
+        - "Validate API responses before rendering dashboard components."
+        - "Return clear errors for invalid reward redemption, invalid tier, missing fan_id, missing source_event_id, and impossible XP values."
+        - "Keep frontend TypeScript types generated from or aligned with the same validation schemas."
+      example_error_states:
+        - code: "INVALID_TIER"
+          meaning: "Tier value does not match Bronze-Diamond enum."
+        - code: "XP_MISMATCH"
+          meaning: "Stored fan xp_total does not match calculated XP output."
+        - code: "REWARD_INELIGIBLE"
+          meaning: "Fan does not meet tier or XP requirements for reward redemption."
+        - code: "MISSING_SOURCE_EVENT"
+          meaning: "XP transaction does not trace back to a valid FanEvent."
+
+    ui_validation:
+      dashboard_consistency:
+        - "Leaderboard must sort by xp_total descending by default."
+        - "Tier badges must match backend current_tier exactly."
+        - "Locked rewards must display the missing tier or XP requirement."
+        - "Venue Intel KPIs must display mock-data assumptions when live integrations are not connected."
+        - "Recommendation cards must only render when their trigger condition is true."
+      user_facing_guardrails:
+        - "Do not display a fan as eligible for a reward if backend redemption validation would reject it."
+        - "Do not show negative XP, negative spend, negative inventory, or impossible percentages."
+        - "Show an assumptions panel explaining that Ticketmaster, Spotify, Instagram, POS, and Eventbrite signals are mocked in v1."
+
+    validation_tests_to_add:
+      unit:
+        - "xp-total-reconciliation.test.ts"
+        - "tier-boundaries.test.ts"
+        - "reward-redemption-rules.test.ts"
+        - "venue-summary-integrity.test.ts"
+        - "recommendation-triggers.test.ts"
+      component:
+        - "tier-badge-consistency.test.ts"
+        - "locked-rewards-display.test.ts"
+        - "leaderboard-sort.test.ts"
+      end_to_end:
+        - "fan-view-data-coherence.spec.ts"
+        - "operator-dashboard-kpi-coherence.spec.ts"
+        - "reward-redemption-blocked-when-ineligible.spec.ts"
+
+    definition_of_done:
+      - "All seed data passes runtime schema validation."
+      - "All XP totals reconcile against XPTransaction records."
+      - "All fan tiers match official XP thresholds."
+      - "All leaderboard, reward, and recommendation outputs match backend rules."
+      - "VenueSummary KPIs can be regenerated from seeded source data."
+      - "Validation assumptions and mock-data limitations are visible in the final demo."
+
+  acceptance_criteria:
+    - "A viewer can understand the fan's XP, tier, and next milestone without explanation."
+    - "The leaderboard sorts fans by XP correctly."
+    - "Bronze-Diamond tier thresholds are consistent across all views."
+    - "At least two rewards show different tier-gated unlock states."
+    - "Venue Intel Dashboard shows tier distribution, top fans, projected revenue, lapse risks, and recommendation cards."
+    - "At least one recommendation card fires from seeded mock data."
+    - "Mock-data assumptions are visible."
+    - "Rules are testable in unit tests."
+    - "The final demo path is repeatable."
+
+  testing_plan:
+    unit:
+      - "XP calculation for each signal type."
+      - "Tier boundaries: 0, 2499, 2500, 4999, 5000, 9999, 10000, 24999, 25000."
+      - "Leaderboard descending sort by xp_total."
+      - "Lapse rule for Gold+ fans with no FanEvent in 30-60 days."
+      - "Reward eligibility by tier."
+      - "Revenue projection formula."
+    component:
+      - "Superfan Score Card renders XP, tier, streak, breakdown, and milestone."
+      - "Fan Leaderboard renders rank, XP, tier, and filters."
+      - "Rewards panel shows locked/unlocked states."
+      - "Venue Intel Dashboard renders summary KPIs and recommendation cards."
+    end_to_end:
+      - "Load fan view and confirm XP, tier badge, leaderboard rank, and perks."
+      - "Load operator view and confirm top fans, tier distribution, lapse alert, and recommendation queue."
+      - "Switch selected venue or fan and confirm dashboard updates."
+
+  role_ownership:
+    - role: "Backend / Data Logic - Ethan"
+      ownership:
+        - "PostgreSQL schema."
+        - "XPTransaction audit logic."
+        - "Tier thresholds."
+        - "Mock data generation."
+        - "API payload contracts."
+      artifacts:
+        - "db/schema.sql"
+        - "seed data files"
+        - "xp-scoring.ts"
+        - "tiering.ts"
+        - "backend schema explanation"
+    - role: "Frontend Developer"
+      ownership:
+        - "Svelte components."
+        - "Dashboard rendering."
+        - "Leaderboard and fan home UI."
+    - role: "Design / Creative"
+      ownership:
+        - "Tier badges."
+        - "Visual hierarchy."
+        - "Dashboard layout."
+    - role: "QA / Documentation"
+      ownership:
+        - "Testing tier logic."
+        - "Testing XP calculations."
+        - "Documenting assumptions."
+
+  future_roadmap:
+    - "Real integrations with Ticketmaster, Spotify, Instagram, venue POS, and Eventbrite/Songkick."
+    - "Authentication and real fan accounts."
+    - "Sponsor portal for campaign performance."
+    - "More advanced recommendation engine."
+    - "Raspberry Pi local SLM explainer for XP rules, tier thresholds, and schema definitions."

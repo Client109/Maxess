@@ -1,0 +1,32 @@
+{
+  "name": "maxxes-app",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.8.0",
+    "lucide-svelte": "^0.468.0",
+    "prisma": "^7.8.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.7",
+    "@sveltejs/kit": "^2.15.5",
+    "@sveltejs/vite-plugin-svelte": "^5.0.4",
+    "svelte": "^5.20.1",
+    "tsx": "^4.22.3",
+    "vite": "^6.0.7",
+    "vitest": "^4.1.7"
+  }
+}
