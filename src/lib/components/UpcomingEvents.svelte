@@ -32,7 +32,7 @@
   <div class="events-grid">
     {#each filteredEvents as event}
       {@const accent = event.category === 'music' ? '#2667FF' : '#FF5C00'}
-      <a href={event.external_url || `/events/${event.event_id}`} target={event.external_url ? '_blank' : undefined} rel={event.external_url ? 'noopener noreferrer' : undefined} class="event-card">
+      <a href="/events/{event.event_id}" class="event-card">
         <div class="event-image" style="background-color: {event.image_color}">
           <div class="access-chip" style="background: {accent}">
             {#if event.category === 'music'}

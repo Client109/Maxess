@@ -69,7 +69,7 @@
       </div>
       <div class="cards-scroll">
         {#each filteredEvents as event (event.event_id)}
-          <a href={event.external_url || `/events/${event.event_id}`} target={event.external_url ? '_blank' : undefined} rel={event.external_url ? 'noopener noreferrer' : undefined} class="for-you-card">
+          <a href="/events/{event.event_id}" class="for-you-card">
             <div class="for-you-image" style="background-color: {event.image_color || '#2667FF'}">
               <div class="for-you-overlay">
                 <span class="for-you-tag {event.category === 'sports' ? 'sports' : 'music'}">{event.category === 'sports' ? 'SPORTS ACCESS' : 'MUSIC ACCESS'}</span>

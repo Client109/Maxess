@@ -42,7 +42,13 @@
 
 <div class="page">
   <!-- Hero -->
-  <div class="hero" style="background: linear-gradient(180deg, {event.image_color} 0%, {event.image_color}cc 60%, #000 100%)">
+  <div
+    class="hero"
+    class:hero--has-image={event.image_url}
+    style={event.image_url
+      ? `background-image: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 55%, #000 100%), url(${event.image_url}); background-color: ${event.image_color};`
+      : `background: linear-gradient(180deg, ${event.image_color} 0%, ${event.image_color}cc 60%, #000 100%);`}
+  >
     <div class="hero-nav">
       <a href="/events" class="back-btn">
         <ArrowLeft size={20} />
@@ -254,6 +260,13 @@
     padding: 16px 16px 24px;
     color: #FFFFFF;
     position: relative;
+  }
+
+  .hero--has-image {
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat;
+    min-height: 280px;
   }
 
   .hero-nav {

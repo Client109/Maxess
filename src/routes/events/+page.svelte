@@ -33,17 +33,20 @@
   // Featured event (trending + featured)
   $: featuredEvent = allEvents.find(e => e.trending && e.featured) || data.featuredEvent;
 
+  let trendingExpanded = false;
+  let upcomingExpanded = false;
+
   // Trending events (high heat score, not the featured one)
-  $: trendingEvents = allEvents
+  $: trendingAll = allEvents
     .filter(e => e.heat_score && e.heat_score >= 85 && e !== featuredEvent)
-    .sort((a, b) => (b.heat_score || 0) - (a.heat_score || 0))
-    .slice(0, 4);
+    .sort((a, b) => (b.heat_score || 0) - (a.heat_score || 0));
+  $: trendingEvents = trendingExpanded ? trendingAll : trendingAll.slice(0, 4);
 
   // Upcoming for you (not featured, not trending, sorted by date)
-  $: upcomingEvents = allEvents
-    .filter(e => e !== featuredEvent && !trendingEvents.includes(e))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 4);
+  $: upcomingAll = allEvents
+    .filter(e => e !== featuredEvent && !trendingAll.includes(e))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  $: upcomingEvents = upcomingExpanded ? upcomingAll : upcomingAll.slice(0, 4);
 
   // Day strip for "near you" section — current week starting today
   $: dayStrip = (() => {
@@ -124,9 +127,7 @@
   {#if featuredEvent}
     <section class="section">
       <a
-        href={featuredEvent.external_url || `/events/${featuredEvent.event_id}`}
-        target={featuredEvent.external_url ? '_blank' : undefined}
-        rel={featuredEvent.external_url ? 'noopener noreferrer' : undefined}
+        href="/events/{featuredEvent.event_id}"
         class="featured-card"
         style="background-color: {featuredEvent.image_color}; {featuredEvent.image_url ? `background-image: url(${featuredEvent.image_url}); background-size: cover; background-position: center;` : ''}"
       >
@@ -160,14 +161,16 @@
     <section class="section">
       <div class="section-head">
         <h2 class="section-title">Trending now</h2>
-        <a href="/events" class="view-all">View all</a>
+        {#if trendingAll.length > 4}
+          <button type="button" class="view-all" on:click={() => trendingExpanded = !trendingExpanded}>
+            {trendingExpanded ? 'Show less' : `View all (${trendingAll.length})`}
+          </button>
+        {/if}
       </div>
-      <div class="trending-scroll">
+      <div class="trending-scroll" class:expanded={trendingExpanded}>
         {#each trendingEvents as event}
           <a
-            href={event.external_url || `/events/${event.event_id}`}
-            target={event.external_url ? '_blank' : undefined}
-            rel={event.external_url ? 'noopener noreferrer' : undefined}
+            href="/events/{event.event_id}"
             class="trending-card"
             style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"
           >
@@ -192,14 +195,16 @@
     <section class="section">
       <div class="section-head">
         <h2 class="section-title">Upcoming for you</h2>
-        <a href="/events" class="view-all">View all</a>
+        {#if upcomingAll.length > 4}
+          <button type="button" class="view-all" on:click={() => upcomingExpanded = !upcomingExpanded}>
+            {upcomingExpanded ? 'Show less' : `View all (${upcomingAll.length})`}
+          </button>
+        {/if}
       </div>
       <div class="upcoming-list">
         {#each upcomingEvents as event}
           <a
-            href={event.external_url || `/events/${event.event_id}`}
-            target={event.external_url ? '_blank' : undefined}
-            rel={event.external_url ? 'noopener noreferrer' : undefined}
+            href="/events/{event.event_id}"
             class="upcoming-row"
           >
             <div class="upcoming-thumb" style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"></div>
@@ -246,9 +251,7 @@
         <div class="near-grid">
           {#each nearYouEvents.slice(0, 2) as event}
             <a
-              href={event.external_url || `/events/${event.event_id}`}
-              target={event.external_url ? '_blank' : undefined}
-              rel={event.external_url ? 'noopener noreferrer' : undefined}
+              href="/events/{event.event_id}"
               class="near-card"
               style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"
             >
@@ -388,6 +391,11 @@
     font-weight: 600;
     color: #FF5C00;
     text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
   }
 
   /* Featured Card */
@@ -479,6 +487,16 @@
   }
 
   .trending-scroll::-webkit-scrollbar { display: none; }
+
+  .trending-scroll.expanded {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow-x: visible;
+  }
+
+  .trending-scroll.expanded .trending-card {
+    width: auto;
+  }
 
   .trending-card {
     flex-shrink: 0;
