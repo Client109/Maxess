@@ -12,6 +12,7 @@
   let presaleOpen = false;
   let accessOpen = false;
   let ticketOpen = false;
+  let fansOpen = false;
 
   // Presale countdown (mock: 18h from now)
   let presaleHours = 18;
@@ -32,6 +33,7 @@
   }
 
   $: badge = statusBadge(event.status);
+  $: categoryAccent = event.category === 'music' ? '#2667FF' : '#FF5C00';
 </script>
 
 <svelte:head>
@@ -46,14 +48,14 @@
         <ArrowLeft size={20} />
       </a>
       <div class="hero-actions">
-        <button class="action-btn" on:click={() => saved = !saved} class:saved>
-          <Bookmark size={20} fill={saved ? '#FF5C00' : 'none'} />
+        <button class="action-btn" on:click={() => saved = !saved} class:saved style:color={saved ? categoryAccent : undefined}>
+          <Bookmark size={20} fill={saved ? categoryAccent : 'none'} />
         </button>
       </div>
     </div>
 
     {#if event.genre_tag}
-      <span class="genre-chip">{event.genre_tag}</span>
+      <span class="genre-chip" style="background: {categoryAccent}">{event.genre_tag}</span>
     {/if}
 
     <h1 class="hero-title">{event.title}</h1>
@@ -71,7 +73,7 @@
 
     {#if event.heat_score}
       <div class="heat-row">
-        <Flame size={14} color="#FF5C00" />
+        <Flame size={14} color={categoryAccent} />
         <span class="heat-value">{event.heat_score}% demand</span>
         {#if event.match_percentage}
           <span class="match-chip">{event.match_percentage}% match</span>
@@ -101,14 +103,29 @@
   </div>
 
   <!-- Fans attending -->
-  <div class="fans-section">
+  <button
+    type="button"
+    class="fans-section"
+    aria-expanded={fansOpen}
+    on:click={() => fansOpen = !fansOpen}
+  >
     <div class="fans-avatars">
       {#each fansAttending.slice(0, 3) as fan}
         <span class="fan-avatar" style="background: {fan.avatar_color}">{fan.avatar_initials}</span>
       {/each}
     </div>
     <span class="fans-label">{fansAttendingCount} fans going</span>
-  </div>
+  </button>
+  {#if fansOpen}
+    <ul class="fans-list">
+      {#each fansAttending as fan}
+        <li class="fans-list-item">
+          <span class="fan-avatar fan-avatar--lg" style="background: {fan.avatar_color}">{fan.avatar_initials}</span>
+          <span class="fans-list-name">{fan.name}</span>
+        </li>
+      {/each}
+    </ul>
+  {/if}
 
   <!-- Status badge -->
   <div class="status-row">
@@ -394,7 +411,22 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 16px 16px;
+    width: 100%;
+    padding: 8px 16px;
+    margin-bottom: 8px;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .fans-section:hover,
+  .fans-section[aria-expanded="true"] {
+    background: rgba(0, 0, 0, 0.04);
   }
 
   .fans-avatars {
@@ -417,9 +449,38 @@
 
   .fan-avatar:first-child { margin-left: 0; }
 
+  .fan-avatar--lg {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+    margin-left: 0;
+  }
+
   .fans-label {
     font-size: 13px;
     color: #8E8E93;
+  }
+
+  .fans-list {
+    list-style: none;
+    margin: 0 16px 16px;
+    padding: 8px 0;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 12px;
+  }
+
+  .fans-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+  }
+
+  .fans-list-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1C1C1E;
   }
 
   /* Status row */

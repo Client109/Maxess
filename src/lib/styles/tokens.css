@@ -8,6 +8,10 @@
   --deeper-indigo: #3B28CC;
   --light-blue: #ADD7F6;
 
+  /* Category Colors — music = blue, sports = orange */
+  --color-music: #2667FF;
+  --color-sports: #FF5C00;
+
   /* Light Theme Surfaces */
   --bg-primary: #F8F8FA;
   --bg-card: #FFFFFF;

@@ -31,9 +31,10 @@
 <div class="upcoming-events">
   <div class="events-grid">
     {#each filteredEvents as event}
+      {@const accent = event.category === 'music' ? '#2667FF' : '#FF5C00'}
       <a href={event.external_url || `/events/${event.event_id}`} target={event.external_url ? '_blank' : undefined} rel={event.external_url ? 'noopener noreferrer' : undefined} class="event-card">
         <div class="event-image" style="background-color: {event.image_color}">
-          <div class="access-chip">
+          <div class="access-chip" style="background: {accent}">
             {#if event.category === 'music'}
               <Music2 size={10} color="white" />
             {:else}
@@ -45,6 +46,7 @@
           <button
             class="bookmark-btn"
             class:bookmarked={bookmarkedEvents.has(event.event_id)}
+            style:color={bookmarkedEvents.has(event.event_id) ? accent : undefined}
             on:click|stopPropagation={() => toggleBookmark(event.event_id)}
             aria-label="Bookmark event"
           >
@@ -63,10 +65,10 @@
 
         <div class="event-footer">
           <div class="event-datetime">
-            <Calendar size={14} color="#FF5C00" />
+            <Calendar size={14} color={accent} />
             <span>{formatDatetime(event)}</span>
           </div>
-          <span class="arrow-button" aria-label="View event details">
+          <span class="arrow-button" style="background: {accent}" aria-label="View event details">
             <ArrowRight size={16} color="#FFFFFF" />
           </span>
         </div>
@@ -118,7 +120,6 @@
   }
 
   .access-chip {
-    background: #FF5C00;
     color: #FFFFFF;
     font-size: 10px;
     font-weight: 700;
@@ -151,7 +152,7 @@
     backdrop-filter: blur(10px);
   }
 
-  .bookmark-btn.bookmarked { color: #FF5C00; }
+  .bookmark-btn.bookmarked { color: var(--action-orange); }
 
   .event-overlay {
     flex: 1;
@@ -197,7 +198,6 @@
   }
 
   .arrow-button {
-    background: #FF5C00;
     border: none;
     cursor: pointer;
     width: 32px;
@@ -206,11 +206,11 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    transition: background 0.2s ease;
+    transition: opacity 0.2s ease;
     flex-shrink: 0;
   }
 
-  .arrow-button:hover { background: #e55200; }
+  .arrow-button:hover { opacity: 0.85; }
 
   .empty-state {
     grid-column: span 2;

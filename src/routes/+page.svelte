@@ -72,7 +72,7 @@
           <a href={event.external_url || `/events/${event.event_id}`} target={event.external_url ? '_blank' : undefined} rel={event.external_url ? 'noopener noreferrer' : undefined} class="for-you-card">
             <div class="for-you-image" style="background-color: {event.image_color || '#2667FF'}">
               <div class="for-you-overlay">
-                <span class="for-you-tag">{event.category === 'sports' ? 'SPORTS ACCESS' : 'MUSIC ACCESS'}</span>
+                <span class="for-you-tag {event.category === 'sports' ? 'sports' : 'music'}">{event.category === 'sports' ? 'SPORTS ACCESS' : 'MUSIC ACCESS'}</span>
                 <div class="for-you-bottom">
                   <h3 class="for-you-name">{event.title}</h3>
                   <p class="for-you-date">{event.date_display || event.date}</p>
@@ -328,6 +328,9 @@
     border-radius: 6px;
     letter-spacing: 0.5px;
   }
+
+  .for-you-tag.music { background: var(--color-music); }
+  .for-you-tag.sports { background: var(--color-sports); }
 
   .for-you-bottom {
     margin-top: auto;

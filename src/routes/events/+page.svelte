@@ -111,7 +111,7 @@
   <div class="filter-chips">
     {#each filters as f}
       <button
-        class="chip"
+        class="chip {f === 'Music' ? 'music' : f === 'Sports' ? 'sports' : ''}"
         class:active={activeFilter === f}
         on:click={() => activeFilter = f}
       >
@@ -350,9 +350,19 @@
   }
 
   .chip.active {
-    border-color: #FF5C00;
+    border-color: var(--action-orange);
     color: #FFFFFF;
-    background: #FF5C00;
+    background: var(--action-orange);
+  }
+
+  .chip.music.active {
+    border-color: var(--color-music);
+    background: var(--color-music);
+  }
+
+  .chip.sports.active {
+    border-color: var(--color-sports);
+    background: var(--color-sports);
   }
 
   /* Sections */
@@ -503,8 +513,8 @@
     align-self: flex-start;
   }
 
-  .access-chip.music { background: rgba(59, 40, 204, 0.8); }
-  .access-chip.sports { background: rgba(255, 92, 0, 0.8); }
+  .access-chip.music { background: var(--color-music); }
+  .access-chip.sports { background: var(--color-sports); }
 
   .trending-name {
     font-size: 14px;
