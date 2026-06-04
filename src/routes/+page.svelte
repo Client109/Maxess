@@ -9,6 +9,7 @@
   $: tierName = currentTier?.name ?? 'Elite';
 
   let activeToggle = 'music';
+  $: filteredEvents = (data.upcomingEvents ?? []).filter(e => e.category === activeToggle).slice(0, 4);
 </script>
 
 <svelte:head>
@@ -67,7 +68,7 @@
         <a href="/events" class="see-all">See All</a>
       </div>
       <div class="cards-scroll">
-        {#each data.upcomingEvents.slice(0, 4) as event}
+        {#each filteredEvents as event (event.event_id)}
           <a href={event.external_url || `/events/${event.event_id}`} target={event.external_url ? '_blank' : undefined} rel={event.external_url ? 'noopener noreferrer' : undefined} class="for-you-card">
             <div class="for-you-image" style="background-color: {event.image_color || '#2667FF'}">
               <div class="for-you-overlay">
@@ -79,6 +80,8 @@
               </div>
             </div>
           </a>
+        {:else}
+          <p class="empty-state">No upcoming {activeToggle} events.</p>
         {/each}
       </div>
     </section>
@@ -341,6 +344,13 @@
   .for-you-date {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+  }
+
+  .empty-state {
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 24px 4px;
     margin: 0;
   }
 

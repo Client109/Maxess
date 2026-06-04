@@ -3,6 +3,7 @@ import prismaPkg from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 
 const { PrismaClient } = prismaPkg;
 
@@ -12,9 +13,10 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const pool = new pg.Pool({
-    connectionString: 'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable',
-  });
+  const connectionString =
+    env.DATABASE_URL ||
+    'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable';
+  const pool = new pg.Pool({ connectionString });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({
     adapter,

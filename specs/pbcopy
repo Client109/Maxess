@@ -1,0 +1,694 @@
+app_spec:
+  name: "Maxxes MVP - Fan Ranking & Community Platform"
+  version: "0.5.0-MVP"
+  status: "Light theme, new tier system (General/Loyal/Superfan/Elite), direct Postgres via pg adapter, server-side data loading"
+
+  product_direction:
+    description: "Maxxes is a fan ranking, rewards, and community platform for the live events industry. It connects ticketing history and music streaming behavior into a single verified fan profile — the Superfan Score — and uses that score to unlock tier-based rewards, presale access, and community standing."
+    mvp_focus: "Four-screen interactive prototype with live data from Ticketmaster, Spotify, Last.fm, and Vercel PostgreSQL, deployed to Vercel"
+    business_positioning: "Platform connecting fans with live events through verified engagement scoring"
+    core_directive: "Wire real data sources end-to-end. Ticketmaster Discovery API is the primary event source. Spotify is the primary music intelligence source with Last.fm as fallback. User data lives in Vercel PostgreSQL via Prisma. Auth is deferred — this is a demo prototype using a hardcoded demo user (Alex Chen)."
+    questions_answered:
+      - "What is my Superfan Score and how do I improve it?"
+      - "What tier am I and what rewards can I unlock?"
+      - "How do I rank against other fans in my city?"
+      - "What challenges can I complete to earn more XP?"
+      - "Which events should I attend for maximum fan engagement?"
+
+  mvp_boundary:
+    version_target: "0.2.0 → 0.3.0 by end of Week 8 lab"
+    must_build:
+      - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
+      - "Events screen with filtering, search, and booking capabilities"
+      - "Access & Rewards screen — unified rank + rewards screen with internal My Rank / My Rewards toggle, merging former Score and Access screens. Navbar label: Access. Route: /access"
+      - "Profile screen with XP breakdown, achievements, and settings"
+      - "Persistent bottom navigation connecting all four screens"
+      - "Runtime JSON data layer — 7 JSON files replacing hardcoded mock data"
+      - "Client-side XP scoring calculation with signal-based transparency"
+      - "All animations and state transitions as specified"
+      - "Mobile-responsive design with touch-friendly interactions"
+      - "Deployed to Vercel with a public URL"
+
+    what_mvp_is_not:
+      - "A static slide deck or PDF mockup"
+      - "A prototype requiring live presenter explanation"
+      - "An app that only works locally"
+      - "A production platform with user authentication (auth is deferred to roadmap)"
+      - "An Apple Music integration (excluded by product decision)"
+
+  technology_stack:
+    frontend_framework: "SvelteKit 2.0+ with TypeScript"
+    styling: "Tailwind CSS 3.3+ with custom design tokens"
+    build_tool: "Vite 6.0+"
+    package_manager: "npm"
+    deployment: "Vercel with adapter-vercel (server routes required for API proxying and database access)"
+    icons: "@lucide/svelte"
+    utilities:
+      - "date-fns for date handling"
+      - "zod for validation"
+    testing:
+      - "vitest for unit tests"
+      - "@playwright/test for E2E testing"
+
+  visual_design:
+    theme: "Light theme (app-wide)"
+    color_palette:
+      primary_orange: "#FF5C00"
+      bg_primary: "#F8F8FA"
+      bg_card: "#FFFFFF"
+      bg_card_elevated: "#F5F5F7"
+      bg_input: "#F2F2F7"
+      text_primary: "#000000"
+      text_secondary: "#8E8E93"
+      text_tertiary: "#C7C7CC"
+      border_gray: "#E5E5EA"
+      border_subtle: "#F0F0F0"
+      success_green: "#34D399"
+      error_red: "#EF4444"
+      gold: "#FFD700"
+      deep_navy: "#2667FF"
+      deeper_indigo: "#3B28CC"
+
+    typography:
+      system: "System font stack with fallbacks (-apple-system, BlinkMacSystemFont, SF Pro Display)"
+      hierarchy: "Consistent heading and body text sizing"
+
+    layout_rules:
+      page_padding: "16px horizontal (never touch screen edges)"
+      card_border_radius: "14-20px (18-20px for hero cards)"
+      card_borders: "1px solid #E5E5EA (inactive), 1.5-2px solid #FF5C00 (active)"
+      card_gaps: "8-10px vertical, 16-20px between sections"
+      bottom_nav_height: "70px content + safe area inset"
+      touch_targets: "minimum 44×44px for all tappable elements"
+
+  data_sources:
+    integration_strategy: "All real data. Ticketmaster for events, Spotify + Last.fm for music intelligence, PostgreSQL for user/fan data. No mock data in production."
+
+    source_a_ticketmaster:
+      owner: "Luke"
+      description: "Primary event source — live queries to Ticketmaster Discovery API (DMA 324)"
+      type: "Live API integration"
+      api_key_status: "Pending — will be obtained from developer.ticketmaster.com"
+      rate_limits: "5,000 requests/day, 5 requests/second"
+      base_url: "https://app.ticketmaster.com/discovery/v2"
+      client_class: "src/lib/api/ticketmaster.ts (extends BaseApiClient)"
+      cache_strategy: "Event search results cached 5 min, individual events cached 15 min"
+      fields_per_event: 36
+      stats:
+        total_events: 20
+        unique_venues: 8
+        events_on_sale: 16
+        events_with_presale: 15
+        events_with_spotify_url: 16
+        events_with_addon_products: 12
+        genre_coverage: ["Pop", "Hip-Hop/Rap", "Rock", "Metal", "Latin", "Country", "Classical"]
+      venues:
+        - "Crypto.com Arena"
+        - "BMO Stadium"
+        - "Greek Theatre"
+        - "Hollywood Pantages Theatre"
+        - "Dodger Stadium"
+        - "The Wiltern"
+        - "Walt Disney Concert Hall"
+        - "Orpheum Theatre"
+      event_inventory:
+        - { name: "Ariana Grande — The Eternal Sunshine Tour", date: "Jun 13–14, 2026", genre: "Pop", venue: "Crypto.com Arena", status: "On sale", presale: true, featured: true }
+        - { name: "Don Toliver: Octane Tour", date: "Jun 28–29, 2026", genre: "Hip-Hop/Rap", venue: "Crypto.com Arena", status: "On sale", presale: true, featured: true }
+        - { name: "Joshua Bell w/ Jeremy Denk", date: "Jun 3, 2026", genre: "Classical", venue: "Walt Disney Concert Hall", status: "On sale", presale: false }
+        - { name: "Fuerza Regida: This Is Our Dream Stadium Tour", date: "Jul 18, 2026", genre: "Latin", venue: "Dodger Stadium", status: "On sale", presale: true }
+        - { name: "Belicofest", date: "Jul 12, 2026", genre: "Latin", venue: "BMO Stadium", status: "On sale", presale: true }
+        - { name: "TRAIN — Drops of Jupiter: 25 Years", date: "Aug 24, 2026", genre: "Rock", venue: "Greek Theatre", status: "On sale", presale: true }
+        - { name: "Avenged Sevenfold, Good Charlotte", date: "Aug 30, 2026", genre: "Rock", venue: "BMO Stadium", status: "On sale", presale: true }
+        - { name: "Carin Leon — De Sonora Para El Mundo Tour", date: "Sep 20, 2026", genre: "Latin", venue: "BMO Stadium", status: "On sale", presale: true }
+        - { name: "Iron Maiden: Run For Your Lives World Tour", date: "Sep 25–27, 2026", genre: "Metal", venue: "BMO Stadium", status: "On sale", presale: true }
+        - { name: "Billy Strings", date: "Sep 25, 2026", genre: "Country", venue: "Orpheum Theatre", status: "Off sale", presale: false }
+        - { name: "WEEZER: The Gathering", date: "Oct 24, 2026", genre: "Rock", venue: "Crypto.com Arena", status: "On sale", presale: true }
+        - { name: "Kacey Musgraves", date: "Oct 18–19, 2026", genre: "Country", venue: "Crypto.com Arena", status: "On sale", presale: true }
+        - { name: "Bonnie Raitt: Live 2026", date: "Oct 20–21, 2026", genre: "Rock", venue: "Hollywood Pantages Theatre", status: "On sale", presale: true }
+        - { name: "for KING & COUNTRY", date: "Oct 9, 2026", genre: "Pop", venue: "Greek Theatre", status: "Off sale", presale: true }
+        - { name: "The Rocky Horror Picture Show", date: "Oct 26, 2026", genre: "Music/Film", venue: "The Wiltern", status: "Off sale", presale: true }
+
+    source_b_spotify:
+      description: "Primary music intelligence — artist data, search, track metadata, relevance scoring"
+      type: "Live API integration"
+      auth_flow: "Client Credentials (no user OAuth needed for demo — artist data, search, tracks)"
+      note: "User-specific endpoints (top artists, recently played) require Authorization Code + PKCE flow, deferred until auth is implemented. User listening data simulated via seed data for demo."
+      rate_limits: "1,000 requests/hour per user"
+      base_url: "https://api.spotify.com/v1"
+      client_class: "src/lib/api/spotify.ts (extends BaseApiClient)"
+      capabilities:
+        - "Artist search and metadata"
+        - "Track metadata and preview URLs"
+        - "Related artists for recommendation"
+        - "Artist top tracks"
+      fallback: "Last.fm (see source_c)"
+
+    source_c_lastfm:
+      description: "Secondary music intelligence — fallback when Spotify unavailable, scrobble history, artist tags, similar artists"
+      type: "Live API integration"
+      auth_flow: "API key only (no OAuth)"
+      rate_limits: "5 requests/second"
+      base_url: "https://ws.audioscrobbler.com/2.0"
+      client_class: "src/lib/api/lastfm.ts (extends BaseApiClient)"
+      capabilities:
+        - "User top artists (if Last.fm username stored)"
+        - "User top tracks and scrobble counts"
+        - "Artist info and tags"
+        - "Similar artists for recommendation"
+      role: "Fallback when Spotify rate-limited or missing data. Also provides deeper scrobble history and artist tags not available from Spotify Client Credentials."
+
+    source_d_postgresql:
+      description: "All user/fan data — profiles, XP, leaderboard, challenges, passes, activity"
+      type: "PostgreSQL via Prisma ORM with @prisma/adapter-pg (direct TCP connection)"
+      schema: "prisma/schema.prisma"
+      local_dev: "prisma dev server (postgres://localhost:51214), seed via prisma/seed.ts with pg adapter"
+      query_functions: "src/lib/server/database.ts (12 functions ready)"
+      models: ["User", "Event", "UserEvent", "Challenge", "UserChallenge", "XpTransaction", "Pass", "FriendActivity", "RecentActivity", "LeaderboardEntry"]
+
+    source_e_listener_activity:
+      owner: "Ethan"
+      description: "Seed data for demo user profiles — loaded into PostgreSQL via prisma db seed"
+      fields_per_record: 14
+      records:
+        - { name: "Alex Chen", city: "Los Angeles", artist: "Drake", tier: "Gold", xp_today: 420, engagement: 91, streak: 12, attended: true, role: "demo user" }
+        - { name: "Maya Brooks", city: "Los Angeles", artist: "The Weeknd", tier: "Silver", xp_today: 260, engagement: 76, streak: 6, attended: false }
+        - { name: "Jordan Lee", city: "Chicago", artist: "Drake", tier: "Platinum", xp_today: 610, engagement: 97, streak: 21, attended: true }
+        - { name: "Sophia Carter", city: "New York", artist: "SZA", tier: "Gold", xp_today: 195, engagement: 68, streak: 4, attended: false }
+        - { name: "Noah Patel", city: "Toronto", artist: "PARTYNEXTDOOR", tier: "Gold", xp_today: 510, engagement: 93, streak: 15, attended: true }
+      notes:
+        - "Alex Chen city MUST be Los Angeles (not Toronto) for leaderboard demo"
+        - "Alex Chen xp_total MUST be 8,750 cumulative (not just today's 420)"
+
+    source_f_gmail_attachment:
+      owner: "Kayah"
+      description: "Gmail attachment data file — contents TBD"
+      action: "Download, identify fields, determine which JSON files it feeds, share field names with Luke"
+
+    source_g_reference_datasets:
+      spotify_million_playlist:
+        description: "100M+ track interactions from 1M playlists (AIcrowd)"
+        role: "Reference for streaming signal field structure — not loaded at runtime"
+      seatdata_api:
+        description: "Ticketing and venue data API with seat maps and pricing"
+        role: "Future production upgrade path — Luke's Ticketmaster data covers MVP"
+      datacamp_redshift:
+        description: "Sample cloud database dataset"
+        role: "Reference for Kayah's database hosting decision — not used tonight"
+
+  screen_specifications:
+    home:
+      route: "/"
+      primary_components:
+        - "Brand header with Zap icon + MAXESS wordmark"
+        - "Time-based greeting (Good morning/afternoon/evening, Alex)"
+        - "Momentum Score hero card with sparkline SVG, tier badge, XP progress bar, and weekly delta"
+        - "Upcoming For You section with event cards featuring Unsplash concert images"
+        - "Your Ranking card with rank, percentile, city leaderboard position"
+        - "Community Activity feed showing friend actions"
+        - "Trending Near You section with genre-tagged event chips"
+      required_interactions:
+        - "XP progress bar animates to fill percentage on load"
+        - "Event cards link to /events"
+        - "Your Ranking card links to /rank-rewards"
+        - "Community Activity shows friend names with action descriptions"
+      after_data_layer: "Real fan score (8,750 XP), real Elite tier badge, real 12-day streak, server-side data from PostgreSQL, community activity from friends data"
+
+    events:
+      route: "/events"
+      primary_components:
+        - "Filter chips for category, date, and price selection"
+        - "Search bar with real-time filtering"
+        - "Event cards with image, venue, date, presale indicators"
+        - "Bookmark toggles with state persistence"
+        - "Featured hero cards for top 2 events"
+        - "Genre filter across 7 real genres"
+      required_interactions:
+        - "Filter chips update displayed events in real time"
+        - "Search query filters events as user types"
+        - "Date picker for event filtering"
+        - "Bookmark toggle persists during session"
+        - "Notify Me button state management"
+      after_data_layer: "20 real LA music events + 4 mock sports events. Real venues, real presale flags, real dates. Featured cards with Spotify links. Genre filter works across 7 real genres."
+      featured_events:
+        - { name: "Ariana Grande — The Eternal Sunshine Tour", reason: "Mainstream pop appeal, Crypto.com Arena, presale, Spotify URL" }
+        - { name: "Don Toliver: Octane Tour", reason: "Hip-Hop/Rap, Spotify URL, presale via Citi card, strong fan engagement signal" }
+      genre_to_category_mapping:
+        music: ["Pop", "Hip-Hop/Rap", "Rock", "Metal", "Latin", "Country", "Classical"]
+        sports: ["(4 mock sports events: Ducks vs Kings, Lakers, Honda Center night, Dodgers game)"]
+      category_chips:
+        music: "MUSIC ACCESS — orange"
+        sports: "VENUE ACCESS — orange"
+
+    access_and_rewards:
+      route: "/rank-rewards"
+      nav_label: "Rewards"
+      page_title: "Access & Rewards"
+      description: "Unified rank + rewards screen merging the former Score and Access screens. Organized into two sections via an internal tab toggle: My Rank and My Rewards. Completing a challenge in My Rank immediately surfaces the unlocked reward in My Rewards — cause and effect on the same screen."
+      internal_tabs:
+        my_rank:
+          primary_components:
+            - "Superfan score summary card (score, Elite badge, weekly delta, rank in city, percentile)"
+            - "Community leaderboard (filterable by city/this week/all time, current user row highlighted orange, friend filter toggle)"
+            - "Friends activity horizontal scroll (who passed you, who completed a challenge, who is N pts behind)"
+            - "Challenges unlocking rewards (each card shows reward image, reward name, task checklist, progress bar, Limited badge)"
+          required_interactions:
+            - "City filter updates displayed rankings"
+            - "Time period filter changes data slice"
+            - "Current user row highlighted in orange"
+            - "Friend filter toggle filters leaderboard to friends only"
+            - "Challenge task completion checkboxes"
+            - "100% complete challenge visually links to corresponding reward in My Rewards"
+        my_rewards:
+          primary_components:
+            - "Elite/Diamond access summary bar (active count, expiring soon, top tier perks label)"
+            - "Featured access cards (TOP PICK and LIMITED variants with countdown, CTA buttons)"
+            - "Your passes list (Early entry / Artist presale / VIP package with status badges)"
+            - "Perks by tier carousel (Fan / Loyal / Superfan / Elite with descriptions)"
+            - "Unlock next progress item"
+          required_interactions:
+            - "Pass status display matches UI badge text exactly"
+            - "Tier perks show current and locked tiers"
+            - "Completed challenge rewards visually activate (badge locked → claim, CTA orange and tappable)"
+            - "Claim access and View pass toggle buttons"
+      color_system:
+        active_earned: "#FF5C00 (orange)"
+        elite_tier: "#3B28CC (purple)"
+        completed_unlocked: "#1A9E56 (green)"
+        locked_pending: "#8E8E93 (gray)"
+      after_data_layer: "25+ ranked fans. Alex Chen at rank 18, score 8,750, highlighted orange. 5 real passes with statuses. Challenges with real task progress. Tier perks grid from tiers.json. Challenge-to-reward linkage visible."
+
+    profile:
+      route: "/profile"
+      primary_components:
+        - "Achievement badges with earned/unearned states"
+        - "Tier progression visualization"
+        - "Settings toggles for notifications and preferences"
+        - "Statistics overview with streak and totals"
+        - "XP breakdown by signal type"
+      required_interactions:
+        - "Settings toggles persist state changes"
+        - "Achievement badges show tooltip descriptions"
+        - "Tier progression shows next milestone"
+      after_data_layer: "Alex Chen's real XP breakdown — 3,600 attendance XP, 2,840 streaming XP, 960 watch XP, 440 spend XP, 910 challenge XP. Events attended count. Top artist and venue."
+
+  navigation:
+    bottom_nav:
+      height: "70px content + env(safe-area-inset-bottom)"
+      style: "Persistent across all screens, light background (#FFFFFF) with 1px #E5E5EA top border"
+      tabs:
+        - { icon: "home", label: "Home", route: "/" }
+        - { icon: "search", label: "Events", route: "/events" }
+        - { icon: "trophy", label: "Rewards", route: "/rank-rewards" }
+        - { icon: "user", label: "Profile", route: "/profile" }
+      animations:
+        screen_transitions: "300ms ease slide or fade"
+        active_indicator: "150ms fade/color transition"
+
+  animation_requirements:
+    timing_specifications:
+      screen_transitions: "300ms ease (not instant jumps)"
+      toggle_switch: "200ms ease slide of orange pill"
+      progress_bars: "600ms ease-out from 0 to actual percentage"
+      score_counter: "800ms count-up from 0 to actual value"
+      challenge_progress: "animates to fill percentage on screen load"
+      status_badges: "no animation - renders immediately"
+      bottom_nav_transitions: "150ms fade/color transition on tab change"
+
+  demo_user:
+    fan_id: "fan_001"
+    name: "Alex Chen"
+    city: "Los Angeles"
+    xp_total: 8750
+    current_tier: "Elite"
+    streak_days: 12
+    rank: 18
+    percentile: "Top 3%"
+    top_artist: "The Weeknd"
+    top_venue: "SoFi Stadium"
+    events_attended: 9
+    xp_breakdown:
+      attendance_xp: 3600
+      streaming_xp: 2840
+      watch_xp: 960
+      spend_xp: 440
+      challenge_xp: 910
+
+  xp_scoring_model:
+    description: "Signal-based XP calculation from listener activity data"
+    signals:
+      - { field: "minutesListened", rule: "+3 XP per hour", calculation: "(minutesListened / 60) × 3", example: "173 min → 8.6 XP" }
+      - { field: "eventAttended", rule: "+200 XP per verified attendance", calculation: "if true → +200 XP", example: "true → +200 XP" }
+      - { field: "concertCheckIns", rule: "In-venue engagement signal", calculation: "concertCheckIns × 50", example: "1 check-in → +50 XP" }
+      - { field: "playlistSaves", rule: "Music engagement depth", calculation: "playlistSaves × 5", example: "12 saves → +60 XP" }
+      - { field: "setlistSongsPlayed", rule: "Setlist engagement", calculation: "setlistSongsPlayed × 3", example: "9 songs → +27 XP" }
+      - { field: "streakDays", rule: "Streak multiplier 1.0x–2.0x", calculation: "0–7 days: 1.0x | 8–14: 1.3x | 15–28: 1.5x | 28+: 2.0x", example: "12 days → 1.3x" }
+      - { field: "engagementScore", rule: "Composite signal for leaderboard sort", calculation: "Use directly as score proxy 0–100", example: "91 → rank signal" }
+      - { field: "xpEarnedToday", rule: "Today's XP adds to cumulative total", calculation: "xp_total + xpEarnedToday", example: "420 today → adds to 8,750 total" }
+
+  tier_thresholds:
+    description: "Single source of truth — matches Prisma enum and calculateTier() in database.ts"
+    tiers:
+      - { name: "General", min_xp: 0, color: "#8E8E93" }
+      - { name: "Loyal", min_xp: 1000, color: "#2667FF" }
+      - { name: "Superfan", min_xp: 2500, color: "#FFD700" }
+      - { name: "Elite", min_xp: 5000, color: "#FF5C00" }
+
+  state_management:
+    global_state:
+      fan_profile:
+        fan_id: "string"
+        name: "string"
+        city: "string"
+        xp_total: "number"
+        current_tier: "General | Loyal | Superfan | Elite"
+        streak_days: "number"
+        rank: "number"
+        percentile: "string"
+        top_artist: "string"
+        top_venue: "string"
+        events_attended: "number"
+        xp_breakdown: "object with attendance_xp, streaming_xp, watch_xp, spend_xp, challenge_xp"
+
+    persistent_state:
+      music_sports_toggle: "persists during session, resets on reload"
+      filter_states: "active chips, selected dates, search queries"
+      challenge_completion: "checked tasks, progress percentages"
+      notification_preferences: "notify me buttons, bookmark icons"
+      leaderboard_filters: "city selection, time period selection"
+
+    session_state:
+      loading_states: "for all data fetching operations"
+      error_states: "graceful error handling and retry logic"
+      form_validation: "real-time validation with user feedback"
+
+  data_architecture:
+    storage_method: "Server-side data fetching via SvelteKit +page.server.ts load functions. Events from Ticketmaster API, music intelligence from Spotify/Last.fm, user data from Vercel PostgreSQL. Static JSON files retained as fallback only."
+    data_files:
+      fan_profile:
+        path: "/static/data/fan-profile.json"
+        owner: "Ethan"
+        description: "Alex Chen demo user profile with full XP breakdown"
+        fields_ready: ["fanId", "name", "artist", "streamsToday", "minutesListened", "eventAttended", "currentTier", "xpEarnedToday", "engagementScore", "playlistSaves", "streakDays"]
+        fields_to_add: ["xp_total (8,750)", "rank (18)", "percentile (Top 3%)", "city (Los Angeles)", "top_venue", "xp_breakdown by signal type"]
+        source: "Ethan's ZIP — Alex Chen record"
+
+      events:
+        path: "/static/data/events.json"
+        owner: "Luke + Ethan"
+        description: "20 real LA music events from Ticketmaster + 4 mock sports events"
+        fields_ready: ["event_id", "event_name", "performers", "event_date", "event_time", "venue", "city", "genre", "ticket_status", "has_presale", "has_addon_products", "product_types", "spotify_artist_url"]
+        fields_to_add: ["category (music/sports)", "featured flag", "image_color", "short_description"]
+        source: "Luke's Ticketmaster data (20 events) + 4 mock sports events"
+        minimum_records: 24
+        sample_record: |
+          {
+            "event_id": "G5eYZ_7pjCvKP",
+            "event_name": "Don Toliver: Octane Tour",
+            "performers": ["Don Toliver", "SahBabii", "SoFaygo", "Chase B"],
+            "event_date": "2026-06-28",
+            "event_time": "19:30",
+            "venue": "Crypto.com Arena",
+            "city": "Los Angeles",
+            "genre": "Hip-Hop/Rap",
+            "category": "music",
+            "ticket_status": "onsale",
+            "has_presale": true,
+            "featured": true,
+            "spotify_artist_url": "https://open.spotify.com/artist/4Gso3d4CscCijv0lmajZWs",
+            "has_addon_products": false,
+            "image_color": "#1A0A30",
+            "short_description": "Exclusive presale access"
+          }
+
+      leaderboard:
+        path: "/static/data/leaderboard.json"
+        owner: "Ethan"
+        description: "25+ ranked fans for city-based leaderboard"
+        fields: ["name", "city", "currentTier", "score", "rank", "weekly_delta", "is_me", "time_period"]
+        source: "Ethan's ZIP (5 fans as foundation) + 20 synthetic records"
+        minimum_records: 25
+        notes:
+          - "Alex Chen at rank 18 with score 8,750 and is_me: true"
+          - "Use engagementScore × 100 as score proxy"
+          - "Realistic names, cities (LA, Chicago, New York, Toronto), scores 65–98"
+
+      challenges:
+        path: "/static/data/challenges.json"
+        owner: "Ethan"
+        description: "5 challenges using real Maxxes behaviors"
+        fields: ["id", "title", "subtitle", "reward_name", "tasks (array with is_complete flag)", "progress_fraction", "is_limited"]
+        source: "Built from scratch — no existing dataset"
+        minimum_records: 5
+        challenge_behaviors:
+          - "Attend 1 event"
+          - "Stream 5 hours"
+          - "Keep 7-day streak"
+          - "Finish top 10"
+          - "Share recap"
+        completion_states: "Mix of 2/3 complete, 1/3 complete, new, and fully complete"
+
+      passes:
+        path: "/static/data/passes.json"
+        owner: "Ethan"
+        description: "5 passes derived from Ticketmaster add-on products"
+        fields: ["name", "source_event", "pass_type", "status", "xp_tier_required"]
+        source: "Luke's Ticketmaster add-on products (12 of 20 events have them)"
+        minimum_records: 5
+        status_distribution: "2 active, 1 starts_soon, 1 waiting_list, 1 limited"
+        pass_inventory:
+          - { name: "SoFi VIP Lounge Access", source: "Rocky Horror Show (Lounge add-on)", type: "Club Access", status: "active", tier: "Gold" }
+          - { name: "Ariana Grande Presale", source: "Ariana Grande — Eternal Sunshine Tour", type: "Artist Presale", status: "starts_soon", tier: "Silver" }
+          - { name: "Crypto.com Arena Early Entry", source: "Don Toliver — Octane Tour", type: "Venue Access", status: "active", tier: "Bronze" }
+          - { name: "BMO Stadium Parking", source: "Iron Maiden World Tour (Parking add-on)", type: "Parking", status: "active", tier: "Bronze" }
+          - { name: "VIP Package — Iron Maiden", source: "Iron Maiden (VIP Package Presale)", type: "VIP Package", status: "waiting_list", tier: "Platinum" }
+        notes:
+          - "Status labels MUST exactly match what the UI components display"
+
+      friends:
+        path: "/static/data/friends.json"
+        owner: "Ethan"
+        description: "8–10 friend records for social features"
+        fields: ["name", "city", "engagementScore", "currentTier", "activity_label", "score_delta", "delta_type"]
+        source: "Ethan's ZIP (5 fans as starting point) + 3–5 additional records"
+        minimum_records: 8
+
+      tiers:
+        path: "/static/data/tiers.json"
+        owner: "Ethan / Kayah"
+        description: "Canonical tier thresholds — single source of truth"
+        fields: ["name", "min_xp", "color_hex", "perks"]
+        source: "Maxxes Master Document"
+        notes:
+          - "Bronze 0, Silver 2500, Gold 5000, Platinum 10000, Diamond 25000"
+          - "Must include perks list per tier and color hex per tier"
+          - "This file is the single source of truth — no hardcoded thresholds in components"
+
+    fetching_strategy:
+      method: "Server-side load functions (+page.server.ts) fetch from APIs and database, pass data to pages via SvelteKit page data"
+      api_proxying: "All third-party API calls happen server-side (Ticketmaster, Spotify, Last.fm) — API keys never exposed to client"
+      caching: "In-memory SimpleCache (src/lib/api/base.ts) for API responses; browser caching for page data"
+      error_handling: "Graceful fallbacks — if Spotify fails, fall back to Last.fm; if Ticketmaster fails, fall back to cached/seeded events"
+      loading_states: "Progressive loading with skeletons"
+
+  deployment:
+    build_target: "Serverless functions via adapter-vercel (required for server routes, API proxying, and database access)"
+    hosting_platform: "Vercel"
+    deployment_method: "Automatic deployment from GitHub"
+    database: "Vercel Postgres (Neon-hosted PostgreSQL)"
+    public_url_required: "Yes — must be accessible without installation"
+
+    environment_variables:
+      DATABASE_URL: "Vercel Postgres pooled connection string"
+      DIRECT_URL: "Vercel Postgres direct connection (for migrations)"
+      TICKETMASTER_API_KEY: "From developer.ticketmaster.com"
+      SPOTIFY_CLIENT_ID: "From developer.spotify.com"
+      SPOTIFY_CLIENT_SECRET: "From developer.spotify.com"
+      LASTFM_API_KEY: "From last.fm/api"
+
+    build_process:
+      1: "Switch svelte.config.js from adapter-static to adapter-vercel"
+      2: "Remove prerender config from +layout.ts"
+      3: "Provision Vercel Postgres, run prisma migrate deploy + prisma db seed"
+      4: "Set all environment variables in Vercel dashboard"
+      5: "Push to main"
+      6: "Confirm the build succeeds and a URL is generated"
+      7: "Verify all four screens load with live data"
+    fallback: "If API keys not yet available, server routes fall back to seeded database data. Static JSON files remain in /static/data/ as emergency fallback."
+
+    performance_targets:
+      lighthouse_score: "90+ in all categories"
+      first_contentful_paint: "< 2 seconds"
+      time_to_interactive: "< 3 seconds"
+      bundle_size: "< 200KB initial JavaScript"
+
+  testing_requirements:
+    unit_tests:
+      - "XP calculation logic for all 5 signal types"
+      - "Tier boundary tests: 0, 2499, 2500, 4999, 5000, 9999, 10000, 24999, 25000"
+      - "xpToNextTier() function"
+      - "tierProgress() function"
+      - "Streak multiplier at boundary values (0, 7, 8, 14, 15, 28, 29)"
+      - "Component state management"
+      - "Data fetching functions"
+
+    integration_tests:
+      - "Screen navigation flows"
+      - "State persistence across screens"
+      - "Filter and search functionality"
+      - "Data loading and error states"
+
+    e2e_tests:
+      - "Complete user journey through all 4 screens"
+      - "Challenge completion workflow"
+      - "Event filtering and booking flow"
+      - "Leaderboard interaction"
+
+    qa_validation:
+      change_test: "Edit Alex Chen's XP in fan-profile.json, reload Vercel URL, confirm score updates on screen"
+      count_test: "Verify each JSON file hits minimum record targets"
+      consistency_test: "Alex Chen shows same values everywhere. Status labels match UI badge text exactly."
+
+    accessibility_tests:
+      - "Keyboard navigation"
+      - "Screen reader compatibility"
+      - "Color contrast compliance"
+      - "Touch target sizing"
+
+  success_criteria:
+    completion_checklist:
+      aesthetic: "Matches official color palette and layout specifications"
+      wireframe: "All 4 screens fully implemented with required components"
+      interactivity: "Every listed interaction works without explanation"
+      live_data: "7 JSON files loaded at runtime update UI correctly"
+      hostable: "Accessible via public Vercel URL, works on mobile and desktop"
+
+    demo_requirements:
+      duration: "Must run for 5+ minutes without issues"
+      explanation: "Should be self-explanatory without presenter"
+      functionality: "All features work as expected"
+      performance: "Smooth animations and responsive interactions"
+
+    team_success_statement: "By end of lab, Maxxes will have 20 real LA music events feeding the Events screen, a real fan profile driving the Home and Access & Rewards screens, 25+ leaderboard entries, 5 challenges, 5 passes, and a live Vercel URL anyone can open. The app will be understandable without a presenter explaining every screen."
+
+  browser_support:
+    primary:
+      - "Chrome 90+"
+      - "Firefox 88+"
+      - "Safari 14+"
+      - "Edge 90+"
+    mobile:
+      - "iOS Safari"
+      - "Chrome Mobile"
+
+  file_structure:
+    project_root:
+      - "package.json"
+      - "svelte.config.js"
+      - "vite.config.js"
+      - "tailwind.config.js"
+      - "tsconfig.json"
+
+    source_structure: |
+      src/
+      ├── app.html
+      ├── routes/
+      │   ├── +layout.svelte
+      │   ├── +page.svelte (Home)
+      │   ├── +page.server.ts (Home data loader)
+      │   ├── events/
+      │   │   ├── +page.svelte
+      │   │   └── +page.server.ts (Ticketmaster → normalized events)
+      │   ├── rank-rewards/
+      │   │   ├── +page.svelte
+      │   │   └── +page.server.ts (leaderboard, challenges, passes)
+      │   ├── profile/
+      │   │   ├── +page.svelte
+      │   │   └── +page.server.ts (fan profile, XP breakdown)
+      │   └── api/
+      │       └── events/+server.ts (search endpoint)
+      ├── lib/
+      │   ├── api/
+      │   │   ├── base.ts (BaseApiClient with rate limiting, caching)
+      │   │   ├── ticketmaster.ts (TicketmasterClient)
+      │   │   ├── spotify.ts (SpotifyClient)
+      │   │   └── lastfm.ts (LastFmClient)
+      │   ├── components/
+      │   │   ├── ui/ (shared components)
+      │   │   ├── home/
+      │   │   ├── events/
+      │   │   ├── rank-rewards/
+      │   │   └── profile/
+      │   ├── config/
+      │   │   └── env.ts
+      │   ├── domain/
+      │   │   ├── types.ts
+      │   │   ├── hotlist.ts
+      │   │   └── xp.ts
+      │   ├── server/
+      │   │   ├── database.ts (Prisma queries)
+      │   │   ├── events.ts (Ticketmaster normalizer)
+      │   │   └── music.ts (Spotify/Last.fm intelligence service)
+      │   ├── stores/
+      │   └── data/
+      │       └── mockData.ts (fallback only — not imported in production routes)
+      ├── static/
+      │   └── data/ (emergency fallback JSON files)
+      └── prisma/
+          ├── schema.prisma
+          └── seed.ts
+
+  validation_requirements:
+    before_deployment:
+      - "All 4 screens load successfully"
+      - "Bottom navigation functions correctly"
+      - "All animations work as specified"
+      - "7 JSON data files load and update UI"
+      - "Mobile responsive design verified"
+      - "Cross-browser compatibility tested"
+      - "Performance targets met"
+      - "Alex Chen data consistent across all screens"
+
+  roadmap:
+    description: "Features deferred from the demo prototype, earmarked for future development."
+
+    auth:
+      status: "DEFERRED — earmarked for roadmap"
+      current_state: "Demo prototype uses hardcoded fan_id 'fan_001' (Alex Chen). No login, no session, no user switching."
+      planned_provider: "Auth0 (config stubs already exist in src/lib/config/env.ts)"
+      implementation_notes:
+        - "Auth0 domain, client ID, and client secret are already structured in serverConfig and publicConfig"
+        - "User model in Prisma schema already has auth0-compatible fields"
+        - "When implemented: replace hardcoded fan_001 with authenticated user ID in all server load functions"
+      unlocks:
+        - "Spotify Authorization Code + PKCE flow for user-specific listening data (top artists, recently played)"
+        - "Multi-user support with real logins"
+        - "Personalized event recommendations based on actual listening history"
+        - "User-to-user social features (friend graph, activity feed)"
+        - "Persistent bookmarks and notification preferences"
+      priority: "P1 — first feature after demo launch"
+
+    apple_music:
+      status: "EXCLUDED by product decision"
+      notes: "MusicKit integration code exists as mock only (src/lib/stores/appleMusic.ts, src/lib/data/mockMusicKit.ts). No real API calls. Re-evaluate if Apple Music becomes strategically important."
+
+    discord_community:
+      status: "DEFERRED"
+      notes: "Config stubs and Zod types exist. Not needed for demo prototype."
+      priority: "P2"
+
+    real_time_features:
+      status: "DEFERRED"
+      items:
+        - "WebSocket leaderboard updates"
+        - "Push notifications (requires auth + device registration)"
+        - "Live event check-in trust module"
+      priority: "P3"
+
+    partner_features:
+      status: "DEFERRED"
+      items:
+        - "Venue POS integration"
+        - "Partner dashboard (B2B)"
+        - "Sponsor ROI dashboards"
+        - "Predictive churn modeling"
+      priority: "P3"

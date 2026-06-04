@@ -26,23 +26,25 @@ export async function load() {
   const dbFriendActivity = await getFriendActivity('fan_001', 5);
   const friendActivity = dbFriendActivity.map(transformFriendActivity);
 
-  // Load upcoming events — try Ticketmaster, fall back to mock data
-  let upcomingEvents = mockEvents.slice(0, 6);
+  // Load upcoming events — try Ticketmaster (music + sports), fall back to mock data.
+  // Returns both categories so the home-page toggle can filter client-side.
+  let upcomingEvents = mockEvents;
 
   if (serverConfig.ticketmaster.apiKey) {
     try {
       const tmClient = new TicketmasterClient(serverConfig.ticketmaster.apiKey);
-      const result = await tmClient.searchEvents({
-        city: 'Los Angeles',
-        classificationName: 'Music',
-        size: 6,
-        sort: 'date,asc',
-      });
+      const [musicResult, sportsResult] = await Promise.all([
+        tmClient.searchEvents({ city: 'Los Angeles', classificationName: 'Music', size: 6, sort: 'date,asc' }),
+        tmClient.searchEvents({ city: 'Los Angeles', classificationName: 'Sports', size: 6, sort: 'date,asc' }),
+      ]);
 
-      if (result.success && result.data?._embedded?.events) {
-        const normalized = result.data._embedded.events.map(normalizeTicketmasterEvent);
+      const tmEvents = [musicResult, sportsResult]
+        .filter(r => r.success && r.data?._embedded?.events)
+        .flatMap(r => r.data!._embedded!.events!.map(normalizeTicketmasterEvent));
+
+      if (tmEvents.length > 0) {
         const userArtists = await getUserTopArtists(dbUser?.lastfm_username ?? undefined);
-        upcomingEvents = enrichEventsWithMusicData(normalized, userArtists);
+        upcomingEvents = enrichEventsWithMusicData(tmEvents, userArtists);
       }
     } catch {
       // Fall back to mock events

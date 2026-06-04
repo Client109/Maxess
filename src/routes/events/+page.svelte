@@ -45,30 +45,21 @@
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 4);
 
-  // Near you this week — events in user's city within 7 days
-  $: nearYouEvents = allEvents
-    .filter(e => {
-      if (e.city !== 'Los Angeles') return false;
-      const eventDate = new Date(e.date);
-      const weekEnd = new Date();
-      weekEnd.setDate(weekEnd.getDate() + 7);
-      return eventDate <= weekEnd;
-    })
-    .slice(0, 4);
-
-  // Day strip for "near you" section
+  // Day strip for "near you" section — current week starting today
   $: dayStrip = (() => {
     const days = [];
     const now = new Date();
     const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    const monthNames = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     for (let i = 0; i < 7; i++) {
       const d = new Date(now);
       d.setDate(now.getDate() + i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       days.push({
         label: dayNames[d.getDay()],
         date: `${monthNames[d.getMonth()]} ${d.getDate()}`,
         dateNum: d.getDate(),
+        iso,
         isToday: i === 0
       });
     }
@@ -76,6 +67,17 @@
   })();
 
   let selectedDay = 0;
+
+  // Any events in LA this week — gates whether the section appears at all
+  $: weekEventsNearYou = allEvents.filter(e =>
+    e.city === 'Los Angeles' && dayStrip.some(d => d.iso === e.date)
+  );
+
+  // Near you events for the currently selected day
+  $: selectedDayIso = dayStrip[selectedDay]?.iso;
+  $: nearYouEvents = weekEventsNearYou
+    .filter(e => e.date === selectedDayIso)
+    .slice(0, 4);
 </script>
 
 <svelte:head>
@@ -219,7 +221,7 @@
   {/if}
 
   <!-- Near You This Week -->
-  {#if nearYouEvents.length > 0}
+  {#if weekEventsNearYou.length > 0}
     <section class="section near-you">
       <div class="section-head">
         <h2 class="section-title">Near you this week</h2>
@@ -240,25 +242,29 @@
       </div>
 
       <!-- Near You Grid -->
-      <div class="near-grid">
-        {#each nearYouEvents.slice(0, 2) as event}
-          <a
-            href={event.external_url || `/events/${event.event_id}`}
-            target={event.external_url ? '_blank' : undefined}
-            rel={event.external_url ? 'noopener noreferrer' : undefined}
-            class="near-card"
-            style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"
-          >
-            <div class="near-overlay">
-              <h3 class="near-name">{event.title}</h3>
-              <span class="near-meta">
-                <Calendar size={10} />
-                {event.date_display ?? event.date} • {event.venue}
-              </span>
-            </div>
-          </a>
-        {/each}
-      </div>
+      {#if nearYouEvents.length > 0}
+        <div class="near-grid">
+          {#each nearYouEvents.slice(0, 2) as event}
+            <a
+              href={event.external_url || `/events/${event.event_id}`}
+              target={event.external_url ? '_blank' : undefined}
+              rel={event.external_url ? 'noopener noreferrer' : undefined}
+              class="near-card"
+              style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"
+            >
+              <div class="near-overlay">
+                <h3 class="near-name">{event.title}</h3>
+                <span class="near-meta">
+                  <Calendar size={10} />
+                  {event.date_display ?? event.date} • {event.venue}
+                </span>
+              </div>
+            </a>
+          {/each}
+        </div>
+      {:else}
+        <p class="near-empty">No events on {dayStrip[selectedDay]?.date}.</p>
+      {/if}
     </section>
   {/if}
 </div>
@@ -683,5 +689,16 @@
     gap: 3px;
     font-size: 10px;
     opacity: 0.8;
+  }
+
+  .near-empty {
+    margin: 0 16px;
+    padding: 24px 16px;
+    text-align: center;
+    color: #8E8E93;
+    font-size: 13px;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 14px;
   }
 </style>
