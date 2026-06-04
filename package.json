@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "postinstall": "prisma generate",
     "build": "prisma generate && svelte-kit sync && vite build",
     "preview": "vite preview",
     "db:generate": "prisma generate",
