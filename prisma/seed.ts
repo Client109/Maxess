@@ -5,7 +5,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 const pool = new pg.Pool({
-  connectionString: 'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable',
+  connectionString:
+    process.env.DATABASE_URL ||
+    'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable',
 });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });

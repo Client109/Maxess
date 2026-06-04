@@ -1,13 +1,14 @@
 <script>
-  import { Search, MapPin, Calendar, Flame, Bell, ChevronRight, ExternalLink } from 'lucide-svelte';
+  import { Search, MapPin, Calendar, Flame, Bell, BellRing, ChevronRight, ExternalLink } from 'lucide-svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
+  import { subscribedSet, toggleSubscription } from '$lib/stores/subscriptions.js';
 
   export let data;
 
   let searchQuery = '';
   let activeFilter = 'For you';
 
-  const filters = ['For you', 'Music', 'Sports', 'This week'];
+  const filters = ['For you', 'Following', 'Music', 'Sports', 'This week'];
 
   // Filter events based on search and category
   $: allEvents = (data.events || []).filter(e => {
@@ -19,6 +20,7 @@
         e.city.toLowerCase().includes(q);
       if (!match) return false;
     }
+    if (activeFilter === 'Following' && !$subscribedSet.has(e.event_id)) return false;
     if (activeFilter === 'Music' && e.category !== 'music') return false;
     if (activeFilter === 'Sports' && e.category !== 'sports') return false;
     if (activeFilter === 'This week') {
@@ -147,9 +149,20 @@
               {featuredEvent.location_display ?? featuredEvent.city}
             </span>
           </div>
-          <button class="notify-btn" on:click|preventDefault|stopPropagation>
-            <Bell size={14} />
-            Notify me
+          <button
+            type="button"
+            class="notify-btn"
+            class:notify-btn--on={$subscribedSet.has(featuredEvent.event_id)}
+            aria-pressed={$subscribedSet.has(featuredEvent.event_id)}
+            on:click|preventDefault|stopPropagation={() => toggleSubscription(featuredEvent.event_id, featuredEvent.title)}
+          >
+            {#if $subscribedSet.has(featuredEvent.event_id)}
+              <BellRing size={14} />
+              Notifying
+            {:else}
+              <Bell size={14} />
+              Notify me
+            {/if}
           </button>
         </div>
       </a>
@@ -467,7 +480,7 @@
     gap: 6px;
     background: #FF5C00;
     color: #FFFFFF;
-    border: none;
+    border: 1.5px solid #FF5C00;
     border-radius: 99px;
     padding: 10px 20px;
     font-size: 14px;
@@ -475,6 +488,12 @@
     cursor: pointer;
     align-self: flex-start;
     font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .notify-btn--on {
+    background: rgba(255, 255, 255, 0.95);
+    color: #FF5C00;
   }
 
   /* Trending Scroll */

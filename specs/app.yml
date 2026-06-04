@@ -1,7 +1,7 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
   version: "0.5.0-MVP"
-  status: "Light theme, new tier system (General/Loyal/Superfan/Elite), direct Postgres via pg adapter, server-side data loading"
+  status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel"
 
   product_direction:
     description: "Maxxes is a fan ranking, rewards, and community platform for the live events industry. It connects ticketing history and music streaming behavior into a single verified fan profile — the Superfan Score — and uses that score to unlock tier-based rewards, presale access, and community standing."
@@ -16,15 +16,19 @@ app_spec:
       - "Which events should I attend for maximum fan engagement?"
 
   mvp_boundary:
-    version_target: "0.2.0 → 0.3.0 by end of Week 8 lab"
+    version_target: "0.5.0 — currently shipping"
     must_build:
       - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
       - "Events screen with filtering, search, and booking capabilities"
-      - "Access & Rewards screen — unified rank + rewards screen with internal My Rank / My Rewards toggle, merging former Score and Access screens. Navbar label: Access. Route: /access"
-      - "Profile screen with XP breakdown, achievements, and settings"
-      - "Persistent bottom navigation connecting all four screens"
-      - "Runtime JSON data layer — 7 JSON files replacing hardcoded mock data"
-      - "Client-side XP scoring calculation with signal-based transparency"
+      - "Score screen — leaderboard, challenges, friend activity, XP breakdown, 14-day XP history sparkline. Navbar label: Score. Route: /score"
+      - "Access screen — passes, featured offers, top artist/team progress to next tier. Navbar label: Access. Route: /access"
+      - "Profile screen with XP breakdown, per-artist tiers, and settings"
+      - "Event detail screen (/events/[id]) with Ticketmaster fallback for tm_* ids"
+      - "Artist detail screen (/artist/[id])"
+      - "Pass detail screen (/passes/[id])"
+      - "Persistent 5-tab bottom navigation (Home, Events, Score, Access, Profile)"
+      - "Server-side data layer — PostgreSQL via Prisma + Ticketmaster + Spotify/Last.fm in +page.server.ts load functions"
+      - "Server-side XP/tier classification driven by xp_transactions ledger and Prisma tier enum"
       - "All animations and state transitions as specified"
       - "Mobile-responsive design with touch-friendly interactions"
       - "Deployed to Vercel with a public URL"
@@ -37,18 +41,18 @@ app_spec:
       - "An Apple Music integration (excluded by product decision)"
 
   technology_stack:
-    frontend_framework: "SvelteKit 2.0+ with TypeScript"
-    styling: "Tailwind CSS 3.3+ with custom design tokens"
+    frontend_framework: "SvelteKit 2.15+ with Svelte 5.20+ and TypeScript"
+    styling: "Plain CSS with design tokens in src/lib/styles/tokens.css (no Tailwind in current build)"
     build_tool: "Vite 6.0+"
     package_manager: "npm"
-    deployment: "Vercel with adapter-vercel (server routes required for API proxying and database access)"
-    icons: "@lucide/svelte"
+    deployment: "Vercel with @sveltejs/adapter-vercel 6.3+ (server routes required for API proxying and database access)"
+    icons: "lucide-svelte 0.468+"
+    orm: "Prisma 7.8 with @prisma/adapter-pg (driver adapter) on top of node-postgres (pg 8.21)"
     utilities:
-      - "date-fns for date handling"
-      - "zod for validation"
+      - "zod 3.24 for validation"
     testing:
-      - "vitest for unit tests"
-      - "@playwright/test for E2E testing"
+      - "vitest 4.1 for unit tests"
+      - "@playwright/test for E2E testing (planned)"
 
   visual_design:
     theme: "Light theme (app-wide)"
@@ -158,12 +162,106 @@ app_spec:
       role: "Fallback when Spotify rate-limited or missing data. Also provides deeper scrobble history and artist tags not available from Spotify Client Credentials."
 
     source_d_postgresql:
-      description: "All user/fan data — profiles, XP, leaderboard, challenges, passes, activity"
-      type: "PostgreSQL via Prisma ORM with @prisma/adapter-pg (direct TCP connection)"
+      description: "All user/fan data — profiles, XP totals + ledger, leaderboards (per period × per city), challenges + per-user progress, passes, friend activity, recent activity"
+      type: "PostgreSQL via Prisma 7.8 ORM with @prisma/adapter-pg driver adapter on node-postgres pool"
       schema: "prisma/schema.prisma"
-      local_dev: "prisma dev server (postgres://localhost:51214), seed via prisma/seed.ts with pg adapter"
-      query_functions: "src/lib/server/database.ts (12 functions ready)"
-      models: ["User", "Event", "UserEvent", "Challenge", "UserChallenge", "XpTransaction", "Pass", "FriendActivity", "RecentActivity", "LeaderboardEntry"]
+      client_setup: "src/lib/server/database.ts — singleton PrismaClient with PrismaPg adapter, connection string from env.DATABASE_URL with fallback to local prisma dev server"
+      connection_strategy: "pg.Pool wrapped by PrismaPg adapter. dev: query/error/warn logs. prod: error logs only."
+      local_dev:
+        server: "prisma dev (postgres://postgres:postgres@localhost:51214/template1?sslmode=disable)"
+        seed: "npm run db:seed → tsx prisma/seed.ts (uses same pg + PrismaPg adapter pattern as runtime)"
+        prisma_config: "prisma.config.ts"
+      query_functions:
+        path: "src/lib/server/database.ts"
+        exports:
+          - "getUserByFanId(fanId) — user + event_interactions + challenge_progress"
+          - "getUserByEmail(email)"
+          - "createUser({ email, name, city, fan_id? })"
+          - "updateUserProfile(fanId, partial)"
+          - "getLeaderboard(period, city?)"
+          - "getAllLeaderboardEntries() — all periods, up to 300 rows"
+          - "getFriendUserIds(fanId) — resolves friend_name strings to user.id list"
+          - "getUserEvents(fanId)"
+          - "getUpcomingEvents(category?, city?, limit) — falls back when Ticketmaster unavailable"
+          - "searchEvents(query, category?, limit)"
+          - "getUserChallenges(fanId, completed?)"
+          - "addXpTransaction(fanId, { amount, source, reference?, description? }) — appends ledger row, updates xp_total, recomputes current_tier via calculateTier()"
+          - "toggleEventBookmark(fanId, eventId)"
+          - "updateChallengeProgress(fanId, challengeId, progress, completed?)"
+          - "getFriendActivity(fanId, limit)"
+          - "getRecentActivity(fanId, limit)"
+          - "getXpHistory(fanId, days) — daily totals, gaps filled with 0"
+          - "getXpBreakdown(fanId) — sum of xp_transactions grouped by source"
+          - "getUserPasses(fanId)"
+          - "getFeaturedOffers(limit) — passes where status=AVAILABLE and user_id=null"
+          - "getPassByPassId(passId)"
+          - "disconnect()"
+        helpers:
+          - "calculateTier(xp) — ELITE ≥5000, SUPERFAN ≥2500, LOYAL ≥1000, else GENERAL (matches prisma/seed.ts tierFromXp)"
+      transforms:
+        path: "src/lib/server/transforms.ts"
+        purpose: "Convert Prisma rows to domain types (Fan, LeaderboardEntry, Challenge, Pass, FriendActivity, RecentActivity) for UI consumption"
+        notes:
+          - "tierDisplayName() maps Prisma tier enum → 'General' | 'Loyal' | 'Superfan' | 'Elite'"
+          - "transformPass maps Prisma PassStatus → UI 'active' | 'starts_soon' | 'waiting'"
+          - "transformLeaderboardEntry stamps is_me / is_friend per current viewer + derives deterministic delta from hash(name + period)"
+          - "getTierPerks() returns static perk strings per tier (Fan/Loyal/Superfan/Elite)"
+      models:
+        User:
+          fields: ["id (cuid)", "fan_id @unique", "email?", "name", "avatar_initials", "city", "member_since", "created_at", "updated_at", "xp_total", "current_tier (Tier enum)", "streak_days", "rank?", "percentile?", "top_artist?", "top_venue?", "events_attended", "spotify_id?", "apple_music_id?", "discord_id?", "lastfm_username?"]
+          relations: ["event_interactions → UserEvent", "challenge_progress → UserChallenge", "xp_transactions → XpTransaction", "friend_activities → FriendActivity", "recent_activities → RecentActivity"]
+          table: "users"
+        Event:
+          fields: ["id (cuid)", "event_id @unique", "title", "subtitle?", "artist?", "venue", "city", "date", "category (EventCategory)", "image_url?", "status?", "trending", "featured", "created_at"]
+          relations: ["user_events → UserEvent"]
+          table: "events"
+        UserEvent:
+          fields: ["id (cuid)", "user_id", "event_id", "bookmarked", "notify_me", "attended", "created_at"]
+          constraints: ["@@unique([user_id, event_id])"]
+          table: "user_events"
+        Challenge:
+          fields: ["id (cuid)", "challenge_id @unique", "title", "description?", "category", "xp_reward", "difficulty (default Medium)", "tasks (Json — array of {id, text, completed})", "progress_target (default 100)", "active", "created_at"]
+          table: "challenges"
+        UserChallenge:
+          fields: ["id (cuid)", "user_id", "challenge_id", "completed", "progress (0-100)", "tasks_completed (Json — completed task ids)", "completed_at?", "created_at"]
+          constraints: ["@@unique([user_id, challenge_id])"]
+          table: "user_challenges"
+        XpTransaction:
+          fields: ["id (cuid)", "user_id", "amount", "source", "reference?", "description?", "created_at"]
+          purpose: "Append-only XP ledger — feeds getXpBreakdown(), getXpHistory(), and xp_total recomputation"
+          table: "xp_transactions"
+        Pass:
+          fields: ["id (cuid)", "pass_id @unique", "user_id?", "title", "description?", "tier (Tier)", "status (PassStatus, default AVAILABLE)", "valid_until?", "created_at", "claimed_at?"]
+          notes: "user_id is null for featured/available offers; populated when claimed"
+          table: "passes"
+        FriendActivity:
+          fields: ["id (cuid)", "user_id", "friend_name (string — not yet FK)", "activity", "xp_change?", "created_at"]
+          notes: "friend_name is a plain string for demo. getFriendUserIds() resolves it to User rows by name match."
+          table: "friend_activities"
+        RecentActivity:
+          fields: ["id (cuid)", "user_id", "activity", "description?", "xp_earned", "created_at"]
+          table: "recent_activities"
+        LeaderboardEntry:
+          fields: ["id (cuid)", "user_id", "name", "xp_total", "tier (Tier)", "rank", "city?", "period (Period)", "computed_at"]
+          constraints: ["@@unique([user_id, period])", "@@index([period, rank])"]
+          purpose: "Pre-computed leaderboards per period × city. Seed generates entries with deterministic per-period XP variance so weekly/monthly rankings differ from all-time."
+          table: "leaderboard"
+      enums:
+        Tier: ["GENERAL", "LOYAL", "SUPERFAN", "ELITE"]
+        EventCategory: ["MUSIC", "SPORTS", "THEATER", "COMEDY", "OTHER"]
+        PassStatus: ["AVAILABLE", "CLAIMED", "ACTIVE", "EXPIRED"]
+        Period: ["WEEKLY", "MONTHLY", "ALL_TIME"]
+      seed_inventory:
+        path: "prisma/seed.ts"
+        run: "npm run db:seed"
+        users: "80 total — 1 protagonist (Alex Chen, fan_001) + 29 Los Angeles + 25 San Francisco + 25 New York. Demo cities are LA, SF, NYC (not the legacy Chicago/Toronto set)."
+        leaderboard_entries: "240 — 3 periods (WEEKLY, MONTHLY, ALL_TIME) × 3 cities × ~ranked users per city. Weekly/monthly XP scaled by deterministic hash(name + period) so rankings differ from all-time."
+        challenges: "8 — ch_001 Venue Explorer, ch_002 Streak Master, ch_003 Genre Hopper, ch_004 Social Butterfly, ch_005 First Timer, ch_006 Weekend Warrior, ch_007 Music Maven, ch_008 Refer a Friend"
+        user_challenges: "7 rows for Alex Chen with mixed progress (33% / 40% / 67% / 86% / 100%)"
+        xp_transactions: "5 rows for Alex Chen — Event Attendance 3600, Streaming 2840, Watch XP 960, Spend XP 440, Challenges 910 (sums to 8750)"
+        passes: "8 — 3 owned by Alex Chen (1 ACTIVE Elite, 1 CLAIMED Elite, 1 ACTIVE Superfan) + 5 unassigned AVAILABLE offers across tier mix"
+        friend_activities: "18 — 12 LA, 3 SF, 3 NYC friends acting on Alex Chen's feed"
+        recent_activities: "20 entries for Alex Chen"
 
     source_e_listener_activity:
       owner: "Ethan"
@@ -198,111 +296,159 @@ app_spec:
   screen_specifications:
     home:
       route: "/"
+      load_function: "src/routes/+page.server.ts"
+      data_sources:
+        - "getUserByFanId('fan_001') + getXpBreakdown('fan_001') → fan profile with XP-by-source"
+        - "getLeaderboard('WEEKLY') → top-5 leaderboard preview"
+        - "getFriendActivity('fan_001', 5) → community activity feed"
+        - "TicketmasterClient.searchEvents (parallel music + sports for LA) → enrichEventsWithMusicData → upcoming events. Falls back to mockEvents if Ticketmaster key missing or call fails."
       primary_components:
         - "Brand header with Zap icon + MAXESS wordmark"
         - "Time-based greeting (Good morning/afternoon/evening, Alex)"
         - "Momentum Score hero card with sparkline SVG, tier badge, XP progress bar, and weekly delta"
-        - "Upcoming For You section with event cards featuring Unsplash concert images"
+        - "Upcoming For You section with event cards (both music + sports — UI toggles client-side)"
         - "Your Ranking card with rank, percentile, city leaderboard position"
         - "Community Activity feed showing friend actions"
         - "Trending Near You section with genre-tagged event chips"
       required_interactions:
         - "XP progress bar animates to fill percentage on load"
-        - "Event cards link to /events"
-        - "Your Ranking card links to /rank-rewards"
+        - "Event cards link to /events/[id]"
+        - "Your Ranking card links to /score"
         - "Community Activity shows friend names with action descriptions"
-      after_data_layer: "Real fan score (8,750 XP), real Elite tier badge, real 12-day streak, server-side data from PostgreSQL, community activity from friends data"
+      after_data_layer: "Real fan score (8,750 XP), real Elite tier badge, real 12-day streak, server-side data from PostgreSQL, community activity from friend_activities, upcoming events from Ticketmaster (LA music + sports) enriched with user's top artists"
 
     events:
       route: "/events"
+      load_function: "src/routes/events/+page.server.ts"
+      data_sources:
+        - "Reads url.searchParams: category (default 'all'), city (default 'Los Angeles')"
+        - "TicketmasterClient.searchEvents → normalizeTicketmasterEvent → enrichEventsWithMusicData(userArtists) → events list"
+        - "getUserByFanId('fan_001') → resolves lastfm_username → getUserTopArtists() for music intelligence"
+        - "First event marked featured + trending"
+        - "Falls back to mockEvents if Ticketmaster key missing"
       primary_components:
-        - "Filter chips for category, date, and price selection"
+        - "Filter chips for category (music/sports/comedy)"
         - "Search bar with real-time filtering"
         - "Event cards with image, venue, date, presale indicators"
         - "Bookmark toggles with state persistence"
-        - "Featured hero cards for top 2 events"
-        - "Genre filter across 7 real genres"
+        - "Featured hero card for top event"
+        - "Genre tag chips"
       required_interactions:
         - "Filter chips update displayed events in real time"
         - "Search query filters events as user types"
-        - "Date picker for event filtering"
         - "Bookmark toggle persists during session"
         - "Notify Me button state management"
-      after_data_layer: "20 real LA music events + 4 mock sports events. Real venues, real presale flags, real dates. Featured cards with Spotify links. Genre filter works across 7 real genres."
-      featured_events:
-        - { name: "Ariana Grande — The Eternal Sunshine Tour", reason: "Mainstream pop appeal, Crypto.com Arena, presale, Spotify URL" }
-        - { name: "Don Toliver: Octane Tour", reason: "Hip-Hop/Rap, Spotify URL, presale via Citi card, strong fan engagement signal" }
-      genre_to_category_mapping:
-        music: ["Pop", "Hip-Hop/Rap", "Rock", "Metal", "Latin", "Country", "Classical"]
-        sports: ["(4 mock sports events: Ducks vs Kings, Lakers, Honda Center night, Dodgers game)"]
+        - "Event card tap → /events/[id]"
       category_chips:
         music: "MUSIC ACCESS — orange"
-        sports: "VENUE ACCESS — orange"
+        sports: "SPORTS ACCESS — orange"
 
-    access_and_rewards:
-      route: "/rank-rewards"
-      nav_label: "Rewards"
-      page_title: "Access & Rewards"
-      description: "Unified rank + rewards screen merging the former Score and Access screens. Organized into two sections via an internal tab toggle: My Rank and My Rewards. Completing a challenge in My Rank immediately surfaces the unlocked reward in My Rewards — cause and effect on the same screen."
-      internal_tabs:
-        my_rank:
-          primary_components:
-            - "Superfan score summary card (score, Elite badge, weekly delta, rank in city, percentile)"
-            - "Community leaderboard (filterable by city/this week/all time, current user row highlighted orange, friend filter toggle)"
-            - "Friends activity horizontal scroll (who passed you, who completed a challenge, who is N pts behind)"
-            - "Challenges unlocking rewards (each card shows reward image, reward name, task checklist, progress bar, Limited badge)"
-          required_interactions:
-            - "City filter updates displayed rankings"
-            - "Time period filter changes data slice"
-            - "Current user row highlighted in orange"
-            - "Friend filter toggle filters leaderboard to friends only"
-            - "Challenge task completion checkboxes"
-            - "100% complete challenge visually links to corresponding reward in My Rewards"
-        my_rewards:
-          primary_components:
-            - "Elite/Diamond access summary bar (active count, expiring soon, top tier perks label)"
-            - "Featured access cards (TOP PICK and LIMITED variants with countdown, CTA buttons)"
-            - "Your passes list (Early entry / Artist presale / VIP package with status badges)"
-            - "Perks by tier carousel (Fan / Loyal / Superfan / Elite with descriptions)"
-            - "Unlock next progress item"
-          required_interactions:
-            - "Pass status display matches UI badge text exactly"
-            - "Tier perks show current and locked tiers"
-            - "Completed challenge rewards visually activate (badge locked → claim, CTA orange and tappable)"
-            - "Claim access and View pass toggle buttons"
+    event_detail:
+      route: "/events/[id]"
+      load_function: "src/routes/events/[id]/+page.server.ts"
+      data_sources:
+        - "Looks up id in mockEvents first"
+        - "If id starts with 'tm_' and not found locally, calls TicketmasterClient.getEvent(tmId) and normalizes"
+        - "Recommended events: same category, excluding current, up to 3 picks from mockEvents"
+        - "mockFansAttending + fansAttendingCount for social proof"
+      throws_404: "if event not found in either mock data or Ticketmaster"
+
+    score:
+      route: "/score"
+      nav_label: "Score"
+      load_function: "src/routes/score/+page.server.ts"
+      data_sources:
+        - "getUserByFanId('fan_001') + getXpBreakdown('fan_001') → fan profile with XP-by-source"
+        - "getAllLeaderboardEntries() (all periods × all cities) → mapped through transformLeaderboardEntry with viewer id and friend ids"
+        - "getFriendUserIds('fan_001') → enables is_friend flagging on leaderboard rows"
+        - "getUserChallenges('fan_001') → challenge cards with task checklists and progress"
+        - "getFriendActivity('fan_001', 15) → community feed"
+        - "getXpHistory('fan_001', 14) → 14-day daily XP series for sparkline (gaps filled with 0)"
+      primary_components:
+        - "Superfan score summary card (score, Elite badge, weekly delta, rank in city, percentile)"
+        - "14-day XP history sparkline"
+        - "Community leaderboard with city / time period filters, current user row highlighted orange, friend-only toggle"
+        - "Friend activity horizontal scroll"
+        - "Challenges with task checklists, progress bars, and Limited badges (mapped from difficulty=Hard)"
+      required_interactions:
+        - "City filter updates displayed rankings"
+        - "Time period filter (Weekly / Monthly / All time) changes data slice"
+        - "Current user row highlighted in orange via is_me flag"
+        - "Friend filter toggle filters leaderboard to is_friend=true rows"
+
+    access:
+      route: "/access"
+      nav_label: "Access"
+      load_function: "src/routes/access/+page.server.ts"
+      data_sources:
+        - "getUserByFanId('fan_001')"
+        - "getUserPasses('fan_001') → owned passes"
+        - "getFeaturedOffers(5) → available/unassigned passes for featured cards"
+        - "Static topArtists list (3 entries: The Weeknd, Anaheim Ducks, Kaytranada) with per-artist tier progress"
+        - "Derives activePasses count (status=active) and expiringSoon count (status=starts_soon)"
+      primary_components:
+        - "Elite access summary bar (active count, expiring soon, top tier perks label)"
+        - "Featured access cards from getFeaturedOffers (Backstage Experience, Festival VIP Upgrade, etc.)"
+        - "Your passes list with status badges (active / starts_soon / waiting)"
+        - "Top artists/teams progress cards (per-artist tier progress)"
+        - "Perks by tier carousel via getTierPerks() (Fan / Loyal / Superfan / Elite)"
+      required_interactions:
+        - "Pass status display matches UI badge text exactly"
+        - "Tier perks show current and locked tiers"
+        - "Claim access and View pass CTAs"
+        - "Pass card tap → /passes/[id]"
       color_system:
         active_earned: "#FF5C00 (orange)"
         elite_tier: "#3B28CC (purple)"
         completed_unlocked: "#1A9E56 (green)"
         locked_pending: "#8E8E93 (gray)"
-      after_data_layer: "25+ ranked fans. Alex Chen at rank 18, score 8,750, highlighted orange. 5 real passes with statuses. Challenges with real task progress. Tier perks grid from tiers.json. Challenge-to-reward linkage visible."
+
+    pass_detail:
+      route: "/passes/[id]"
+      load_function: "src/routes/passes/[id]/+page.server.ts"
+      data_sources: ["getPassByPassId(params.id)"]
+
+    artist_detail:
+      route: "/artist/[id]"
+      load_function: "src/routes/artist/[id]/+page.server.ts"
+      data_sources: ["Per-artist tier progress + Spotify/Last.fm enrichment via getArtistData()"]
 
     profile:
       route: "/profile"
+      load_function: "src/routes/profile/+page.server.ts"
+      data_sources:
+        - "getUserByFanId('fan_001') + getXpBreakdown('fan_001') → fan profile with XP-by-source"
+        - "Static per-artist mock list (4 artists: The Weeknd, Kaytranada, Daniel Caesar, ODESZA) with tier / points / progress / listener_percentile"
+        - "topConnection derived as artists[0]"
       primary_components:
-        - "Achievement badges with earned/unearned states"
-        - "Tier progression visualization"
-        - "Settings toggles for notifications and preferences"
+        - "Identity card (avatar initials, name, tier badge)"
+        - "Per-artist tier cards with progress to next tier and listener percentile"
+        - "Top connection card"
+        - "XP breakdown by source"
         - "Statistics overview with streak and totals"
-        - "XP breakdown by signal type"
+        - "Settings toggles for notifications and preferences"
       required_interactions:
         - "Settings toggles persist state changes"
-        - "Achievement badges show tooltip descriptions"
         - "Tier progression shows next milestone"
-      after_data_layer: "Alex Chen's real XP breakdown — 3,600 attendance XP, 2,840 streaming XP, 960 watch XP, 440 spend XP, 910 challenge XP. Events attended count. Top artist and venue."
+      after_data_layer: "Alex Chen's real XP breakdown — 3,600 Event Attendance, 2,840 Streaming, 960 Watch XP, 440 Spend XP, 910 Challenges. Events attended count from User.events_attended. Top artist/venue from User row."
 
   navigation:
     bottom_nav:
-      height: "70px content + env(safe-area-inset-bottom)"
+      component: "src/lib/components/BottomNav.svelte"
+      height: "60px content + env(safe-area-inset-bottom, 20px); 56px on screens ≤375px"
       style: "Persistent across all screens, light background (#FFFFFF) with 1px #E5E5EA top border"
+      active_color: "#FF5C00"
+      inactive_color: "#8E8E93"
       tabs:
-        - { icon: "home", label: "Home", route: "/" }
-        - { icon: "search", label: "Events", route: "/events" }
-        - { icon: "trophy", label: "Rewards", route: "/rank-rewards" }
-        - { icon: "user", label: "Profile", route: "/profile" }
+        - { id: "home", icon: "Home", label: "Home", route: "/" }
+        - { id: "events", icon: "Compass", label: "Events", route: "/events" }
+        - { id: "score", icon: "Target", label: "Score", route: "/score" }
+        - { id: "access", icon: "Crown", label: "Access", route: "/access" }
+        - { id: "profile", icon: "User", label: "Profile", route: "/profile" }
+      active_tab_logic: "First path segment matches tab.id; root path '/' → 'home'"
       animations:
         screen_transitions: "300ms ease slide or fade"
-        active_indicator: "150ms fade/color transition"
+        active_indicator: "200ms color transition"
 
   animation_requirements:
     timing_specifications:
@@ -317,21 +463,25 @@ app_spec:
   demo_user:
     fan_id: "fan_001"
     name: "Alex Chen"
+    avatar_initials: "AC"
     city: "Los Angeles"
     xp_total: 8750
     current_tier: "Elite"
     streak_days: 12
     rank: 18
-    percentile: "Top 3%"
+    percentile: 3
+    percentile_display: "Top 3%"
     top_artist: "The Weeknd"
     top_venue: "SoFi Stadium"
     events_attended: 9
+    lastfm_username: "alexchen_music"
     xp_breakdown:
-      attendance_xp: 3600
-      streaming_xp: 2840
-      watch_xp: 960
-      spend_xp: 440
-      challenge_xp: 910
+      Event Attendance: 3600
+      Streaming: 2840
+      Watch XP: 960
+      Spend XP: 440
+      Challenges: 910
+    note: "xp_breakdown keys match XpTransaction.source values written by prisma/seed.ts. UI maps them in transformUserToFan / getXpBreakdown."
 
   xp_scoring_model:
     description: "Signal-based XP calculation from listener activity data"
@@ -382,8 +532,9 @@ app_spec:
       form_validation: "real-time validation with user feedback"
 
   data_architecture:
-    storage_method: "Server-side data fetching via SvelteKit +page.server.ts load functions. Events from Ticketmaster API, music intelligence from Spotify/Last.fm, user data from Vercel PostgreSQL. Static JSON files retained as fallback only."
-    data_files:
+    storage_method: "Server-side data fetching via SvelteKit +page.server.ts load functions. Events from Ticketmaster Discovery API, music intelligence from Spotify Client Credentials / Last.fm, all user-state data from PostgreSQL via Prisma 7.8 + @prisma/adapter-pg. Static JSON files in /static/data/ and mockEvents in src/lib/data/mockData.ts retained as deterministic fallback when API keys are missing."
+    legacy_static_json_files:
+      status: "DEPRECATED — superseded by PostgreSQL. The objects below describe the original Week-8 JSON contract and are kept here for reference until the JSON fallbacks are removed."
       fan_profile:
         path: "/static/data/fan-profile.json"
         owner: "Ethan"
@@ -475,45 +626,40 @@ app_spec:
       tiers:
         path: "/static/data/tiers.json"
         owner: "Ethan / Kayah"
-        description: "Canonical tier thresholds — single source of truth"
-        fields: ["name", "min_xp", "color_hex", "perks"]
-        source: "Maxxes Master Document"
+        description: "Legacy tier reference — superseded by Prisma Tier enum + getTierPerks() in src/lib/server/transforms.ts"
         notes:
-          - "Bronze 0, Silver 2500, Gold 5000, Platinum 10000, Diamond 25000"
-          - "Must include perks list per tier and color hex per tier"
-          - "This file is the single source of truth — no hardcoded thresholds in components"
+          - "Active tier system is GENERAL/LOYAL/SUPERFAN/ELITE — see tier_thresholds section, not this file"
 
     fetching_strategy:
-      method: "Server-side load functions (+page.server.ts) fetch from APIs and database, pass data to pages via SvelteKit page data"
-      api_proxying: "All third-party API calls happen server-side (Ticketmaster, Spotify, Last.fm) — API keys never exposed to client"
-      caching: "In-memory SimpleCache (src/lib/api/base.ts) for API responses; browser caching for page data"
-      error_handling: "Graceful fallbacks — if Spotify fails, fall back to Last.fm; if Ticketmaster fails, fall back to cached/seeded events"
+      method: "Server-side load functions (+page.server.ts) fetch from Prisma (database.ts), Ticketmaster (TicketmasterClient), and Spotify/Last.fm (music.ts), then pass data to pages via SvelteKit page data"
+      api_proxying: "All third-party API calls happen server-side — API keys never exposed to client"
+      caching: "In-memory SimpleCache (src/lib/api/base.ts) for API responses; PrismaClient singleton retained across HMR via globalThis in dev"
+      error_handling: "Graceful fallbacks — if Spotify fails, fall back to Last.fm; if Ticketmaster fails, fall back to mockEvents; database is required (no fallback)"
       loading_states: "Progressive loading with skeletons"
 
   deployment:
-    build_target: "Serverless functions via adapter-vercel (required for server routes, API proxying, and database access)"
+    build_target: "Serverless functions via @sveltejs/adapter-vercel (required for server routes, API proxying, and database access)"
     hosting_platform: "Vercel"
-    deployment_method: "Automatic deployment from GitHub"
-    database: "Vercel Postgres (Neon-hosted PostgreSQL)"
+    deployment_method: "Automatic deployment from GitHub main branch"
+    database: "Any PostgreSQL reachable via DATABASE_URL — typically Vercel Postgres / Neon in prod, local Prisma dev server (postgres://localhost:51214/template1) in dev"
     public_url_required: "Yes — must be accessible without installation"
 
     environment_variables:
-      DATABASE_URL: "Vercel Postgres pooled connection string"
-      DIRECT_URL: "Vercel Postgres direct connection (for migrations)"
-      TICKETMASTER_API_KEY: "From developer.ticketmaster.com"
-      SPOTIFY_CLIENT_ID: "From developer.spotify.com"
-      SPOTIFY_CLIENT_SECRET: "From developer.spotify.com"
-      LASTFM_API_KEY: "From last.fm/api"
+      DATABASE_URL: "PostgreSQL connection string consumed by src/lib/server/database.ts via $env/dynamic/private; defaults to local Prisma dev server when unset"
+      TICKETMASTER_API_KEY: "From developer.ticketmaster.com (optional — falls back to mockEvents if missing)"
+      SPOTIFY_CLIENT_ID: "From developer.spotify.com (optional — music enrichment degrades gracefully)"
+      SPOTIFY_CLIENT_SECRET: "From developer.spotify.com (optional)"
+      LASTFM_API_KEY: "From last.fm/api (optional — fallback to seeded top-artist list)"
 
     build_process:
-      1: "Switch svelte.config.js from adapter-static to adapter-vercel"
-      2: "Remove prerender config from +layout.ts"
-      3: "Provision Vercel Postgres, run prisma migrate deploy + prisma db seed"
-      4: "Set all environment variables in Vercel dashboard"
-      5: "Push to main"
-      6: "Confirm the build succeeds and a URL is generated"
-      7: "Verify all four screens load with live data"
-    fallback: "If API keys not yet available, server routes fall back to seeded database data. Static JSON files remain in /static/data/ as emergency fallback."
+      1: "package.json postinstall runs `prisma generate` automatically"
+      2: "build script: `prisma generate && svelte-kit sync && vite build`"
+      3: "Provision PostgreSQL, run `prisma migrate deploy` then `npm run db:seed`"
+      4: "Set DATABASE_URL + optional API keys in Vercel dashboard"
+      5: "Push to main → Vercel auto-deploys"
+      6: "Confirm build succeeds and URL is generated"
+      7: "Verify all five tabs load with live data"
+    fallback: "If Ticketmaster/Spotify/Last.fm keys not configured, routes fall back to mockEvents (src/lib/data/mockData.ts) and seeded top-artist list. Database connection is required — there is no DB fallback."
 
     performance_targets:
       lighthouse_score: "90+ in all categories"
@@ -557,9 +703,9 @@ app_spec:
   success_criteria:
     completion_checklist:
       aesthetic: "Matches official color palette and layout specifications"
-      wireframe: "All 4 screens fully implemented with required components"
+      wireframe: "All 5 tabs (Home, Events, Score, Access, Profile) plus event/artist/pass detail screens fully implemented"
       interactivity: "Every listed interaction works without explanation"
-      live_data: "7 JSON files loaded at runtime update UI correctly"
+      live_data: "PostgreSQL via Prisma drives fan profile, leaderboard, challenges, passes, friend + recent activity, and XP history; Ticketmaster drives events; Spotify/Last.fm enrich music intelligence"
       hostable: "Accessible via public Vercel URL, works on mobile and desktop"
 
     demo_requirements:
@@ -568,7 +714,7 @@ app_spec:
       functionality: "All features work as expected"
       performance: "Smooth animations and responsive interactions"
 
-    team_success_statement: "By end of lab, Maxxes will have 20 real LA music events feeding the Events screen, a real fan profile driving the Home and Access & Rewards screens, 25+ leaderboard entries, 5 challenges, 5 passes, and a live Vercel URL anyone can open. The app will be understandable without a presenter explaining every screen."
+    team_success_statement: "Maxxes ships 5 primary screens plus detail views, backed by 80 seeded users across LA/SF/NYC with 240 leaderboard rows, 8 challenges, 8 passes, an XP transaction ledger driving real breakdowns and 14-day history, and a live Vercel URL anyone can open. The app is understandable without a presenter."
 
   browser_support:
     primary:
@@ -582,67 +728,87 @@ app_spec:
 
   file_structure:
     project_root:
-      - "package.json"
-      - "svelte.config.js"
+      - "package.json (npm scripts: dev, build, db:generate, db:push, db:migrate, db:seed, db:studio, db:reset)"
+      - "svelte.config.js (adapter-vercel)"
       - "vite.config.js"
-      - "tailwind.config.js"
-      - "tsconfig.json"
+      - "tsconfig.json / jsconfig.json"
+      - "prisma.config.ts"
+      - "prisma/schema.prisma"
+      - "prisma/seed.ts"
 
     source_structure: |
       src/
       ├── app.html
       ├── routes/
-      │   ├── +layout.svelte
+      │   ├── +layout.svelte (BottomNav + NotificationPanel)
+      │   ├── +layout.ts
       │   ├── +page.svelte (Home)
-      │   ├── +page.server.ts (Home data loader)
+      │   ├── +page.server.ts (fan + leaderboard preview + friend activity + Ticketmaster music/sports)
       │   ├── events/
       │   │   ├── +page.svelte
-      │   │   └── +page.server.ts (Ticketmaster → normalized events)
-      │   ├── rank-rewards/
+      │   │   ├── +page.server.ts (Ticketmaster search → normalize → music enrichment)
+      │   │   └── [id]/
+      │   │       ├── +page.svelte
+      │   │       └── +page.server.ts (mockEvents lookup, Ticketmaster fallback for tm_* ids)
+      │   ├── score/
       │   │   ├── +page.svelte
-      │   │   └── +page.server.ts (leaderboard, challenges, passes)
+      │   │   └── +page.server.ts (fan + xp breakdown + xp history + leaderboard + challenges + friend activity)
+      │   ├── access/
+      │   │   ├── +page.svelte
+      │   │   └── +page.server.ts (fan + owned passes + featured offers + top artists)
+      │   ├── passes/[id]/
+      │   │   ├── +page.svelte
+      │   │   └── +page.server.ts (getPassByPassId)
+      │   ├── artist/[id]/
+      │   │   ├── +page.svelte
+      │   │   └── +page.server.ts
       │   ├── profile/
       │   │   ├── +page.svelte
-      │   │   └── +page.server.ts (fan profile, XP breakdown)
+      │   │   └── +page.server.ts (fan + xp breakdown + per-artist tier mock)
       │   └── api/
       │       └── events/+server.ts (search endpoint)
       ├── lib/
       │   ├── api/
-      │   │   ├── base.ts (BaseApiClient with rate limiting, caching)
+      │   │   ├── base.ts (BaseApiClient with rate limiting, SimpleCache)
       │   │   ├── ticketmaster.ts (TicketmasterClient)
-      │   │   ├── spotify.ts (SpotifyClient)
+      │   │   ├── spotify.ts (SpotifyClient — Client Credentials)
       │   │   └── lastfm.ts (LastFmClient)
       │   ├── components/
-      │   │   ├── ui/ (shared components)
-      │   │   ├── home/
-      │   │   ├── events/
-      │   │   ├── rank-rewards/
-      │   │   └── profile/
+      │   │   ├── BottomNav.svelte
+      │   │   ├── NotificationPanel.svelte
+      │   │   ├── UpcomingEvents.svelte
+      │   │   └── (other shared components)
       │   ├── config/
-      │   │   └── env.ts
+      │   │   └── env.ts (serverConfig + publicConfig)
       │   ├── domain/
-      │   │   ├── types.ts
+      │   │   ├── types.ts (Fan, Event, LeaderboardEntry, Challenge, Pass, FriendActivity, RecentActivity, TicketmasterEvent)
       │   │   ├── hotlist.ts
-      │   │   └── xp.ts
+      │   │   └── xp.ts (classifyTier + tier math)
       │   ├── server/
-      │   │   ├── database.ts (Prisma queries)
-      │   │   ├── events.ts (Ticketmaster normalizer)
-      │   │   └── music.ts (Spotify/Last.fm intelligence service)
+      │   │   ├── database.ts (Prisma singleton + 20+ query helpers + calculateTier)
+      │   │   ├── transforms.ts (Prisma row → UI domain type mappers + getTierPerks)
+      │   │   ├── events.ts (Ticketmaster → Event normalizer)
+      │   │   └── music.ts (Spotify-first / Last.fm-fallback intelligence service)
       │   ├── stores/
+      │   ├── styles/
+      │   │   ├── tokens.css
+      │   │   └── app.css
       │   └── data/
-      │       └── mockData.ts (fallback only — not imported in production routes)
+      │       └── mockData.ts (mockEvents, mockFansAttending — Ticketmaster fallback)
       ├── static/
-      │   └── data/ (emergency fallback JSON files)
+      │   └── data/ (legacy JSON files — deprecated, see legacy_static_json_files)
       └── prisma/
           ├── schema.prisma
           └── seed.ts
 
   validation_requirements:
     before_deployment:
-      - "All 4 screens load successfully"
-      - "Bottom navigation functions correctly"
+      - "All 5 primary tabs (Home, Events, Score, Access, Profile) load successfully"
+      - "Event/artist/pass detail screens load and handle missing ids with 404"
+      - "Bottom navigation highlights the active tab via first-segment match"
       - "All animations work as specified"
-      - "7 JSON data files load and update UI"
+      - "Prisma client connects via DATABASE_URL; seed populates 80 users / 240 leaderboard entries / 8 challenges / 8 passes"
+      - "Ticketmaster fallback to mockEvents works when key is missing"
       - "Mobile responsive design verified"
       - "Cross-browser compatibility tested"
       - "Performance targets met"

@@ -4,6 +4,7 @@
   import { afterNavigate } from '$app/navigation';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import NotificationPanel from '$lib/components/NotificationPanel.svelte';
+  import ToastHost from '$lib/components/ToastHost.svelte';
 
   afterNavigate(() => {
     window.scrollTo(0, 0);
@@ -16,6 +17,7 @@
     <slot />
   </main>
   <BottomNav />
+  <ToastHost />
 </div>
 
 <style>

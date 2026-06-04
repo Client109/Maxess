@@ -1,5 +1,6 @@
 <script>
-  import { ArrowLeft, Bell, Bookmark, MapPin, Calendar, Clock, ExternalLink, ChevronDown, ChevronUp, Flame, Users } from 'lucide-svelte';
+  import { ArrowLeft, Bell, BellRing, Bookmark, MapPin, Calendar, Clock, ExternalLink, ChevronDown, ChevronUp, Flame, Users } from 'lucide-svelte';
+  import { subscribedSet, toggleSubscription } from '$lib/stores/subscriptions.js';
 
   export let data;
 
@@ -34,6 +35,7 @@
 
   $: badge = statusBadge(event.status);
   $: categoryAccent = event.category === 'music' ? '#2667FF' : '#FF5C00';
+  $: subscribed = $subscribedSet.has(event.event_id);
 </script>
 
 <svelte:head>
@@ -96,9 +98,19 @@
 
   <!-- Action buttons -->
   <div class="actions-bar">
-    <button class="btn-primary">
-      <Bell size={16} />
-      Notify me
+    <button
+      class="btn-primary"
+      class:btn-primary--on={subscribed}
+      aria-pressed={subscribed}
+      on:click={() => toggleSubscription(event.event_id, event.title)}
+    >
+      {#if subscribed}
+        <BellRing size={16} />
+        Notifying
+      {:else}
+        <Bell size={16} />
+        Notify me
+      {/if}
     </button>
     {#if event.external_url}
       <a href={event.external_url} target="_blank" rel="noopener" class="btn-outline">
@@ -395,12 +407,18 @@
     padding: 14px;
     background: #FF5C00;
     color: #FFFFFF;
-    border: none;
+    border: 1.5px solid #FF5C00;
     border-radius: 99px;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .btn-primary--on {
+    background: #FFFFFF;
+    color: #FF5C00;
   }
 
   .btn-outline {
