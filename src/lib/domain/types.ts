@@ -447,6 +447,7 @@ export const EventSchema = z.object({
   status: z.enum(['active', 'upcoming', 'limited', 'sold_out']),
   featured: z.boolean(),
   image_color: z.string(),
+  image_url: z.string().optional(),
   metadata: z.string().optional(),
   // Display helpers
   presale_info: z.string().optional(),       // e.g. "Presale opens in 18h"
@@ -458,6 +459,8 @@ export const EventSchema = z.object({
   heat_score: z.number().optional(),         // 0-100 popularity/demand score
   match_percentage: z.number().optional(),   // 0-100 taste match based on listening history
   sale_status: z.string().optional(),        // e.g. "On Sale", "Selling Fast", "Available", "Limited"
+  // External link to source (Ticketmaster, etc.)
+  external_url: z.string().optional(),
   // Section flags
   trending: z.boolean().optional(),
   near_you: z.boolean().optional(),
@@ -472,6 +475,7 @@ export const LeaderboardEntrySchema = z.object({
   score: z.number(),
   delta: z.number(),
   is_me: z.boolean(),
+  is_friend: z.boolean(),
   city: z.string(),
   time_period: z.string()
 });

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-const VALID_ROUTES = ['/', '/events', '/rank-rewards', '/profile'];
+const VALID_ROUTES = ['/', '/events', '/score', '/access', '/profile'];
 
 function routeExists(route) {
   if (route === '/') {
@@ -18,14 +18,14 @@ describe('Navigation links', () => {
     }
   });
 
-  it('/score route no longer exists (merged into rank-rewards)', () => {
-    expect(routeExists('/score')).toBe(false);
+  it('/rank-rewards route no longer exists (renamed to /score)', () => {
+    expect(routeExists('/rank-rewards')).toBe(false);
   });
 
-  it('BottomNav has exactly 4 tabs', () => {
+  it('BottomNav has exactly 5 tabs', () => {
     const nav = readFileSync(resolve('src/lib/components/BottomNav.svelte'), 'utf-8');
     const hrefMatches = nav.match(/href:\s*'([^']+)'/g) || [];
-    expect(hrefMatches.length).toBe(4);
+    expect(hrefMatches.length).toBe(5);
   });
 
   it('BottomNav tabs only reference valid routes', () => {
@@ -37,9 +37,9 @@ describe('Navigation links', () => {
     }
   });
 
-  it('BottomNav does not reference /score', () => {
+  it('BottomNav does not reference /rank-rewards', () => {
     const nav = readFileSync(resolve('src/lib/components/BottomNav.svelte'), 'utf-8');
-    expect(nav).not.toContain("'/score'");
+    expect(nav).not.toContain("'/rank-rewards'");
   });
 
   it('BottomNav has no FAB button (removed)', () => {

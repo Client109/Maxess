@@ -17,8 +17,8 @@ export const mockFanProfile: Fan = {
   xp_breakdown: {
     'Event Attendance': 3600,
     'Streaming': 2840,
-    'Watch XP': 960,
-    'Spend XP': 440,
+    'Watch Points': 960,
+    'Spend Points': 440,
     'Challenges': 910
   },
   city: 'Los Angeles',
@@ -35,7 +35,7 @@ export const mockEvents: Event[] = [
     subtitle: 'Grand National Tour',
     category: 'music',
     date: '2026-06-14',
-    date_display: 'Jun 14, 2025',
+    date_display: 'Jun 14, 2026',
     time: '7:00 PM',
     venue: 'SoFi Stadium',
     city: 'Los Angeles',
@@ -44,10 +44,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: true,
     image_color: '#1a0a2e',
+    image_url: '/images/events/concert-hiphop.jpg',
     genre_tag: 'HIP-HOP',
     heat_score: 98,
     match_percentage: 94,
     sale_status: 'On Sale',
+    external_url: 'https://www.ticketmaster.com/kendrick-lamar-tickets/artist/1907571',
     trending: true
   },
   // ── All Events ──────────────────────────────────────────────────────────────
@@ -57,7 +59,7 @@ export const mockEvents: Event[] = [
     subtitle: 'Chromakopia World Tour',
     category: 'music',
     date: '2026-06-22',
-    date_display: 'Jun 22, 2025',
+    date_display: 'Jun 22, 2026',
     time: '8:00 PM',
     venue: 'Madison Square Garden',
     city: 'New York',
@@ -66,10 +68,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#2d1256',
+    image_url: '/images/events/concert-rap.jpg',
     genre_tag: 'RAP',
     heat_score: 86,
     match_percentage: 88,
-    sale_status: 'Selling Fast'
+    sale_status: 'Selling Fast',
+    external_url: 'https://www.ticketmaster.com/tyler-the-creator-tickets/artist/1672573'
   },
   {
     event_id: 'evt_003',
@@ -77,7 +81,7 @@ export const mockEvents: Event[] = [
     subtitle: 'LANA Tour — Encore',
     category: 'music',
     date: '2026-07-05',
-    date_display: 'Jul 5, 2025',
+    date_display: 'Jul 5, 2026',
     time: '7:30 PM',
     venue: 'United Center',
     city: 'Chicago',
@@ -86,10 +90,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#1a0d2e',
+    image_url: '/images/events/concert-rnb.jpg',
     genre_tag: 'R&B',
     heat_score: 91,
     match_percentage: 82,
-    sale_status: 'Available'
+    sale_status: 'Available',
+    external_url: 'https://www.ticketmaster.com/sza-tickets/artist/2110882'
   },
   {
     event_id: 'evt_004',
@@ -97,7 +103,7 @@ export const mockEvents: Event[] = [
     subtitle: 'Weekend 1 — Indio, CA',
     category: 'festival',
     date: '2026-04-11',
-    date_display: 'Apr 11, 2025',
+    date_display: 'Apr 11, 2026',
     time: '12:00 PM',
     venue: 'Empire Polo Club',
     city: 'Indio',
@@ -106,10 +112,12 @@ export const mockEvents: Event[] = [
     status: 'limited',
     featured: false,
     image_color: '#3d2200',
+    image_url: '/images/events/festival-outdoor.jpg',
     genre_tag: 'FESTIVAL',
     heat_score: 95,
     match_percentage: 76,
-    sale_status: 'Limited'
+    sale_status: 'Limited',
+    external_url: 'https://www.coachella.com'
   },
   {
     event_id: 'evt_005',
@@ -117,7 +125,7 @@ export const mockEvents: Event[] = [
     subtitle: 'NBA Finals — Game 3',
     category: 'sports',
     date: '2026-06-10',
-    date_display: 'Jun 10, 2025',
+    date_display: 'Jun 10, 2026',
     time: '6:00 PM',
     venue: 'Crypto.com Arena',
     city: 'Los Angeles',
@@ -126,10 +134,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#200040',
+    image_url: '/images/events/basketball.jpg',
     genre_tag: 'NBA',
     heat_score: 93,
     match_percentage: 71,
     sale_status: 'Selling Fast',
+    external_url: 'https://www.ticketmaster.com/los-angeles-lakers-tickets/artist/805946',
     trending: true
   },
   {
@@ -138,7 +148,7 @@ export const mockEvents: Event[] = [
     subtitle: 'Live at the Hollywood Bowl',
     category: 'comedy',
     date: '2026-06-20',
-    date_display: 'Jun 20, 2025',
+    date_display: 'Jun 20, 2026',
     time: '9:00 PM',
     venue: 'Hollywood Bowl',
     city: 'Los Angeles',
@@ -147,10 +157,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#1a1a1a',
+    image_url: '/images/events/comedy-stage.jpg',
     genre_tag: 'STAND-UP',
     heat_score: 89,
     match_percentage: 65,
-    sale_status: 'Available'
+    sale_status: 'Available',
+    external_url: 'https://www.ticketmaster.com/dave-chappelle-tickets/artist/852860'
   },
   {
     event_id: 'evt_007',
@@ -158,7 +170,7 @@ export const mockEvents: Event[] = [
     subtitle: 'The Scarlet Tour',
     category: 'music',
     date: '2026-07-12',
-    date_display: 'Jul 12, 2025',
+    date_display: 'Jul 12, 2026',
     time: '8:00 PM',
     venue: 'Kia Forum',
     city: 'Los Angeles',
@@ -167,10 +179,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#2a0a1e',
+    image_url: '/images/events/concert-pop.jpg',
     genre_tag: 'POP',
     heat_score: 84,
     match_percentage: 79,
-    sale_status: 'On Sale'
+    sale_status: 'On Sale',
+    external_url: 'https://www.ticketmaster.com/doja-cat-tickets/artist/2517022'
   },
   {
     event_id: 'evt_008',
@@ -178,7 +192,7 @@ export const mockEvents: Event[] = [
     subtitle: '4-Day Pass — Chicago',
     category: 'festival',
     date: '2026-07-31',
-    date_display: 'Jul 31, 2025',
+    date_display: 'Jul 31, 2026',
     time: '11:00 AM',
     venue: 'Grant Park',
     city: 'Chicago',
@@ -187,10 +201,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#0d1a30',
+    image_url: '/images/events/festival-crowd.jpg',
     genre_tag: 'FESTIVAL',
     heat_score: 88,
     match_percentage: 73,
-    sale_status: 'Available'
+    sale_status: 'Available',
+    external_url: 'https://www.lollapalooza.com'
   },
   {
     event_id: 'evt_009',
@@ -198,7 +214,7 @@ export const mockEvents: Event[] = [
     subtitle: 'MLB Rivalry Week',
     category: 'sports',
     date: '2026-06-15',
-    date_display: 'Jun 15, 2025',
+    date_display: 'Jun 15, 2026',
     time: '7:10 PM',
     venue: 'Dodger Stadium',
     city: 'Los Angeles',
@@ -207,10 +223,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#001433',
+    image_url: '/images/events/baseball.jpg',
     genre_tag: 'MLB',
     heat_score: 78,
     match_percentage: 68,
-    sale_status: 'Available'
+    sale_status: 'Available',
+    external_url: 'https://www.ticketmaster.com/los-angeles-dodgers-tickets/artist/805956'
   },
   {
     event_id: 'evt_010',
@@ -218,7 +236,7 @@ export const mockEvents: Event[] = [
     subtitle: 'All Over the Place Tour',
     category: 'comedy',
     date: '2026-06-28',
-    date_display: 'Jun 28, 2025',
+    date_display: 'Jun 28, 2026',
     time: '8:00 PM',
     venue: 'The Wiltern',
     city: 'Los Angeles',
@@ -227,10 +245,12 @@ export const mockEvents: Event[] = [
     status: 'upcoming',
     featured: false,
     image_color: '#0a1a2e',
+    image_url: '/images/events/comedy-mic.jpg',
     genre_tag: 'STAND-UP',
     heat_score: 82,
     match_percentage: 60,
-    sale_status: 'Selling Fast'
+    sale_status: 'Selling Fast',
+    external_url: 'https://www.ticketmaster.com/john-mulaney-tickets/artist/1352382'
   }
 ];
 
@@ -280,7 +300,7 @@ export const mockChallenges: Challenge[] = [
     challenge_id: 'ch_002',
     title: 'Streak Master',
     subtitle: 'Maintain a 14-day check-in streak',
-    reward_name: '500 Bonus XP',
+    reward_name: '500 Bonus Points',
     tasks: [
       { task_id: 'task_004', description: 'Check in 14 consecutive days', is_complete: false }
     ],
@@ -373,7 +393,7 @@ export const mockNotifications: Notification[] = [
     icon: '📊',
     time: '4h ago',
     read: false,
-    action_url: '/rank-rewards',
+    action_url: '/score',
   },
   {
     id: 'notif_003',
@@ -383,13 +403,13 @@ export const mockNotifications: Notification[] = [
     icon: '🎉',
     time: '1d ago',
     read: false,
-    action_url: '/rank-rewards?tab=rewards',
+    action_url: '/access',
   },
   {
     id: 'notif_004',
     type: 'tier',
     title: 'Almost Elite+',
-    body: "You're only 3,250 XP away from Elite+ tier. Keep going!",
+    body: "You're only 3,250 points away from Elite+ tier. Keep going!",
     icon: '⭐',
     time: '2d ago',
     read: true,

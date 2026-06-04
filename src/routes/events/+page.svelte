@@ -1,40 +1,81 @@
 <script>
-  import { Search, SlidersHorizontal, MapPin, Calendar, ChevronRight, Flame, Shield } from 'lucide-svelte';
+  import { Search, MapPin, Calendar, Flame, Bell, ChevronRight, ExternalLink } from 'lucide-svelte';
+  import NotificationBell from '$lib/components/NotificationBell.svelte';
 
   export let data;
 
   let searchQuery = '';
-  let activeFilter = 'All';
+  let activeFilter = 'For you';
 
-  const filters = ['All', 'Music', 'Sports', 'Comedy', 'Festival'];
+  const filters = ['For you', 'Music', 'Sports', 'This week'];
 
-  $: filtered = (data.events || []).filter(e => {
+  // Filter events based on search and category
+  $: allEvents = (data.events || []).filter(e => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const matchesSearch =
-        e.title.toLowerCase().includes(q) ||
+      const match = e.title.toLowerCase().includes(q) ||
         (e.subtitle ?? '').toLowerCase().includes(q) ||
         e.venue.toLowerCase().includes(q) ||
         e.city.toLowerCase().includes(q);
-      if (!matchesSearch) return false;
+      if (!match) return false;
     }
-    if (activeFilter === 'Music') return e.category === 'music';
-    if (activeFilter === 'Sports') return e.category === 'sports';
-    if (activeFilter === 'Comedy') return e.category === 'comedy';
-    if (activeFilter === 'Festival') return e.category === 'festival';
+    if (activeFilter === 'Music' && e.category !== 'music') return false;
+    if (activeFilter === 'Sports' && e.category !== 'sports') return false;
+    if (activeFilter === 'This week') {
+      const eventDate = new Date(e.date);
+      const weekEnd = new Date();
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      if (eventDate > weekEnd) return false;
+    }
     return true;
   });
 
-  $: trendingEvent = filtered.find(e => e.trending && e.featured) || data.featuredEvent;
-  $: allEvents = filtered.filter(e => !e.featured);
+  // Featured event (trending + featured)
+  $: featuredEvent = allEvents.find(e => e.trending && e.featured) || data.featuredEvent;
 
-  function saleStatusClass(status) {
-    if (!status) return '';
-    const s = status.toLowerCase();
-    if (s === 'selling fast') return 'selling-fast';
-    if (s === 'limited') return 'limited';
-    return 'available';
-  }
+  // Trending events (high heat score, not the featured one)
+  $: trendingEvents = allEvents
+    .filter(e => e.heat_score && e.heat_score >= 85 && e !== featuredEvent)
+    .sort((a, b) => (b.heat_score || 0) - (a.heat_score || 0))
+    .slice(0, 4);
+
+  // Upcoming for you (not featured, not trending, sorted by date)
+  $: upcomingEvents = allEvents
+    .filter(e => e !== featuredEvent && !trendingEvents.includes(e))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 4);
+
+  // Near you this week — events in user's city within 7 days
+  $: nearYouEvents = allEvents
+    .filter(e => {
+      if (e.city !== 'Los Angeles') return false;
+      const eventDate = new Date(e.date);
+      const weekEnd = new Date();
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      return eventDate <= weekEnd;
+    })
+    .slice(0, 4);
+
+  // Day strip for "near you" section
+  $: dayStrip = (() => {
+    const days = [];
+    const now = new Date();
+    const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const monthNames = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      days.push({
+        label: dayNames[d.getDay()],
+        date: `${monthNames[d.getMonth()]} ${d.getDate()}`,
+        dateNum: d.getDate(),
+        isToday: i === 0
+      });
+    }
+    return days;
+  })();
+
+  let selectedDay = 0;
 </script>
 
 <svelte:head>
@@ -42,40 +83,14 @@
 </svelte:head>
 
 <div class="page-container">
-
-  <!-- Status Bar -->
-  <div class="status-bar">
-    <span class="time">9:41</span>
-    <div class="status-icons">
-      <svg width="17" height="11" viewBox="0 0 17 11" fill="none">
-        <rect x="0" y="1" width="3" height="10" rx="1" fill="currentColor"/>
-        <rect x="4.5" y="3" width="3" height="8" rx="1" fill="currentColor"/>
-        <rect x="9" y="5" width="3" height="6" rx="1" fill="currentColor"/>
-        <rect x="13.5" y="7" width="3" height="4" rx="1" fill="currentColor"/>
-      </svg>
-      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-        <path d="M8 3.6C9.8 3.6 11.4 4.3 12.6 5.4L14 4C12.4 2.5 10.3 1.6 8 1.6C5.7 1.6 3.6 2.5 2 4L3.4 5.4C4.6 4.3 6.2 3.6 8 3.6Z" fill="currentColor"/>
-        <path d="M8 7.2C9 7.2 9.9 7.6 10.6 8.2L12 6.8C10.9 5.8 9.5 5.2 8 5.2C6.5 5.2 5.1 5.8 4 6.8L5.4 8.2C6.1 7.6 7 7.2 8 7.2Z" fill="currentColor"/>
-        <circle cx="8" cy="10.5" r="1.5" fill="currentColor"/>
-      </svg>
-      <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
-        <rect x="0" y="0" width="22" height="12" rx="3" stroke="currentColor" stroke-width="1" fill="none"/>
-        <rect x="1.5" y="1.5" width="16" height="9" rx="2" fill="currentColor"/>
-        <rect x="23" y="4" width="2" height="4" rx="1" fill="currentColor"/>
-      </svg>
+  <!-- Header -->
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Events</h1>
+      <p class="subtitle">Discover music + sports for you</p>
     </div>
-  </div>
-
-  <!-- Brand Header -->
-  <header class="brand-header">
-    <div class="brand-mark">
-      <Shield size={20} fill="#FF5C00" color="#FF5C00" />
-      <span class="brand-name">MAXESS</span>
-    </div>
+    <NotificationBell />
   </header>
-
-  <!-- Page Title -->
-  <h1 class="page-title">DISCOVER EVENTS</h1>
 
   <!-- Search Bar -->
   <div class="search-wrap">
@@ -83,14 +98,11 @@
       <Search size={16} color="#8E8E93" />
       <input
         type="text"
-        placeholder="Artists, venues, cities..."
+        placeholder="Search artists, teams, venues..."
         bind:value={searchQuery}
         class="search-input"
       />
     </div>
-    <button class="filter-btn" aria-label="Filter">
-      <SlidersHorizontal size={18} color="#FF5C00" />
-    </button>
   </div>
 
   <!-- Filter Chips -->
@@ -99,229 +111,211 @@
       <button
         class="chip"
         class:active={activeFilter === f}
-        on:click={() => { activeFilter = f; }}
+        on:click={() => activeFilter = f}
       >
         {f}
       </button>
     {/each}
   </div>
 
-  <!-- Trending Section -->
-  {#if trendingEvent}
+  <!-- Featured Event -->
+  {#if featuredEvent}
     <section class="section">
-      <div class="section-head">
-        <div class="section-title-row">
-          <Flame size={16} color="#FF5C00" fill="#FF5C00" />
-          <h2 class="section-title">TRENDING</h2>
-        </div>
-        {#if trendingEvent.sale_status}
-          <span class="on-sale-badge">{trendingEvent.sale_status}</span>
-        {/if}
-      </div>
-
-      <div class="trending-card" style="background-color: {trendingEvent.image_color}">
-        <div class="trending-content">
-          {#if trendingEvent.genre_tag}
-            <span class="genre-tag">{trendingEvent.genre_tag}</span>
+      <a
+        href={featuredEvent.external_url || `/events/${featuredEvent.event_id}`}
+        target={featuredEvent.external_url ? '_blank' : undefined}
+        rel={featuredEvent.external_url ? 'noopener noreferrer' : undefined}
+        class="featured-card"
+        style="background-color: {featuredEvent.image_color}; {featuredEvent.image_url ? `background-image: url(${featuredEvent.image_url}); background-size: cover; background-position: center;` : ''}"
+      >
+        <div class="featured-overlay">
+          <span class="featured-badge">★ FEATURED</span>
+          <h2 class="featured-title">{featuredEvent.title}</h2>
+          {#if featuredEvent.subtitle}
+            <p class="featured-subtitle">{featuredEvent.subtitle}</p>
           {/if}
-          <h2 class="trending-title">{trendingEvent.title}</h2>
-          {#if trendingEvent.subtitle}
-            <p class="trending-subtitle">{trendingEvent.subtitle}</p>
-          {/if}
-          <div class="trending-meta">
-            <div class="meta-item">
-              <MapPin size={12} />
-              <span>{trendingEvent.location_display ?? trendingEvent.city}</span>
-            </div>
-            <div class="meta-item">
+          <div class="featured-meta">
+            <span class="featured-meta-item">
               <Calendar size={12} />
-              <span>{trendingEvent.date_display ?? trendingEvent.date}</span>
-            </div>
-            {#if trendingEvent.heat_score}
-              <div class="meta-item heat">
-                <Flame size={12} fill="#FF5C00" color="#FF5C00" />
-                <span class="heat-value">{trendingEvent.heat_score}</span>
-              </div>
-            {/if}
-            {#if trendingEvent.match_percentage}
-              <span class="match-badge">{trendingEvent.match_percentage}% match</span>
-            {/if}
+              {featuredEvent.date_display ?? featuredEvent.date}
+            </span>
+            <span class="featured-meta-item">
+              <MapPin size={12} />
+              {featuredEvent.location_display ?? featuredEvent.city}
+            </span>
           </div>
+          <button class="notify-btn" on:click|preventDefault|stopPropagation>
+            <Bell size={14} />
+            Notify me
+          </button>
         </div>
-      </div>
+      </a>
     </section>
   {/if}
 
-  <!-- Fans Like You Are Going -->
-  <section class="fans-section">
-    <button class="fans-header">
-      <div class="fans-title-row">
-        <Flame size={16} color="#FF5C00" fill="#FF5C00" />
-        <span class="fans-title">Fans Like You Are Going</span>
-      </div>
-      <ChevronRight size={18} color="#8E8E93" />
-    </button>
-    <div class="fans-row">
-      <div class="avatar-stack">
-        {#each data.fansAttending as fan}
-          <div class="avatar" style="background-color: {fan.avatar_color}">
-            <span>{fan.avatar_initials}</span>
-          </div>
-        {/each}
-      </div>
-      <p class="fans-text">
-        <strong>{data.fansAttending[0]?.name}, {data.fansAttending[1]?.name},</strong> +{data.fansAttendingCount} others
-        <span class="fans-subtext">with your taste are attending.</span>
-      </p>
-    </div>
-  </section>
-
-  <!-- All Events -->
-  {#if allEvents.length > 0}
+  <!-- Trending Now -->
+  {#if trendingEvents.length > 0}
     <section class="section">
       <div class="section-head">
-        <h2 class="section-title">ALL EVENTS</h2>
+        <h2 class="section-title">Trending now</h2>
+        <a href="/events" class="view-all">View all</a>
       </div>
-
-      <div class="events-list">
-        {#each allEvents as event}
-          <div class="event-row">
-            <div class="event-thumb" style="background-color: {event.image_color}"></div>
-            <div class="event-info">
-              <div class="event-name-row">
-                <h3 class="event-name">{event.title}</h3>
-                {#if event.sale_status}
-                  <span class="sale-badge {saleStatusClass(event.sale_status)}">{event.sale_status}</span>
-                {/if}
-              </div>
-              {#if event.subtitle}
-                <p class="event-subtitle">{event.subtitle}</p>
+      <div class="trending-scroll">
+        {#each trendingEvents as event}
+          <a
+            href={event.external_url || `/events/${event.event_id}`}
+            target={event.external_url ? '_blank' : undefined}
+            rel={event.external_url ? 'noopener noreferrer' : undefined}
+            class="trending-card"
+            style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"
+          >
+            <div class="trending-overlay">
+              {#if event.access_type}
+                <span class="access-chip {event.category === 'sports' ? 'sports' : 'music'}">{event.access_type}</span>
               {/if}
-              <div class="event-details">
-                <div class="event-detail">
-                  <MapPin size={11} color="#8E8E93" />
-                  <span>{event.venue}</span>
-                </div>
-                <div class="event-detail">
-                  <Calendar size={11} color="#8E8E93" />
-                  <span>{event.date_display ?? event.date}</span>
-                </div>
-              </div>
-              <div class="event-scores">
-                {#if event.heat_score}
-                  <div class="score-item">
-                    <Flame size={11} fill="#FF5C00" color="#FF5C00" />
-                    <span class="score-value">{event.heat_score}</span>
-                  </div>
-                {/if}
-                {#if event.match_percentage}
-                  <span class="match-pct">{event.match_percentage}% match</span>
-                {/if}
+              <h3 class="trending-name">{event.title}</h3>
+              <div class="trending-meta">
+                <span><Calendar size={10} /> {event.date_display ?? event.date}</span>
+                <span><MapPin size={10} /> {event.location_display ?? event.city}</span>
               </div>
             </div>
-          </div>
+          </a>
         {/each}
       </div>
     </section>
   {/if}
 
+  <!-- Upcoming for You -->
+  {#if upcomingEvents.length > 0}
+    <section class="section">
+      <div class="section-head">
+        <h2 class="section-title">Upcoming for you</h2>
+        <a href="/events" class="view-all">View all</a>
+      </div>
+      <div class="upcoming-list">
+        {#each upcomingEvents as event}
+          <a
+            href={event.external_url || `/events/${event.event_id}`}
+            target={event.external_url ? '_blank' : undefined}
+            rel={event.external_url ? 'noopener noreferrer' : undefined}
+            class="upcoming-row"
+          >
+            <div class="upcoming-thumb" style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"></div>
+            <div class="upcoming-info">
+              <h3 class="upcoming-name">{event.title}</h3>
+              <div class="upcoming-meta">
+                <span><Calendar size={10} color="#8E8E93" /> {event.date_display ?? event.date}</span>
+                <span>•</span>
+                <span>{event.venue}</span>
+              </div>
+            </div>
+            {#if event.sale_status}
+              <span class="status-chip {event.sale_status === 'Selling Fast' ? 'hot' : event.sale_status === 'Limited' ? 'limited' : ''}">{event.sale_status}</span>
+            {/if}
+          </a>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  <!-- Near You This Week -->
+  {#if nearYouEvents.length > 0}
+    <section class="section near-you">
+      <div class="section-head">
+        <h2 class="section-title">Near you this week</h2>
+      </div>
+
+      <!-- Day Strip -->
+      <div class="day-strip">
+        {#each dayStrip as day, i}
+          <button
+            class="day-item"
+            class:active={selectedDay === i}
+            on:click={() => selectedDay = i}
+          >
+            <span class="day-label">{day.label}</span>
+            <span class="day-date">{day.date}</span>
+          </button>
+        {/each}
+      </div>
+
+      <!-- Near You Grid -->
+      <div class="near-grid">
+        {#each nearYouEvents.slice(0, 2) as event}
+          <a
+            href={event.external_url || `/events/${event.event_id}`}
+            target={event.external_url ? '_blank' : undefined}
+            rel={event.external_url ? 'noopener noreferrer' : undefined}
+            class="near-card"
+            style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"
+          >
+            <div class="near-overlay">
+              <h3 class="near-name">{event.title}</h3>
+              <span class="near-meta">
+                <Calendar size={10} />
+                {event.date_display ?? event.date} • {event.venue}
+              </span>
+            </div>
+          </a>
+        {/each}
+      </div>
+    </section>
+  {/if}
 </div>
 
 <style>
   .page-container {
-    background: var(--bg-primary);
+    background: var(--bg-primary, #FAFAFA);
     min-height: 100vh;
-    padding-bottom: 20px;
-    color: var(--text-primary);
+    padding-bottom: 100px;
+    color: #1C1C1E;
   }
 
-  /* Status Bar */
-  .status-bar {
+  .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    height: 44px;
-    padding: 0 20px;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  .status-icons {
-    display: flex;
-    gap: 6px;
-    align-items: center;
+    align-items: flex-start;
+    padding: 16px 16px 12px;
   }
 
-  /* Brand Header */
-  .brand-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 4px 16px 12px;
-  }
-  .brand-mark {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .brand-name {
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    color: var(--text-primary);
-  }
-
-  /* Page Title */
   .page-title {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--text-primary);
-    padding: 0 16px 16px;
-    letter-spacing: 0.5px;
-    line-height: 1.1;
+    font-size: 34px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .subtitle {
+    color: #8E8E93;
+    font-size: 14px;
+    margin: 4px 0 0;
   }
 
   /* Search */
   .search-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
     padding: 0 16px 14px;
   }
+
   .search-bar {
-    flex: 1;
     display: flex;
     align-items: center;
     gap: 8px;
-    background: var(--bg-input);
-    border: 1px solid var(--border-gray);
+    background: #F2F2F7;
+    border: 1px solid #E5E5EA;
     border-radius: 12px;
     padding: 12px 14px;
   }
+
   .search-input {
     flex: 1;
     font-size: 14px;
-    color: var(--text-primary);
+    color: #1C1C1E;
     background: transparent;
     border: none;
     outline: none;
     font-family: inherit;
   }
-  .search-input::placeholder {
-    color: var(--text-secondary);
-  }
-  .filter-btn {
-    width: 44px;
-    height: 44px;
-    background: var(--bg-input);
-    border: 1px solid var(--border-gray);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
+
+  .search-input::placeholder { color: #8E8E93; }
 
   /* Filter Chips */
   .filter-chips {
@@ -331,21 +325,24 @@
     overflow-x: auto;
     scrollbar-width: none;
   }
+
   .filter-chips::-webkit-scrollbar { display: none; }
+
   .chip {
     flex-shrink: 0;
-    border: 1.5px solid var(--border-gray);
+    border: 1.5px solid #E5E5EA;
     border-radius: 99px;
     padding: 8px 18px;
     background: transparent;
-    color: var(--text-secondary);
+    color: #8E8E93;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.15s;
     white-space: nowrap;
     font-family: inherit;
   }
+
   .chip.active {
     border-color: #FF5C00;
     color: #FFFFFF;
@@ -354,271 +351,337 @@
 
   /* Sections */
   .section {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
+
   .section-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 16px 12px;
-  }
-  .section-title-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .section-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  .on-sale-badge {
-    background: #FF5C00;
-    color: #FFFFFF;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 99px;
+    padding: 0 16px 10px;
   }
 
-  /* Trending Card */
-  .trending-card {
-    position: relative;
+  .section-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1C1C1E;
+  }
+
+  .view-all {
+    font-size: 13px;
+    font-weight: 600;
+    color: #FF5C00;
+    text-decoration: none;
+  }
+
+  /* Featured Card */
+  .featured-card {
+    display: block;
     margin: 0 16px;
     border-radius: 16px;
     overflow: hidden;
     min-height: 200px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    position: relative;
+    text-decoration: none;
+    color: #FFFFFF;
   }
-  .trending-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.7) 100%);
-    pointer-events: none;
-  }
-  .trending-content {
+
+  .featured-overlay {
     position: relative;
     z-index: 1;
     padding: 20px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%);
   }
-  .genre-tag {
+
+  .featured-badge {
     display: inline-block;
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(4px);
+    background: #FF5C00;
     color: #FFFFFF;
     font-size: 10px;
     font-weight: 700;
     padding: 4px 10px;
     border-radius: 6px;
-    letter-spacing: 0.5px;
-    margin-bottom: 10px;
+    letter-spacing: 0.3px;
+    margin-bottom: 8px;
+    align-self: flex-start;
   }
-  .trending-title {
+
+  .featured-title {
     font-size: 24px;
     font-weight: 800;
-    color: #FFFFFF;
     line-height: 1.15;
-    margin-bottom: 4px;
+    margin: 0 0 4px;
   }
-  .trending-subtitle {
+
+  .featured-subtitle {
     font-size: 14px;
-    color: rgba(255,255,255,0.8);
+    opacity: 0.8;
+    margin: 0 0 10px;
+  }
+
+  .featured-meta {
+    display: flex;
+    gap: 14px;
     margin-bottom: 12px;
   }
-  .trending-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .meta-item {
+
+  .featured-meta-item {
     display: flex;
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: rgba(255,255,255,0.7);
-  }
-  .meta-item.heat {
-    color: #FF5C00;
-  }
-  .heat-value {
-    font-weight: 700;
-    color: #FF5C00;
-  }
-  .match-badge {
-    background: #FF5C00;
-    color: #FFFFFF;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 10px;
-    border-radius: 99px;
+    opacity: 0.8;
   }
 
-  /* Fans Section */
-  .fans-section {
-    padding: 0 16px 20px;
-  }
-  .fans-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    cursor: pointer;
-    padding: 0 0 10px;
-  }
-  .fans-title-row {
-    display: flex;
+  .notify-btn {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-  }
-  .fans-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .fans-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .avatar-stack {
-    display: flex;
-    flex-shrink: 0;
-  }
-  .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
+    background: #FF5C00;
     color: #FFFFFF;
-    border: 2px solid #FFFFFF;
-    margin-left: -8px;
-  }
-  .avatar:first-child {
-    margin-left: 0;
-  }
-  .fans-text {
-    font-size: 13px;
-    color: var(--text-primary);
-    line-height: 1.4;
-  }
-  .fans-text strong {
+    border: none;
+    border-radius: 99px;
+    padding: 10px 20px;
+    font-size: 14px;
     font-weight: 600;
-  }
-  .fans-subtext {
-    color: var(--text-secondary);
+    cursor: pointer;
+    align-self: flex-start;
+    font-family: inherit;
   }
 
-  /* Events List */
-  .events-list {
-    padding: 0 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .event-row {
+  /* Trending Scroll */
+  .trending-scroll {
     display: flex;
     gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border-gray);
+    padding: 0 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
-  .event-row:last-child {
-    border-bottom: none;
+
+  .trending-scroll::-webkit-scrollbar { display: none; }
+
+  .trending-card {
+    flex-shrink: 0;
+    width: 200px;
+    height: 140px;
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: #FFFFFF;
+    position: relative;
   }
-  .event-thumb {
-    width: 72px;
-    height: 72px;
+
+  .trending-overlay {
+    position: relative;
+    z-index: 1;
+    padding: 12px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.7) 100%);
+  }
+
+  .access-chip {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+    align-self: flex-start;
+  }
+
+  .access-chip.music { background: rgba(59, 40, 204, 0.8); }
+  .access-chip.sports { background: rgba(255, 92, 0, 0.8); }
+
+  .trending-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    line-height: 1.2;
+  }
+
+  .trending-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 10px;
+    opacity: 0.8;
+  }
+
+  .trending-meta span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  /* Upcoming List */
+  .upcoming-list {
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    margin: 0 16px;
+    overflow: hidden;
+  }
+
+  .upcoming-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #F2F2F7;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .upcoming-row:last-child { border-bottom: none; }
+
+  .upcoming-thumb {
+    width: 48px;
+    height: 48px;
     border-radius: 10px;
     flex-shrink: 0;
   }
-  .event-info {
+
+  .upcoming-info {
     flex: 1;
     min-width: 0;
   }
-  .event-name-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 2px;
-  }
-  .event-name {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1.2;
-  }
-  .event-subtitle {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
-    line-height: 1.3;
-  }
-  .event-details {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 4px;
-  }
-  .event-detail {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 11px;
-    color: var(--text-secondary);
-  }
-  .event-scores {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .score-item {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-  }
-  .score-value {
-    font-size: 12px;
-    font-weight: 700;
-    color: #FF5C00;
-  }
-  .match-pct {
-    font-size: 11px;
+
+  .upcoming-name {
+    font-size: 14px;
     font-weight: 600;
+    margin: 0 0 3px;
+    color: #1C1C1E;
+  }
+
+  .upcoming-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #8E8E93;
+  }
+
+  .upcoming-meta span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .status-chip {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.05);
+    color: #8E8E93;
+  }
+
+  .status-chip.hot {
+    background: rgba(255, 92, 0, 0.12);
     color: #FF5C00;
   }
 
-  /* Sale Status Badges */
-  .sale-badge {
-    flex-shrink: 0;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-  .sale-badge.selling-fast {
-    background: rgba(255, 92, 0, 0.15);
-    color: #FF5C00;
-  }
-  .sale-badge.available {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--text-secondary);
-  }
-  .sale-badge.limited {
-    background: rgba(255, 59, 48, 0.15);
+  .status-chip.limited {
+    background: rgba(255, 59, 48, 0.12);
     color: #FF3B30;
+  }
+
+  /* Near You */
+  .day-strip {
+    display: flex;
+    gap: 4px;
+    padding: 0 16px 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .day-strip::-webkit-scrollbar { display: none; }
+
+  .day-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 12px;
+    border: 1.5px solid #E5E5EA;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+
+  .day-item.active {
+    background: #FF5C00;
+    border-color: #FF5C00;
+    color: #FFFFFF;
+  }
+
+  .day-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: #8E8E93;
+  }
+
+  .day-item.active .day-label { color: rgba(255,255,255,0.8); }
+
+  .day-date {
+    font-size: 11px;
+    font-weight: 600;
+    color: #1C1C1E;
+  }
+
+  .day-item.active .day-date { color: #FFFFFF; }
+
+  .near-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 16px;
+  }
+
+  .near-card {
+    border-radius: 14px;
+    overflow: hidden;
+    height: 120px;
+    text-decoration: none;
+    color: #FFFFFF;
+    position: relative;
+  }
+
+  .near-overlay {
+    position: relative;
+    z-index: 1;
+    padding: 12px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.7) 100%);
+  }
+
+  .near-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    line-height: 1.2;
+  }
+
+  .near-meta {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    opacity: 0.8;
   }
 </style>

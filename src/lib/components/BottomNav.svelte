@@ -1,76 +1,39 @@
 <script>
   import { page } from '$app/stores';
-  import { Home, Search, Trophy, User } from 'lucide-svelte';
+  import { Home, Compass, Target, Crown, User } from 'lucide-svelte';
 
   const tabs = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
-    { id: 'events', label: 'Events', icon: Search, href: '/events' },
-    { id: 'rank-rewards', label: 'Rewards', icon: Trophy, href: '/rank-rewards' },
+    { id: 'events', label: 'Events', icon: Compass, href: '/events' },
+    { id: 'score', label: 'Score', icon: Target, href: '/score' },
+    { id: 'access', label: 'Access', icon: Crown, href: '/access' },
     { id: 'profile', label: 'Profile', icon: User, href: '/profile' }
   ];
 
   $: activeTab = (() => {
     const path = $page.url.pathname;
     if (path === '/') return 'home';
-    return path.slice(1);
+    const segment = path.split('/')[1];
+    return segment || 'home';
   })();
 </script>
 
 <nav class="bottom-nav">
   <div class="nav-content">
-    <!-- Left two tabs -->
-    <a
-      href={tabs[0].href}
-      class="nav-tab"
-      class:active={activeTab === tabs[0].id}
-      data-sveltekit-preload-data="hover"
-    >
-      <div class="nav-icon">
-        <svelte:component this={tabs[0].icon} size={24} />
-      </div>
-      <span class="nav-label">{tabs[0].label}</span>
-    </a>
-
-    <a
-      href={tabs[1].href}
-      class="nav-tab"
-      class:active={activeTab === tabs[1].id}
-      data-sveltekit-preload-data="hover"
-    >
-      <div class="nav-icon">
-        <svelte:component this={tabs[1].icon} size={24} />
-      </div>
-      <span class="nav-label">{tabs[1].label}</span>
-    </a>
-
-    <!-- Right two tabs -->
-    <a
-      href={tabs[2].href}
-      class="nav-tab"
-      class:active={activeTab === tabs[2].id}
-      data-sveltekit-preload-data="hover"
-    >
-      <div class="nav-icon">
-        <svelte:component this={tabs[2].icon} size={24} />
-      </div>
-      <span class="nav-label">{tabs[2].label}</span>
-    </a>
-
-    <a
-      href={tabs[3].href}
-      class="nav-tab"
-      class:active={activeTab === tabs[3].id}
-      data-sveltekit-preload-data="hover"
-    >
-      <div class="nav-icon">
-        <svelte:component this={tabs[3].icon} size={24} />
-      </div>
-      <span class="nav-label">{tabs[3].label}</span>
-    </a>
+    {#each tabs as tab}
+      <a
+        href={tab.href}
+        class="nav-tab"
+        class:active={activeTab === tab.id}
+        data-sveltekit-preload-data="hover"
+      >
+        <div class="nav-icon">
+          <svelte:component this={tab.icon} size={22} />
+        </div>
+        <span class="nav-label">{tab.label}</span>
+      </a>
+    {/each}
   </div>
-
-  <!-- Home Indicator (iOS style) -->
-  <div class="home-indicator"></div>
 </nav>
 
 <style>
@@ -89,8 +52,8 @@
     display: flex;
     align-items: center;
     justify-content: space-around;
-    height: 70px;
-    padding: 0 12px;
+    height: 60px;
+    padding: 0 4px;
     position: relative;
   }
 
@@ -101,7 +64,7 @@
     gap: 2px;
     text-decoration: none;
     color: #8E8E93;
-    min-height: 49px;
+    min-height: 44px;
     min-width: 44px;
     justify-content: center;
     transition: color 0.2s ease;
@@ -131,29 +94,18 @@
     color: #FF5C00;
   }
 
-  /* iOS Home Indicator */
-  .home-indicator {
-    width: 134px;
-    height: 5px;
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 2.5px;
-    margin: 6px auto 0;
-  }
-
-  /* Responsive adjustments */
   @media (max-width: 375px) {
     .nav-content {
-      height: 65px;
-      padding: 0 8px;
+      height: 56px;
+      padding: 0 2px;
     }
 
     .nav-tab {
-      min-width: 40px;
+      min-width: 36px;
     }
 
     .nav-label {
       font-size: 9px;
     }
-
   }
 </style>

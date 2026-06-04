@@ -1,10 +1,17 @@
 <script>
   import '$lib/styles/tokens.css';
   import '$lib/styles/app.css';
+  import { afterNavigate } from '$app/navigation';
   import BottomNav from '$lib/components/BottomNav.svelte';
+  import NotificationPanel from '$lib/components/NotificationPanel.svelte';
+
+  afterNavigate(() => {
+    window.scrollTo(0, 0);
+  });
 </script>
 
 <div class="app-container">
+  <NotificationPanel />
   <main class="main-content">
     <slot />
   </main>

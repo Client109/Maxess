@@ -31,7 +31,7 @@
 <div class="upcoming-events">
   <div class="events-grid">
     {#each filteredEvents as event}
-      <article class="event-card">
+      <a href={event.external_url || `/events/${event.event_id}`} target={event.external_url ? '_blank' : undefined} rel={event.external_url ? 'noopener noreferrer' : undefined} class="event-card">
         <div class="event-image" style="background-color: {event.image_color}">
           <div class="access-chip">
             {#if event.category === 'music'}
@@ -66,11 +66,11 @@
             <Calendar size={14} color="#FF5C00" />
             <span>{formatDatetime(event)}</span>
           </div>
-          <button class="arrow-button" aria-label="View event details">
+          <span class="arrow-button" aria-label="View event details">
             <ArrowRight size={16} color="#FFFFFF" />
-          </button>
+          </span>
         </div>
-      </article>
+      </a>
     {/each}
 
     {#if filteredEvents.length === 0}
@@ -95,6 +95,9 @@
     overflow: hidden;
     cursor: pointer;
     transition: all 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+    display: block;
   }
 
   .event-card:hover {

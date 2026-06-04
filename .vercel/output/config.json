@@ -41,16 +41,28 @@
 			"dest": "/api/events"
 		},
 		{
+			"src": "^/artist/([^/]+?)/?(?:/__data.json)?$",
+			"dest": "/artist/[id]"
+		},
+		{
 			"src": "^/events/?(?:/__data.json)?$",
 			"dest": "/events"
+		},
+		{
+			"src": "^/events/([^/]+?)/?(?:/__data.json)?$",
+			"dest": "/events/[id]"
+		},
+		{
+			"src": "^/passes/([^/]+?)/?(?:/__data.json)?$",
+			"dest": "/passes/[id]"
 		},
 		{
 			"src": "^/profile/?(?:/__data.json)?$",
 			"dest": "/profile"
 		},
 		{
-			"src": "^/rank-rewards/?(?:/__data.json)?$",
-			"dest": "/rank-rewards"
+			"src": "^/score/?(?:/__data.json)?$",
+			"dest": "/score"
 		},
 		{
 			"src": "/.*",

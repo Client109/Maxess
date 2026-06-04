@@ -40,14 +40,23 @@ export function transformUserToFan(user: any): Fan {
   };
 }
 
-export function transformLeaderboardEntry(entry: any, currentFanId: string): LeaderboardEntry {
+export function transformLeaderboardEntry(entry: any, currentFanId: string, friendIds: string[] = []): LeaderboardEntry {
+  // Deterministic delta based on name + period so it doesn't change on every page load
+  let hash = 0;
+  const key = entry.name + entry.period;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  }
+  const delta = (Math.abs(hash) % 21) - 5; // -5 to +15
+
   return {
     rank: entry.rank,
     name: entry.name,
     score: entry.xp_total,
-    delta: Math.floor(Math.random() * 30) - 10, // Simulated delta for demo
+    delta,
     is_me: entry.user_id === currentFanId,
-    city: entry.city || 'LA',
+    is_friend: friendIds.includes(entry.user_id),
+    city: entry.city || 'Los Angeles',
     time_period: entry.period === 'WEEKLY' ? 'This week' : entry.period === 'MONTHLY' ? 'This month' : 'All time',
   };
 }
@@ -69,7 +78,7 @@ export function transformChallenge(uc: any): Challenge {
     challenge_id: challenge.challenge_id,
     title: challenge.title,
     subtitle: challenge.description || '',
-    reward_name: `${challenge.xp_reward} XP`,
+    reward_name: `${challenge.xp_reward} pts`,
     tasks,
     progress_fraction: tasks.length > 0 ? completedCount / tasks.length : 0,
     is_limited: challenge.difficulty === 'Hard',
@@ -138,9 +147,9 @@ export function transformRecentActivity(ra: any, index: number): RecentActivity 
     'Social referral': '👥',
     'Challenge progress': '⭐',
     'Streaming milestone': '🎧',
-    'Spend XP bonus': '💳',
+    'Spend Points bonus': '💳',
     'Challenge completed': '🏆',
-    'Watch XP': '📺',
+    'Watch Points': '📺',
     'Social sharing': '📤',
     'Weekly streak bonus': '🔥',
     'Discovery bonus': '🔍',

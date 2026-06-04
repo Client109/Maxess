@@ -7,8 +7,110 @@ export const TIERS: Tier[] = [
   { name: 'Elite', xp_threshold: 5000, perks: ['VIP access', 'Lounge + more'], color_hex: '#FFD700' }
 ];
 
+// ── Levels System (gradual ramp up to 1,000,000 points) ───────────────────
+// ~50 levels with exponential spacing: early levels are quick, later levels take more
+const LEVEL_THRESHOLDS: number[] = [
+  0,        // Level 1
+  250,      // Level 2
+  600,      // Level 3
+  1_000,    // Level 4
+  1_500,    // Level 5
+  2_200,    // Level 6
+  3_000,    // Level 7
+  4_000,    // Level 8
+  5_200,    // Level 9
+  6_500,    // Level 10
+  8_000,    // Level 11
+  10_000,   // Level 12
+  12_500,   // Level 13
+  15_000,   // Level 14
+  18_000,   // Level 15
+  22_000,   // Level 16
+  26_000,   // Level 17
+  31_000,   // Level 18
+  37_000,   // Level 19
+  44_000,   // Level 20
+  52_000,   // Level 21
+  61_000,   // Level 22
+  72_000,   // Level 23
+  85_000,   // Level 24
+  100_000,  // Level 25
+  118_000,  // Level 26
+  138_000,  // Level 27
+  160_000,  // Level 28
+  185_000,  // Level 29
+  215_000,  // Level 30
+  250_000,  // Level 31
+  290_000,  // Level 32
+  335_000,  // Level 33
+  385_000,  // Level 34
+  440_000,  // Level 35
+  500_000,  // Level 36
+  560_000,  // Level 37
+  625_000,  // Level 38
+  695_000,  // Level 39
+  770_000,  // Level 40
+  845_000,  // Level 41
+  920_000,  // Level 42
+  1_000_000 // Level 43 (max)
+];
+
+export interface LevelInfo {
+  level: number;
+  currentThreshold: number;
+  nextThreshold: number | null;
+  progress: number;       // 0.0–1.0 within current level
+  pointsInLevel: number;  // points earned within this level
+  pointsForLevel: number; // total points needed for this level
+  isMax: boolean;
+}
+
+export function getLevel(points: number): LevelInfo {
+  let levelIndex = 0;
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (points >= LEVEL_THRESHOLDS[i]) {
+      levelIndex = i;
+      break;
+    }
+  }
+
+  const isMax = levelIndex >= LEVEL_THRESHOLDS.length - 1;
+  const currentThreshold = LEVEL_THRESHOLDS[levelIndex];
+  const nextThreshold = isMax ? null : LEVEL_THRESHOLDS[levelIndex + 1];
+
+  let progress = 1.0;
+  let pointsInLevel = 0;
+  let pointsForLevel = 0;
+
+  if (!isMax && nextThreshold !== null) {
+    pointsForLevel = nextThreshold - currentThreshold;
+    pointsInLevel = points - currentThreshold;
+    progress = Math.min(1.0, pointsInLevel / pointsForLevel);
+  }
+
+  return {
+    level: levelIndex + 1,
+    currentThreshold,
+    nextThreshold,
+    progress,
+    pointsInLevel,
+    pointsForLevel,
+    isMax
+  };
+}
+
+export function pointsToNextLevel(points: number): number {
+  const info = getLevel(points);
+  if (info.isMax || info.nextThreshold === null) return 0;
+  return info.nextThreshold - points;
+}
+
+export const MAX_LEVEL = LEVEL_THRESHOLDS.length;
+export const MAX_POINTS = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
+
+// ── Tier functions (kept for backward compat) ─────────────────────────────
+
 export function classifyTier(xp: number): Tier {
-  // Find the highest tier the user qualifies for
   const qualifiedTiers = TIERS.filter(tier => xp >= tier.xp_threshold);
   return qualifiedTiers[qualifiedTiers.length - 1] || TIERS[0];
 }
@@ -16,12 +118,7 @@ export function classifyTier(xp: number): Tier {
 export function xpToNextTier(xp: number): number {
   const currentTier = classifyTier(xp);
   const currentTierIndex = TIERS.findIndex(tier => tier.name === currentTier.name);
-  
-  // If already at highest tier
-  if (currentTierIndex === TIERS.length - 1) {
-    return 0;
-  }
-  
+  if (currentTierIndex === TIERS.length - 1) return 0;
   const nextTier = TIERS[currentTierIndex + 1];
   return nextTier.xp_threshold - xp;
 }
@@ -29,19 +126,12 @@ export function xpToNextTier(xp: number): number {
 export function tierProgress(xp: number): number {
   const currentTier = classifyTier(xp);
   const currentTierIndex = TIERS.findIndex(tier => tier.name === currentTier.name);
-  
-  // If at highest tier, progress is 100%
-  if (currentTierIndex === TIERS.length - 1) {
-    return 1.0;
-  }
-  
+  if (currentTierIndex === TIERS.length - 1) return 1.0;
   const nextTier = TIERS[currentTierIndex + 1];
   const currentTierStart = currentTier.xp_threshold;
   const nextTierStart = nextTier.xp_threshold;
-  
   const progressInTier = xp - currentTierStart;
   const tierRange = nextTierStart - currentTierStart;
-  
   return Math.min(1.0, progressInTier / tierRange);
 }
 
@@ -58,10 +148,6 @@ export function calculateRank(userXP: number, allScores: number[]): number {
 export function calculatePercentile(userXP: number, allScores: number[]): number {
   const sortedScores = [...allScores].sort((a, b) => a - b);
   const position = sortedScores.findIndex(score => score >= userXP);
-  
-  if (position === -1) {
-    return 100; // User has highest score
-  }
-  
+  if (position === -1) return 100;
   return Math.round((position / sortedScores.length) * 100);
 }

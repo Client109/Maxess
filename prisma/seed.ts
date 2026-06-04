@@ -10,6 +10,26 @@ const pool = new pg.Pool({
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+// Deterministic pseudo-random from a string seed (for consistent rankings per period)
+function seedHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return (h & 0x7fffffff) / 0x7fffffff; // 0..1
+}
+
+function tierFromXp(xp: number): 'GENERAL' | 'LOYAL' | 'SUPERFAN' | 'ELITE' {
+  if (xp >= 5000) return 'ELITE';
+  if (xp >= 2500) return 'SUPERFAN';
+  if (xp >= 1000) return 'LOYAL';
+  return 'GENERAL';
+}
+
+function initials(name: string): string {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
+
 async function main() {
   console.log('Starting database seed...');
 
@@ -44,53 +64,122 @@ async function main() {
     },
   });
 
-  // ── Other users for leaderboard (30+) ─────────────────────────────────
-  const otherUsersData = [
-    { fan_id: 'fan_002', name: 'Sarah Kim', initials: 'SK', city: 'Los Angeles', xp: 12450, tier: 'ELITE' as const, streak: 28, events: 48 },
-    { fan_id: 'fan_003', name: 'Mike Rodriguez', initials: 'MR', city: 'Los Angeles', xp: 11890, tier: 'ELITE' as const, streak: 22, events: 41 },
-    { fan_id: 'fan_004', name: 'Emma Davis', initials: 'ED', city: 'Los Angeles', xp: 11200, tier: 'ELITE' as const, streak: 45, events: 67 },
-    { fan_id: 'fan_005', name: 'Jordan Lee', initials: 'JL', city: 'Los Angeles', xp: 8690, tier: 'ELITE' as const, streak: 10, events: 29 },
-    { fan_id: 'fan_006', name: 'Aaliyah Thompson', initials: 'AT', city: 'Los Angeles', xp: 8200, tier: 'ELITE' as const, streak: 15, events: 35 },
-    { fan_id: 'fan_007', name: 'Kai Morales', initials: 'KM', city: 'Los Angeles', xp: 7800, tier: 'ELITE' as const, streak: 8, events: 26 },
-    { fan_id: 'fan_008', name: 'Sofia Ramirez', initials: 'SR', city: 'Los Angeles', xp: 7200, tier: 'ELITE' as const, streak: 14, events: 31 },
-    { fan_id: 'fan_009', name: 'Marcus Davis', initials: 'MD', city: 'Los Angeles', xp: 6800, tier: 'ELITE' as const, streak: 6, events: 22 },
-    { fan_id: 'fan_010', name: 'Zoe Park', initials: 'ZP', city: 'Los Angeles', xp: 6400, tier: 'ELITE' as const, streak: 20, events: 28 },
-    { fan_id: 'fan_011', name: 'Liam Foster', initials: 'LF', city: 'Los Angeles', xp: 5900, tier: 'ELITE' as const, streak: 11, events: 19 },
-    { fan_id: 'fan_012', name: 'Maya Chen', initials: 'MC', city: 'Los Angeles', xp: 5500, tier: 'ELITE' as const, streak: 7, events: 24 },
-    { fan_id: 'fan_013', name: 'Noah Williams', initials: 'NW', city: 'Los Angeles', xp: 4900, tier: 'SUPERFAN' as const, streak: 9, events: 18 },
-    { fan_id: 'fan_014', name: 'Olivia Nguyen', initials: 'ON', city: 'Los Angeles', xp: 4500, tier: 'SUPERFAN' as const, streak: 5, events: 15 },
-    { fan_id: 'fan_015', name: 'Ethan Brooks', initials: 'EB', city: 'Los Angeles', xp: 4100, tier: 'SUPERFAN' as const, streak: 13, events: 20 },
-    { fan_id: 'fan_016', name: 'Isabella Torres', initials: 'IT', city: 'Los Angeles', xp: 3700, tier: 'SUPERFAN' as const, streak: 4, events: 12 },
-    { fan_id: 'fan_017', name: 'Aiden Rivera', initials: 'AR', city: 'Los Angeles', xp: 3300, tier: 'SUPERFAN' as const, streak: 16, events: 17 },
-    { fan_id: 'fan_018', name: 'Mia Jackson', initials: 'MJ', city: 'Los Angeles', xp: 2900, tier: 'SUPERFAN' as const, streak: 3, events: 10 },
-    { fan_id: 'fan_019', name: 'Lucas Hernandez', initials: 'LH', city: 'Los Angeles', xp: 2600, tier: 'SUPERFAN' as const, streak: 8, events: 14 },
-    { fan_id: 'fan_020', name: 'Ava Mitchell', initials: 'AM', city: 'Los Angeles', xp: 2200, tier: 'LOYAL' as const, streak: 2, events: 8 },
-    { fan_id: 'fan_021', name: 'Jayden Cooper', initials: 'JC', city: 'Los Angeles', xp: 1900, tier: 'LOYAL' as const, streak: 6, events: 11 },
-    { fan_id: 'fan_022', name: 'Chloe Anderson', initials: 'CA', city: 'Los Angeles', xp: 1600, tier: 'LOYAL' as const, streak: 1, events: 6 },
-    { fan_id: 'fan_023', name: 'Ryan Evans', initials: 'RE', city: 'Los Angeles', xp: 1300, tier: 'LOYAL' as const, streak: 4, events: 9 },
-    { fan_id: 'fan_024', name: 'Lily Morgan', initials: 'LM', city: 'Los Angeles', xp: 1100, tier: 'LOYAL' as const, streak: 2, events: 5 },
-    { fan_id: 'fan_025', name: 'Tyler Reed', initials: 'TR', city: 'Los Angeles', xp: 900, tier: 'GENERAL' as const, streak: 3, events: 7 },
-    { fan_id: 'fan_026', name: 'Grace Kim', initials: 'GK', city: 'Los Angeles', xp: 700, tier: 'GENERAL' as const, streak: 1, events: 4 },
-    { fan_id: 'fan_027', name: 'David Patel', initials: 'DP', city: 'Los Angeles', xp: 500, tier: 'GENERAL' as const, streak: 5, events: 3 },
-    { fan_id: 'fan_028', name: 'Hannah Scott', initials: 'HS', city: 'Los Angeles', xp: 350, tier: 'GENERAL' as const, streak: 0, events: 2 },
-    { fan_id: 'fan_029', name: 'Brandon White', initials: 'BW', city: 'Los Angeles', xp: 200, tier: 'GENERAL' as const, streak: 1, events: 1 },
-    { fan_id: 'fan_030', name: 'Emily Flores', initials: 'EF', city: 'Los Angeles', xp: 100, tier: 'GENERAL' as const, streak: 0, events: 1 },
-    // Out-of-city users for diversity
-    { fan_id: 'fan_031', name: 'Jake Martinez', initials: 'JM', city: 'New York', xp: 9500, tier: 'ELITE' as const, streak: 18, events: 38 },
-    { fan_id: 'fan_032', name: 'Samira Ali', initials: 'SA', city: 'Chicago', xp: 7100, tier: 'ELITE' as const, streak: 12, events: 25 },
+  // ── LA Users (29) ───────────────────────────────────────────────────────
+  const laUsers: { name: string; xp: number }[] = [
+    { name: 'Sarah Kim', xp: 12450 },
+    { name: 'Mike Rodriguez', xp: 11890 },
+    { name: 'Emma Davis', xp: 11200 },
+    { name: 'Jordan Lee', xp: 8690 },
+    { name: 'Aaliyah Thompson', xp: 8200 },
+    { name: 'Kai Morales', xp: 7800 },
+    { name: 'Sofia Ramirez', xp: 7200 },
+    { name: 'Marcus Davis', xp: 6800 },
+    { name: 'Zoe Park', xp: 6400 },
+    { name: 'Liam Foster', xp: 5900 },
+    { name: 'Maya Chen', xp: 5500 },
+    { name: 'Noah Williams', xp: 4900 },
+    { name: 'Olivia Nguyen', xp: 4500 },
+    { name: 'Ethan Brooks', xp: 4100 },
+    { name: 'Isabella Torres', xp: 3700 },
+    { name: 'Aiden Rivera', xp: 3300 },
+    { name: 'Mia Jackson', xp: 2900 },
+    { name: 'Lucas Hernandez', xp: 2600 },
+    { name: 'Ava Mitchell', xp: 2200 },
+    { name: 'Jayden Cooper', xp: 1900 },
+    { name: 'Chloe Anderson', xp: 1600 },
+    { name: 'Ryan Evans', xp: 1300 },
+    { name: 'Lily Morgan', xp: 1100 },
+    { name: 'Tyler Reed', xp: 900 },
+    { name: 'Grace Kim', xp: 700 },
+    { name: 'David Patel', xp: 500 },
+    { name: 'Hannah Scott', xp: 350 },
+    { name: 'Brandon White', xp: 200 },
+    { name: 'Emily Flores', xp: 100 },
   ];
 
-  for (const u of otherUsersData) {
+  // ── SF Users (25) ──────────────────────────────────────────────────────
+  const sfUsers: { name: string; xp: number }[] = [
+    { name: 'Ryan Nakamura', xp: 11200 },
+    { name: 'Priya Sharma', xp: 10600 },
+    { name: 'Derek Chang', xp: 9800 },
+    { name: 'Nina Volkov', xp: 9200 },
+    { name: 'Tommy Tran', xp: 8500 },
+    { name: 'Jasmine Wu', xp: 7900 },
+    { name: 'Connor Bailey', xp: 7300 },
+    { name: 'Aisha Okafor', xp: 6700 },
+    { name: 'Leo Tanaka', xp: 6100 },
+    { name: 'Rachel Meyer', xp: 5600 },
+    { name: 'Kevin Huang', xp: 5100 },
+    { name: 'Simone Baptiste', xp: 4600 },
+    { name: 'Danny Ortiz', xp: 4100 },
+    { name: 'Megan Fitzgerald', xp: 3600 },
+    { name: 'Andre Williams', xp: 3100 },
+    { name: 'Yuki Sato', xp: 2700 },
+    { name: 'Tessa Grant', xp: 2300 },
+    { name: 'Omar Hassan', xp: 1900 },
+    { name: 'Jade Liu', xp: 1500 },
+    { name: 'Carlos Medina', xp: 1200 },
+    { name: 'Natalie Ross', xp: 900 },
+    { name: 'Finn Callahan', xp: 650 },
+    { name: 'Vera Kim', xp: 400 },
+    { name: 'Isaac Brown', xp: 250 },
+    { name: 'Amara Jackson', xp: 120 },
+  ];
+
+  // ── NYC Users (25) ─────────────────────────────────────────────────────
+  const nycUsers: { name: string; xp: number }[] = [
+    { name: 'Darius Washington', xp: 13100 },
+    { name: 'Lucia Fernandez', xp: 12200 },
+    { name: 'Brian O\'Malley', xp: 11400 },
+    { name: 'Zara Ahmed', xp: 10700 },
+    { name: 'Marcus Thompson', xp: 10000 },
+    { name: 'Hannah Goldstein', xp: 9200 },
+    { name: 'Jake Martinez', xp: 9500 },
+    { name: 'Tyler Jefferson', xp: 8400 },
+    { name: 'Chiara Romano', xp: 7800 },
+    { name: 'Devon Clarke', xp: 7200 },
+    { name: 'Sonia Patel', xp: 6600 },
+    { name: 'James Kowalski', xp: 6000 },
+    { name: 'Destiny Robinson', xp: 5400 },
+    { name: 'Antoine Dubois', xp: 4800 },
+    { name: 'Michelle Santos', xp: 4300 },
+    { name: 'Keith Washington', xp: 3800 },
+    { name: 'Gabriella Cruz', xp: 3300 },
+    { name: 'Trevor Simmons', xp: 2800 },
+    { name: 'Nina Petrova', xp: 2400 },
+    { name: 'Isaiah Moore', xp: 2000 },
+    { name: 'Lauren McCarthy', xp: 1600 },
+    { name: 'Vincent Tao', xp: 1300 },
+    { name: 'Daniela Ruiz', xp: 850 },
+    { name: 'Nathan Foster', xp: 500 },
+    { name: 'Alana Mitchell', xp: 200 },
+  ];
+
+  // Create all users with auto-generated fan_ids
+  let fanCounter = 2; // fan_001 is Alex Chen
+  const allCityUsers = [
+    ...laUsers.map(u => ({ ...u, city: 'Los Angeles' })),
+    ...sfUsers.map(u => ({ ...u, city: 'San Francisco' })),
+    ...nycUsers.map(u => ({ ...u, city: 'New York' })),
+  ];
+
+  for (const u of allCityUsers) {
+    const fanId = `fan_${String(fanCounter).padStart(3, '0')}`;
+    fanCounter++;
+    const tier = tierFromXp(u.xp);
+    const streak = Math.floor(seedHash(u.name + 'streak') * 30);
+    const events = Math.floor(seedHash(u.name + 'events') * 50) + 1;
+
     await prisma.user.create({
       data: {
-        fan_id: u.fan_id,
+        fan_id: fanId,
         name: u.name,
-        avatar_initials: u.initials,
+        avatar_initials: initials(u.name),
         city: u.city,
         xp_total: u.xp,
-        current_tier: u.tier,
-        streak_days: u.streak,
-        events_attended: u.events,
+        current_tier: tier,
+        streak_days: streak,
+        events_attended: events,
       },
     });
   }
@@ -235,29 +324,49 @@ async function main() {
 
   for (const tx of xpTransactions) {
     await prisma.xpTransaction.create({
-      data: {
-        user_id: mainUser.id,
-        ...tx,
-      },
+      data: { user_id: mainUser.id, ...tx },
     });
   }
 
-  // ── Leaderboard entries (all periods) ──────────────────────────────────
+  // ── Leaderboard entries (all periods, with variation) ─────────────────
   const allUsers = await prisma.user.findMany({ orderBy: { xp_total: 'desc' } });
 
   const periods = ['WEEKLY', 'MONTHLY', 'ALL_TIME'] as const;
   for (const period of periods) {
-    const entries = allUsers.map((user, index) => ({
-      user_id: user.id,
-      name: user.name,
-      xp_total: user.xp_total,
-      tier: user.current_tier,
-      rank: index + 1,
-      city: user.city,
-      period,
-    }));
+    // Apply XP variation per period so rankings differ
+    const adjusted = allUsers.map(user => {
+      let xp = user.xp_total;
+      if (period === 'WEEKLY') {
+        // Weekly: more variance — some users had big weeks, others quiet
+        xp = Math.round(xp * (0.5 + seedHash(user.name + 'WEEKLY') * 1.0));
+      } else if (period === 'MONTHLY') {
+        // Monthly: moderate variance
+        xp = Math.round(xp * (0.75 + seedHash(user.name + 'MONTHLY') * 0.5));
+      }
+      return { ...user, adjustedXp: xp };
+    });
 
-    await prisma.leaderboardEntry.createMany({ data: entries });
+    // Sort by adjusted XP and assign ranks per city
+    const cities = ['Los Angeles', 'San Francisco', 'New York'];
+    for (const city of cities) {
+      const cityUsers = adjusted
+        .filter(u => u.city === city)
+        .sort((a, b) => b.adjustedXp - a.adjustedXp);
+
+      const entries = cityUsers.map((user, index) => ({
+        user_id: user.id,
+        name: user.name,
+        xp_total: user.adjustedXp,
+        tier: user.current_tier,
+        rank: index + 1,
+        city: user.city,
+        period,
+      }));
+
+      if (entries.length > 0) {
+        await prisma.leaderboardEntry.createMany({ data: entries });
+      }
+    }
   }
 
   // ── Passes (for Alex Chen) ────────────────────────────────────────────
@@ -293,7 +402,6 @@ async function main() {
         valid_until: new Date('2026-08-01'),
         claimed_at: new Date('2026-04-20'),
       },
-      // Available passes (not assigned to anyone)
       {
         pass_id: 'pass_004',
         user_id: null,
@@ -342,7 +450,8 @@ async function main() {
     ],
   });
 
-  // ── Friend activities (for Alex Chen) ──────────────────────────────────
+  // ── Friend activities (for Alex Chen) ─────────────────────────────────
+  // LA friends
   await prisma.friendActivity.createMany({
     data: [
       { user_id: mainUser.id, friend_name: 'Sarah Kim', activity: 'attended Arctic Monkeys, gained 2 ranks', xp_change: 280 },
@@ -357,9 +466,14 @@ async function main() {
       { user_id: mainUser.id, friend_name: 'Liam Foster', activity: 'referred 3 friends', xp_change: 250 },
       { user_id: mainUser.id, friend_name: 'Maya Chen', activity: 'completed Music Maven challenge', xp_change: 350 },
       { user_id: mainUser.id, friend_name: 'Noah Williams', activity: 'attended Coachella Weekend 1', xp_change: 400 },
-      { user_id: mainUser.id, friend_name: 'Olivia Nguyen', activity: 'checked in at SoFi Stadium', xp_change: 100 },
-      { user_id: mainUser.id, friend_name: 'Ethan Brooks', activity: 'maintained 13-day streak', xp_change: 130 },
-      { user_id: mainUser.id, friend_name: 'Isabella Torres', activity: 'discovered 5 new artists', xp_change: 75 },
+      // SF friends
+      { user_id: mainUser.id, friend_name: 'Priya Sharma', activity: 'attended Outside Lands festival', xp_change: 450 },
+      { user_id: mainUser.id, friend_name: 'Tommy Tran', activity: 'discovered 3 new artists this week', xp_change: 120 },
+      { user_id: mainUser.id, friend_name: 'Aisha Okafor', activity: 'reached Superfan tier', xp_change: 300 },
+      // NYC friends
+      { user_id: mainUser.id, friend_name: 'Lucia Fernandez', activity: 'attended Bad Bunny at MSG', xp_change: 380 },
+      { user_id: mainUser.id, friend_name: 'Tyler Jefferson', activity: 'completed Weekend Warrior challenge', xp_change: 600 },
+      { user_id: mainUser.id, friend_name: 'Sonia Patel', activity: 'referred 5 friends to join', xp_change: 250 },
     ],
   });
 
@@ -390,7 +504,9 @@ async function main() {
   });
 
   const totalUsers = await prisma.user.count();
-  console.log(`Seed completed: ${totalUsers} users, 8 challenges, 8 passes, 15 friend activities, 20 recent activities`);
+  const totalLeaderboard = await prisma.leaderboardEntry.count();
+  const totalFriendActivities = await prisma.friendActivity.count();
+  console.log(`Seed completed: ${totalUsers} users, ${totalLeaderboard} leaderboard entries, ${totalFriendActivities} friend activities, 8 challenges, 8 passes`);
 }
 
 main()

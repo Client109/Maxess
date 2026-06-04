@@ -1,448 +1,179 @@
 <script>
-  import { Bell, TrendingUp, TrendingDown, Star, Clock, Key, ChevronRight } from 'lucide-svelte';
-  import { mockLeaderboard, mockChallenges, mockFriendActivity, mockFanProfile, mockPasses } from '$lib/data/mockData.js';
+  import { Star, Clock, Crown, ChevronRight, Zap, Shield } from 'lucide-svelte';
+  import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { classifyTier } from '$lib/domain/xp.js';
 
-  let activeTab = 'rank';
-  let filterPeriod = 'This week';
-  let filterLocation = 'LA';
-  let friendsOnly = false;
-  let claimedAccess = false;
-  let viewingPass = false;
-  let activeTier = 'elite';
+  export let data;
 
-  $: currentTier = classifyTier(mockFanProfile.xp_total);
-  $: filteredLeaderboard = mockLeaderboard.filter(e =>
-    e.city === filterLocation && e.time_period === filterPeriod
-  );
-
-  $: activePasses = mockPasses.filter(p => p.status === 'active');
-  $: upcomingPasses = mockPasses.filter(p => p.status === 'starts_soon');
-
-  // Challenge-to-reward linkage: completed challenges unlock rewards
-  $: completedChallenges = mockChallenges.filter(c => c.progress_fraction >= 1.0);
-  $: hasUnlockedRewards = completedChallenges.length > 0;
-
-  const tierPerks = {
-    fan: {
-      name: 'Fan',
-      color: '#8E8E93',
-      perks: ['Basic event access', 'Standard ticketing', 'Community membership']
-    },
-    loyal: {
-      name: 'Loyal',
-      color: '#CD7F32',
-      perks: ['Early notifications', 'Points on purchases', 'Member pricing']
-    },
-    superfan: {
-      name: 'Superfan',
-      color: '#3B28CC',
-      perks: ['Priority notifications', 'Early bird pricing', 'VIP seating options']
-    },
-    elite: {
-      name: 'Elite',
-      color: '#FF5C00',
-      perks: ['Presale access', 'Backstage passes', 'Meet & greets', 'Personal concierge']
-    }
-  };
-
-  /** @param {string} tab */
-  function switchTab(tab) {
-    activeTab = tab;
-  }
+  $: fan = data.fan;
+  $: currentTier = fan ? classifyTier(fan.xp_total) : { name: 'Fan' };
 </script>
 
 <svelte:head>
-  <title>Access & Rewards - Maxxes</title>
+  <title>Access - Maxess</title>
 </svelte:head>
 
 <div class="page-container">
-  <!-- Status Bar -->
-  <div class="status-bar">
-    <span class="time">9:41</span>
-    <div class="status-icons">
-      <span class="signal">📶</span>
-      <span class="battery">🔋</span>
-    </div>
-  </div>
-
-  <!-- Page Header -->
+  <!-- Header -->
   <header class="page-header">
     <div>
-      <h1 class="page-title">Access & Rewards</h1>
-      <p class="subtitle">Your rank, challenges, and rewards</p>
+      <h1 class="page-title">Access</h1>
+      <p class="subtitle">Presales, perks, and your progress</p>
     </div>
-    <button class="notification-bell">
-      <Bell size={24} />
-    </button>
+    <NotificationBell />
   </header>
 
-  <!-- Internal Tab Toggle -->
-  <div class="toggle-container">
-    <button class="toggle-pill" aria-label="Switch between My Rank and My Rewards">
-      <span
-        class="toggle-option"
-        class:active={activeTab === 'rank'}
-        on:click={() => switchTab('rank')}
-      >My Rank</span>
-      <span
-        class="toggle-option"
-        class:active={activeTab === 'rewards'}
-        on:click={() => switchTab('rewards')}
-      >
-        My Rewards
-        {#if hasUnlockedRewards}
-          <span class="reward-dot"></span>
-        {/if}
-      </span>
-      <div class="toggle-slider" class:right={activeTab === 'rewards'}></div>
-    </button>
-  </div>
-
-  <!-- ═══════════════════════════════════════════ -->
-  <!-- MY RANK TAB                                 -->
-  <!-- ═══════════════════════════════════════════ -->
-  {#if activeTab === 'rank'}
-    <!-- Score Summary Card -->
-    <div class="card score-summary">
-      <div class="summary-grid">
-        <div class="summary-item main-score">
-          <div class="score-display">
-            <span class="large-score">{mockFanProfile.xp_total.toLocaleString()}</span>
-            <span class="score-unit">XP</span>
-          </div>
-          <div class="tier-badge">
-            <span class="tier-star">★</span> {currentTier.name}
-          </div>
+  {#if fan}
+    <!-- Elite Access KPI Strip -->
+    <div class="kpi-strip">
+      <div class="kpi-item">
+        <div class="kpi-icon orange">
+          <Zap size={16} />
         </div>
-
-        <div class="summary-item">
-          <span class="summary-label">This week</span>
-          <div class="delta-display positive">
-            <TrendingUp size={16} />
-            <span class="delta-value">+12</span>
-          </div>
+        <div class="kpi-text">
+          <span class="kpi-value">{fan.xp_total.toLocaleString()}</span>
+          <span class="kpi-unit">pts</span>
         </div>
-
-        <div class="summary-item">
-          <span class="summary-label">Your rank</span>
-          <div class="rank-display">
-            <span class="rank-value">#{mockFanProfile.rank}</span>
-            <span class="rank-context">in {filterLocation}</span>
-          </div>
-        </div>
-
-        <div class="summary-item">
-          <span class="summary-label">Percentile</span>
-          <div class="percentile-display">
-            <span class="percentile-value">Top {mockFanProfile.percentile}%</span>
-          </div>
-        </div>
+        <span class="kpi-label">Total points</span>
       </div>
-    </div>
-
-    <!-- Community Leaderboard -->
-    <section class="leaderboard-section">
-      <div class="card">
-        <div class="card-header-row">
-          <h2 class="section-title">Community leaderboard</h2>
-          <div class="filter-row">
-            <select class="filter-dropdown" bind:value={filterLocation}>
-              <option value="LA">LA</option>
-              <option value="SF">SF</option>
-              <option value="NYC">NYC</option>
-            </select>
-            <select class="filter-dropdown" bind:value={filterPeriod}>
-              <option value="This week">This week</option>
-              <option value="This month">This month</option>
-              <option value="All time">All time</option>
-            </select>
-          </div>
+      <div class="kpi-item">
+        <div class="kpi-icon purple">
+          <Shield size={16} />
         </div>
-
-        <div class="friend-filter-row">
-          <button
-            class="friend-filter-btn"
-            class:active={friendsOnly}
-            on:click={() => friendsOnly = !friendsOnly}
-          >
-            {friendsOnly ? '👥 Friends only' : '🌐 Everyone'}
-          </button>
-        </div>
-
-        <div class="leaderboard-list">
-          {#each filteredLeaderboard as entry}
-            <div class="leaderboard-row" class:me={entry.is_me}>
-              <span class="rank-number" class:highlighted={entry.is_me}>#{entry.rank}</span>
-              <div class="avatar-circle">{entry.name.split(' ').map(n => n[0]).join('')}</div>
-              <div class="leader-info">
-                <span class="leader-name" class:highlighted={entry.is_me}>{entry.name}</span>
-              </div>
-              <span class="leader-score">{entry.score.toLocaleString()}</span>
-              <div class="trend-indicator" class:positive={entry.delta > 0} class:negative={entry.delta < 0}>
-                {#if entry.delta > 0}
-                  <TrendingUp size={14} />
-                {:else if entry.delta < 0}
-                  <TrendingDown size={14} />
-                {/if}
-                <span>{Math.abs(entry.delta)}</span>
-              </div>
-            </div>
-          {:else}
-            <p class="empty-state">No results for this filter combination</p>
-          {/each}
-        </div>
+        <span class="kpi-value tier-value">{currentTier.name}</span>
+        <span class="kpi-label">Your tier</span>
       </div>
-    </section>
-
-    <!-- Friends Activity -->
-    <section class="friends-section">
-      <h2 class="section-header">Friends activity</h2>
-      <div class="friends-scroll">
-        {#each mockFriendActivity as friend}
-          <div class="friend-card">
-            <div class="friend-avatar">{friend.avatar_initials}</div>
-            <div class="friend-content">
-              <span class="friend-name">{friend.name}</span>
-              <p class="friend-activity">{friend.activity_label}</p>
-              {#if friend.delta > 0}
-                <span class="friend-delta">+{friend.delta} ranks</span>
-              {/if}
-            </div>
-          </div>
-        {/each}
-      </div>
-    </section>
-
-    <!-- Challenges -->
-    <section class="challenges-section">
-      <h2 class="section-header-padded">Challenges unlocking rewards</h2>
-      <div class="challenges-grid">
-        {#each mockChallenges as challenge}
-          <div class="card challenge-card" class:completed={challenge.progress_fraction >= 1.0}>
-            <div class="challenge-header">
-              <div class="challenge-thumbnail">{challenge.thumbnail_image}</div>
-              <div class="challenge-info">
-                <div class="unlock-chip" class:unlocked={challenge.progress_fraction >= 1.0}>
-                  {challenge.progress_fraction >= 1.0 ? '✓ Reward unlocked' : 'Unlock reward'}
-                </div>
-                <h3 class="challenge-title">{challenge.title}</h3>
-                <p class="challenge-subtitle">{challenge.subtitle}</p>
-              </div>
-              {#if challenge.is_limited}
-                <div class="limited-badge">LIMITED</div>
-              {/if}
-            </div>
-
-            <div class="challenge-progress">
-              <span class="progress-label">{Math.round(challenge.progress_fraction * challenge.tasks.length)}/{challenge.tasks.length} tasks complete</span>
-              <div class="progress-bar">
-                <div class="progress-fill" class:complete={challenge.progress_fraction >= 1.0} style="width: {challenge.progress_fraction * 100}%"></div>
-              </div>
-            </div>
-
-            <div class="task-list">
-              {#each challenge.tasks as task}
-                <div class="task-item">
-                  <div class="custom-checkbox" class:checked={task.is_complete}>
-                    {#if task.is_complete}
-                      <span class="check-mark">✓</span>
-                    {/if}
-                  </div>
-                  <span class="task-text" class:complete={task.is_complete}>{task.description}</span>
-                </div>
-              {/each}
-            </div>
-
-            {#if challenge.progress_fraction >= 1.0}
-              <button class="claim-reward-btn" on:click={() => switchTab('rewards')}>
-                View reward in My Rewards <ChevronRight size={14} />
-              </button>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    </section>
-
-  <!-- ═══════════════════════════════════════════ -->
-  <!-- MY REWARDS TAB                              -->
-  <!-- ═══════════════════════════════════════════ -->
-  {:else}
-    <!-- Elite/Diamond Access Strip -->
-    <div class="access-strip">
-      <div class="access-kpi">
-        <div class="kpi-icon active">
-          <Key size={16} />
+      <div class="kpi-item">
+        <div class="kpi-icon green">
+          <Crown size={16} />
         </div>
-        <div class="kpi-content">
-          <span class="kpi-value">{activePasses.length}</span>
-          <span class="kpi-label">Active</span>
-        </div>
+        <span class="kpi-value">{data.activePasses}</span>
+        <span class="kpi-label">Active</span>
       </div>
-
-      <div class="access-kpi">
-        <div class="kpi-icon expiring">
+      <div class="kpi-item">
+        <div class="kpi-icon red">
           <Clock size={16} />
         </div>
-        <div class="kpi-content">
-          <span class="kpi-value">{upcomingPasses.length}</span>
-          <span class="kpi-label">Expiring soon</span>
-        </div>
-      </div>
-
-      <div class="access-kpi">
-        <div class="kpi-icon tier">
-          <Star size={16} />
-        </div>
-        <div class="kpi-content">
-          <span class="kpi-value">{currentTier.name}</span>
-          <span class="kpi-label">Top tier</span>
-        </div>
+        <span class="kpi-value">{data.expiringSoon}</span>
+        <span class="kpi-label">Expiring soon</span>
       </div>
     </div>
 
-    <!-- Unlocked Rewards from Challenges -->
-    {#if completedChallenges.length > 0}
-      <section class="unlocked-section">
-        <h2 class="section-header-padded">🎉 Newly unlocked</h2>
-        <div class="unlocked-grid">
-          {#each completedChallenges as challenge}
-            <div class="card unlocked-card">
-              <div class="unlocked-header">
-                <span class="unlocked-thumbnail">{challenge.thumbnail_image}</span>
-                <div class="unlocked-info">
-                  <div class="claim-chip">CLAIM</div>
-                  <h3 class="unlocked-title">{challenge.reward_name}</h3>
-                  <p class="unlocked-source">From: {challenge.title}</p>
+    <!-- Top Artists & Teams -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Top artists & teams</h2>
+        <p class="section-sub">Each one progresses separately.</p>
+      </div>
+      <div class="artists-list">
+        {#each data.topArtists as artist}
+          <a href="/artist/{artist.id}" class="artist-row">
+            <div class="artist-avatar" style="background: linear-gradient(135deg, #1a1a2e, #16213e);">
+              <span class="artist-initial">{artist.name[0]}</span>
+            </div>
+            <div class="artist-info">
+              <div class="artist-name-row">
+                <span class="artist-name">{artist.name}</span>
+                <span class="tier-chip" style="background: {artist.tier_color}">{artist.tier}</span>
+              </div>
+              <div class="artist-progress-row">
+                <span class="artist-points">{artist.points.toLocaleString()} pts</span>
+                <div class="progress-bar-wrap">
+                  <span class="pts-to-next">{artist.pts_to_next.toLocaleString()} pts to {artist.next_tier}</span>
+                  <div class="progress-bar">
+                    <div class="progress-fill" style="width: {artist.progress * 100}%; background: {artist.tier_color}"></div>
+                  </div>
                 </div>
               </div>
-              <button class="claim-reward-action-btn">Claim reward</button>
             </div>
-          {/each}
+            <ChevronRight size={18} color="#8E8E93" />
+          </a>
+        {/each}
+      </div>
+    </section>
+
+    <!-- Featured Access -->
+    {#if data.featuredOffers.length > 0}
+      <section class="section">
+        <h2 class="section-title padded">Featured access</h2>
+        <div class="featured-card">
+          <div class="featured-image">
+            <span class="top-pick-badge"><Star size={10} /> TOP PICK</span>
+          </div>
+          <div class="featured-content">
+            <h3 class="featured-name">{data.featuredOffers[0].name}</h3>
+            <p class="featured-desc">Priority entry + lounge access</p>
+            <div class="featured-footer">
+              <span class="featured-time"><Clock size={12} /> Opens in 18h</span>
+              <a href="/passes/{data.featuredOffers[0].pass_id}" class="view-pass-btn">View pass</a>
+            </div>
+          </div>
         </div>
       </section>
     {/if}
 
-    <!-- Featured Access -->
-    <section class="featured-section">
-      <h2 class="section-header-padded">Featured access</h2>
-      <div class="featured-grid">
-        <div class="featured-card top-pick">
-          <div class="featured-chip">TOP PICK</div>
-          <div class="featured-content">
-            <h3 class="featured-title">VIP Music Pass</h3>
-            <p class="featured-subtitle">Skip lines at 12+ partner venues</p>
-            <div class="featured-footer">
-              <span class="featured-time">✓ Active now</span>
-              <button class="view-pass-btn" class:active-btn={viewingPass} on:click={() => viewingPass = !viewingPass}>{viewingPass ? 'Viewing' : 'View pass'}</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="featured-card limited">
-          <div class="featured-chip limited">LIMITED</div>
-          <div class="featured-content">
-            <h3 class="featured-title">Lakers Playoff Access</h3>
-            <p class="featured-subtitle">Premium seats + meet & greet</p>
-            <div class="featured-footer">
-              <span class="featured-time">⏱ 48h left</span>
-              <button class="claim-btn" class:claimed={claimedAccess} on:click={() => claimedAccess = !claimedAccess}>{claimedAccess ? 'Claimed' : 'Claim access'}</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- Your Passes -->
-    <section class="passes-section">
-      <h2 class="section-header-padded">Your passes</h2>
+    <section class="section">
+      <h2 class="section-title padded">Your passes</h2>
       <div class="passes-list">
-        {#each mockPasses as pass}
-          <div class="pass-row">
-            <div class="pass-icon" style="background-color: {pass.icon_color}">
-              <Key size={20} color="white" />
+        {#each data.passes as pass}
+          <a href="/passes/{pass.pass_id}" class="pass-row">
+            <div class="pass-icon {pass.status}">
+              {#if pass.status === 'active'}
+                <Shield size={18} color="white" />
+              {:else if pass.status === 'starts_soon'}
+                <Zap size={18} color="white" />
+              {:else}
+                <Star size={18} color="white" />
+              {/if}
             </div>
             <div class="pass-info">
               <h3 class="pass-name">{pass.name}</h3>
-              <p class="pass-meta">{pass.venue} • {pass.date}</p>
             </div>
-            <div class="pass-status {pass.status}">
-              {#if pass.status === 'active'}
-                Active
-              {:else if pass.status === 'starts_soon'}
-                Starts soon
-              {:else}
-                Waiting list
+            <span class="pass-status-badge {pass.status}">
+              {#if pass.status === 'active'}Active
+              {:else if pass.status === 'starts_soon'}Starts soon
+              {:else}Waiting list
               {/if}
-            </div>
-            <div class="chevron">›</div>
-          </div>
-        {/each}
-      </div>
-    </section>
-
-    <!-- Perks by Tier -->
-    <section class="perks-section">
-      <h2 class="section-header-padded">Perks by tier</h2>
-      <div class="tier-scroll">
-        {#each Object.entries(tierPerks) as [key, tier]}
-          <button
-            class="tier-column"
-            class:active={activeTier === key}
-            on:click={() => activeTier = key}
-          >
-            <div class="tier-icon" style="background-color: {tier.color}">
-              <Star size={20} color="white" />
-            </div>
-            <h3 class="tier-name">{tier.name}</h3>
-            <div class="tier-underline" style="background-color: {tier.color}"></div>
-            <ul class="perks-list">
-              {#each tier.perks as perk}
-                <li>{perk}</li>
-              {/each}
-            </ul>
-          </button>
+            </span>
+            <ChevronRight size={16} color="#8E8E93" />
+          </a>
         {/each}
       </div>
     </section>
 
     <!-- Unlock Next -->
-    <section class="unlock-next-section">
-      <div class="card unlock-next-card">
-        <div class="unlock-next-content">
-          <span class="unlock-next-label">Next unlock</span>
-          <h3 class="unlock-next-title">Platinum Tier</h3>
-          <p class="unlock-next-desc">1,250 XP to go</p>
+    <section class="section unlock-next">
+      <h2 class="section-title padded">Unlock next</h2>
+      <div class="unlock-card">
+        <div class="unlock-icon">
+          <Star size={20} color="#FF5C00" />
         </div>
-        <div class="unlock-next-progress">
-          <div class="unlock-next-bar">
-            <div class="unlock-next-fill" style="width: {((mockFanProfile.xp_total - 5000) / (10000 - 5000)) * 100}%"></div>
+        <div class="unlock-content">
+          <h3 class="unlock-title">Complete 1 more event</h3>
+          <p class="unlock-desc">to unlock lounge access</p>
+        </div>
+        <div class="unlock-progress">
+          <span class="unlock-fraction">1 / 2</span>
+          <div class="unlock-bar">
+            <div class="unlock-fill" style="width: 50%"></div>
           </div>
-          <span class="unlock-next-fraction">{mockFanProfile.xp_total.toLocaleString()} / 10,000 XP</span>
         </div>
+        <ChevronRight size={18} color="#8E8E93" />
       </div>
     </section>
+  {:else}
+    <div class="empty-state">
+      <p>Unable to load your access data. Please try again later.</p>
+    </div>
   {/if}
 </div>
 
 <style>
-  /* ───────────────────────────────────────────── */
-  /* Layout & Page Chrome                          */
-  /* ───────────────────────────────────────────── */
-  .status-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 44px;
-    padding: 0 16px;
-    font-size: 14px;
-    font-weight: 600;
-    background: var(--off-white);
-  }
-
-  .status-icons {
-    display: flex;
-    gap: 4px;
+  .page-container {
+    background: var(--bg-primary, #FAFAFA);
+    min-height: 100vh;
+    padding-bottom: 100px;
   }
 
   .page-header {
@@ -450,903 +181,302 @@
     justify-content: space-between;
     align-items: flex-start;
     padding: 16px 16px 12px;
-    background: var(--off-white);
   }
 
   .page-title {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
     font-size: 34px;
     font-weight: 700;
     margin: 0;
+    color: var(--text-primary, #1C1C1E);
   }
 
   .subtitle {
-    color: var(--system-gray);
-    font-size: 14px;
-    margin-top: 4px;
-  }
-
-  .notification-bell {
-    background: none;
-    border: none;
-    color: var(--true-black);
-    cursor: pointer;
-    min-height: 44px;
-    min-width: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* Internal Tab Toggle                           */
-  /* ───────────────────────────────────────────── */
-  .toggle-container {
-    padding: 0 16px 20px;
-    background: var(--off-white);
-  }
-
-  .toggle-pill {
-    position: relative;
-    display: flex;
-    background: #E5E5EA;
-    border-radius: 25px;
-    padding: 4px;
-    border: none;
-    cursor: pointer;
-    width: 100%;
-    max-width: 400px;
-    height: 50px;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-  }
-
-  .toggle-option {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 17px;
-    font-weight: 600;
     color: #8E8E93;
-    transition: color 0.2s ease;
-    z-index: 2;
-    position: relative;
-    cursor: pointer;
-    gap: 6px;
+    font-size: 14px;
+    margin: 4px 0 0;
   }
 
-  .toggle-option.active {
-    color: #FFFFFF;
-  }
-
-  .toggle-slider {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    width: calc(50% - 4px);
-    height: 42px;
-    background: #FF5C00;
-    border-radius: 21px;
-    transition: transform 0.2s ease;
-    z-index: 1;
-  }
-
-  .toggle-slider.right {
-    transform: translateX(100%);
-  }
-
-  .reward-dot {
-    width: 8px;
-    height: 8px;
-    background: #FF5C00;
-    border-radius: 50%;
-    display: inline-block;
-    animation: pulse-dot 1.5s ease infinite;
-  }
-
-  .toggle-option.active .reward-dot {
-    background: #FFFFFF;
-  }
-
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(1.3); }
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* Shared                                        */
-  /* ───────────────────────────────────────────── */
-  .card {
-    background: var(--pure-white);
-    border: 1px solid var(--border-gray);
-    border-radius: 16px;
-    padding: 16px;
-  }
-
-  .section-header-padded {
-    font-size: 15px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 0 16px 12px;
-    color: var(--true-black);
-  }
-
-  .section-header {
-    font-size: 15px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 0 16px 12px;
-    color: var(--true-black);
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY RANK: Score Summary                        */
-  /* ───────────────────────────────────────────── */
-  .score-summary {
-    margin: 0 16px 20px;
-  }
-
-  .summary-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-
-  .summary-item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .main-score {
-    grid-column: 1 / -1;
-    align-items: center;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-gray);
-  }
-
-  .score-display {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-  }
-
-  .large-score {
-    font-size: 52px;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .score-unit {
-    font-size: 20px;
-    color: var(--system-gray);
-    font-weight: 600;
-  }
-
-  .tier-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--true-black);
-    color: var(--pure-white);
-    padding: 6px 12px;
-    border-radius: 16px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .tier-star {
-    color: var(--action-orange);
-  }
-
-  .summary-label {
-    font-size: 12px;
-    color: var(--system-gray);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .delta-display {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--success-green);
-  }
-
-  .delta-value {
-    font-size: 18px;
-    font-weight: 700;
-  }
-
-  .rank-display {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .rank-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--action-orange);
-  }
-
-  .rank-context {
-    font-size: 12px;
-    color: var(--system-gray);
-  }
-
-  .percentile-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--true-black);
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY RANK: Leaderboard                          */
-  /* ───────────────────────────────────────────── */
-  .leaderboard-section {
-    margin: 0 16px 24px;
-  }
-
-  .card-header-row {
+  /* KPI Strip */
+  .kpi-strip {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+    margin: 0 16px 24px;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    padding: 16px 12px;
   }
 
-  .section-title {
-    font-size: 17px;
-    font-weight: 700;
-  }
-
-  .filter-row {
-    display: flex;
-    gap: 8px;
-  }
-
-  .filter-dropdown {
-    background: var(--off-white);
-    border: 1px solid var(--border-gray);
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--true-black);
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-    cursor: pointer;
-  }
-
-  .friend-filter-row {
-    margin-bottom: 12px;
-  }
-
-  .friend-filter-btn {
-    background: var(--off-white);
-    border: 1px solid var(--border-gray);
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--system-gray);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-  }
-
-  .friend-filter-btn.active {
-    background: var(--action-orange);
-    border-color: var(--action-orange);
-    color: var(--pure-white);
-  }
-
-  .leaderboard-list {
+  .kpi-item {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .leaderboard-row {
-    display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px;
-    border-radius: 8px;
-    transition: background-color 0.2s ease;
-  }
-
-  .leaderboard-row.me {
-    background: rgba(255, 92, 0, 0.1);
-  }
-
-  .rank-number {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--system-gray);
-    min-width: 30px;
-  }
-
-  .rank-number.highlighted {
-    color: var(--action-orange);
-  }
-
-  .avatar-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--light-blue);
-    color: var(--deep-navy);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .leader-info {
+    gap: 4px;
     flex: 1;
   }
 
-  .leader-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--true-black);
-  }
-
-  .leader-name.highlighted {
-    font-weight: 700;
-    color: var(--action-orange);
-  }
-
-  .leader-score {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--true-black);
-  }
-
-  .trend-indicator {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    min-width: 40px;
-  }
-
-  .trend-indicator.positive {
-    color: var(--success-green);
-  }
-
-  .trend-indicator.negative {
-    color: #FF3B30;
-  }
-
-  .empty-state {
-    text-align: center;
-    color: var(--system-gray);
-    font-size: 14px;
-    padding: 24px 0;
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY RANK: Friends Activity                     */
-  /* ───────────────────────────────────────────── */
-  .friends-section {
-    margin-bottom: 24px;
-  }
-
-  .friends-scroll {
-    display: flex;
-    gap: 12px;
-    padding: 0 16px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-  }
-
-  .friends-scroll::-webkit-scrollbar {
-    display: none;
-  }
-
-  .friend-card {
-    background: var(--pure-white);
-    border: 1px solid var(--border-gray);
-    border-radius: 14px;
-    padding: 16px;
-    min-width: 200px;
-    display: flex;
-    gap: 12px;
-  }
-
-  .friend-avatar {
-    width: 44px;
-    height: 44px;
+  .kpi-icon {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: var(--action-orange);
-    color: var(--pure-white);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .friend-content {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .friend-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--true-black);
-  }
-
-  .friend-activity {
-    font-size: 12px;
-    color: var(--system-gray);
-    margin: 0;
-    line-height: 1.3;
-  }
-
-  .friend-delta {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--action-orange);
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY RANK: Challenges                           */
-  /* ───────────────────────────────────────────── */
-  .challenges-section {
-    margin: 0 0 24px;
-  }
-
-  .challenges-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 0 16px;
-    margin-bottom: 16px;
-  }
-
-  .challenge-card {
-    position: relative;
-  }
-
-  .challenge-card.completed {
-    border-color: var(--success-green);
-    border-width: 1.5px;
-  }
-
-  .challenge-header {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-    position: relative;
-  }
-
-  .challenge-thumbnail {
-    width: 60px;
-    height: 60px;
-    font-size: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--off-white);
-    border-radius: 12px;
-    flex-shrink: 0;
-  }
-
-  .challenge-info {
-    flex: 1;
-  }
-
-  .unlock-chip {
-    display: inline-block;
-    background: rgba(255, 92, 0, 0.1);
-    color: var(--action-orange);
-    font-size: 9px;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
-  }
-
-  .unlock-chip.unlocked {
-    background: rgba(26, 158, 86, 0.15);
-    color: var(--success-green);
-  }
-
-  .challenge-title {
-    font-size: 16px;
-    font-weight: 700;
     margin-bottom: 2px;
   }
 
-  .challenge-subtitle {
-    font-size: 13px;
-    color: var(--system-gray);
+  .kpi-icon.orange { background: rgba(255, 92, 0, 0.12); color: #FF5C00; }
+  .kpi-icon.purple { background: rgba(59, 40, 204, 0.12); color: #3B28CC; }
+  .kpi-icon.green { background: rgba(26, 158, 86, 0.12); color: #1A9E56; }
+  .kpi-icon.red { background: rgba(255, 59, 48, 0.12); color: #FF3B30; }
+
+  .kpi-text {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+  }
+
+  .kpi-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1C1C1E;
+  }
+
+  .kpi-unit {
+    font-size: 11px;
+    color: #8E8E93;
+    font-weight: 500;
+  }
+
+  .tier-value {
+    font-size: 14px;
+  }
+
+  .kpi-label {
+    font-size: 10px;
+    color: #8E8E93;
+    text-align: center;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 24px;
+  }
+
+  .section-header {
+    padding: 0 16px 8px;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1C1C1E;
     margin: 0;
   }
 
-  .limited-badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    background: var(--action-orange);
-    color: var(--pure-white);
-    font-size: 9px;
-    font-weight: 700;
-    padding: 4px 8px;
-    border-radius: 8px;
-    letter-spacing: 0.5px;
-  }
-
-  .challenge-progress {
+  .section-title.padded {
+    padding: 0 16px;
     margin-bottom: 12px;
   }
 
-  .progress-label {
-    font-size: 12px;
-    color: var(--system-gray);
-    display: block;
-    margin-bottom: 8px;
+  .section-sub {
+    font-size: 13px;
+    color: #8E8E93;
+    margin: 2px 0 0;
+  }
+
+  /* Artists List */
+  .artists-list {
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    margin: 0 16px;
+    overflow: hidden;
+  }
+
+  .artist-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-bottom: 1px solid #E5E5EA;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .artist-row:last-child {
+    border-bottom: none;
+  }
+
+  .artist-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .artist-initial {
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .artist-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .artist-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .artist-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1C1C1E;
+  }
+
+  .tier-chip {
+    font-size: 10px;
+    font-weight: 700;
+    color: #FFFFFF;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  .artist-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .artist-points {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1C1C1E;
+    flex-shrink: 0;
+  }
+
+  .progress-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pts-to-next {
+    font-size: 10px;
+    color: #8E8E93;
   }
 
   .progress-bar {
     height: 4px;
-    background: var(--border-gray);
+    background: #E5E5EA;
     border-radius: 2px;
     overflow: hidden;
   }
 
   .progress-fill {
     height: 100%;
-    background: var(--action-orange);
     border-radius: 2px;
     transition: width 0.6s ease;
   }
 
-  .progress-fill.complete {
-    background: var(--success-green);
-  }
-
-  .task-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .task-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .custom-checkbox {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    border: 2px solid var(--border-gray);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .custom-checkbox.checked {
-    background: var(--success-green);
-    border-color: var(--success-green);
-  }
-
-  .check-mark {
-    color: white;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .task-text {
-    font-size: 14px;
-    color: var(--true-black);
-  }
-
-  .task-text.complete {
-    text-decoration: line-through;
-    color: var(--system-gray);
-  }
-
-  .claim-reward-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    width: 100%;
-    margin-top: 12px;
-    padding: 10px 16px;
-    background: var(--action-orange);
-    color: var(--pure-white);
-    border: none;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-  }
-
-  .claim-reward-btn:hover {
-    opacity: 0.85;
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY REWARDS: Access Strip                      */
-  /* ───────────────────────────────────────────── */
-  .access-strip {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin: 0 16px 24px;
-    background: var(--pure-white);
-    border: 1px solid var(--border-gray);
-    border-radius: 16px;
-    padding: 16px;
-  }
-
-  .access-kpi {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-  }
-
-  .kpi-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .kpi-icon.active {
-    background: rgba(26, 158, 86, 0.15);
-    color: var(--success-green);
-  }
-
-  .kpi-icon.expiring {
-    background: rgba(255, 92, 0, 0.15);
-    color: var(--action-orange);
-  }
-
-  .kpi-icon.tier {
-    background: rgba(255, 215, 0, 0.15);
-    color: #FFD700;
-  }
-
-  .kpi-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .kpi-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--true-black);
-  }
-
-  .kpi-label {
-    font-size: 11px;
-    color: var(--system-gray);
-    text-align: center;
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY REWARDS: Unlocked Rewards                  */
-  /* ───────────────────────────────────────────── */
-  .unlocked-section {
-    margin-bottom: 24px;
-  }
-
-  .unlocked-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 0 16px;
-  }
-
-  .unlocked-card {
-    border-color: var(--success-green);
-    border-width: 1.5px;
-  }
-
-  .unlocked-header {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .unlocked-thumbnail {
-    font-size: 32px;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--off-white);
-    border-radius: 12px;
-  }
-
-  .unlocked-info {
-    flex: 1;
-  }
-
-  .claim-chip {
-    display: inline-block;
-    background: var(--action-orange);
-    color: var(--pure-white);
-    font-size: 9px;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-  }
-
-  .unlocked-title {
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 2px;
-  }
-
-  .unlocked-source {
-    font-size: 12px;
-    color: var(--system-gray);
-    margin: 0;
-  }
-
-  .claim-reward-action-btn {
-    width: 100%;
-    padding: 10px;
-    background: var(--action-orange);
-    color: var(--pure-white);
-    border: none;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-  }
-
-  .claim-reward-action-btn:hover {
-    opacity: 0.85;
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY REWARDS: Featured Access                   */
-  /* ───────────────────────────────────────────── */
-  .featured-section {
-    margin-bottom: 24px;
-  }
-
-  .featured-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 0 16px;
-  }
-
+  /* Featured Access */
   .featured-card {
-    background: linear-gradient(135deg, #111 0%, #3D1800 100%);
-    color: var(--pure-white);
+    margin: 0 16px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     border-radius: 16px;
-    padding: 16px;
-    min-height: 180px;
+    overflow: hidden;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 0;
   }
 
-  .featured-card.top-pick {
-    background: linear-gradient(135deg, var(--deep-navy) 0%, var(--deeper-indigo) 100%);
+  .featured-image {
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, #2d1b4e, #1a1a3e);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 10px;
+    flex-shrink: 0;
+    position: relative;
   }
 
-  .featured-card.limited {
-    background: linear-gradient(135deg, #FF5C00 0%, #CC4700 100%);
-  }
-
-  .featured-chip {
-    display: inline-block;
-    background: rgba(255, 255, 255, 0.25);
-    color: var(--pure-white);
+  .top-pick-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #FF5C00;
+    color: #FFFFFF;
     font-size: 9px;
     font-weight: 700;
     padding: 4px 8px;
-    border-radius: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 12px;
-    align-self: flex-start;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
   }
 
   .featured-content {
     flex: 1;
-    display: flex;
-    flex-direction: column;
+    padding: 16px;
+    color: #FFFFFF;
   }
 
-  .featured-title {
+  .featured-name {
     font-size: 16px;
     font-weight: 700;
-    margin-bottom: 6px;
+    margin: 0 0 4px;
   }
 
-  .featured-subtitle {
+  .featured-desc {
     font-size: 13px;
-    margin-bottom: auto;
-    opacity: 0.9;
+    opacity: 0.8;
+    margin: 0 0 12px;
   }
 
   .featured-footer {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    margin-top: 12px;
   }
 
   .featured-time {
-    font-size: 11px;
-    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    opacity: 0.7;
   }
 
-  .view-pass-btn, .claim-btn {
-    background: rgba(255, 255, 255, 0.2);
-    color: var(--pure-white);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 8px 16px;
-    border-radius: 99px;
+  .view-pass-btn {
     font-size: 13px;
     font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    color: #FF5C00;
+    text-decoration: none;
+    border: 1px solid rgba(255, 92, 0, 0.4);
+    padding: 6px 14px;
+    border-radius: 99px;
+    transition: background 0.2s;
   }
 
-  .view-pass-btn:hover, .claim-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+  .view-pass-btn:hover {
+    background: rgba(255, 92, 0, 0.1);
   }
 
-  .claim-btn.claimed {
-    background: var(--success-green);
-    border-color: var(--success-green);
-  }
-
-  .view-pass-btn.active-btn {
-    background: rgba(255, 255, 255, 0.4);
-    border-color: var(--pure-white);
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY REWARDS: Passes                            */
-  /* ───────────────────────────────────────────── */
-  .passes-section {
-    margin-bottom: 24px;
-  }
-
+  /* Passes List */
   .passes-list {
-    background: var(--pure-white);
-    border: 1px solid var(--border-gray);
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
     border-radius: 16px;
     margin: 0 16px;
     overflow: hidden;
@@ -1355,9 +485,11 @@
   .pass-row {
     display: flex;
     align-items: center;
-    padding: 14px;
     gap: 12px;
-    border-bottom: 1px solid var(--border-gray);
+    padding: 14px;
+    border-bottom: 1px solid #E5E5EA;
+    text-decoration: none;
+    color: inherit;
   }
 
   .pass-row:last-child {
@@ -1367,191 +499,126 @@
   .pass-icon {
     width: 40px;
     height: 40px;
-    border-radius: 8px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
+
+  .pass-icon.active { background: #1A9E56; }
+  .pass-icon.starts_soon { background: #FF5C00; }
+  .pass-icon.waiting { background: #8E8E93; }
 
   .pass-info {
     flex: 1;
   }
 
   .pass-name {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
-    margin-bottom: 2px;
-  }
-
-  .pass-meta {
-    font-size: 12px;
-    color: var(--system-gray);
+    color: #1C1C1E;
     margin: 0;
   }
 
-  .pass-status {
-    font-size: 10px;
+  .pass-status-badge {
+    font-size: 11px;
     font-weight: 600;
     padding: 4px 10px;
-    border-radius: 10px;
-    text-transform: uppercase;
-  }
-
-  .pass-status.active {
-    background: var(--success-green);
-    color: var(--pure-white);
-  }
-
-  .pass-status.starts_soon {
-    background: var(--action-orange);
-    color: var(--pure-white);
-  }
-
-  .pass-status.waiting {
-    background: var(--border-gray);
-    color: var(--system-gray);
-  }
-
-  .chevron {
-    color: var(--system-gray);
-    font-size: 18px;
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY REWARDS: Perks by Tier                     */
-  /* ───────────────────────────────────────────── */
-  .perks-section {
-    margin: 0 0 24px;
-  }
-
-  .tier-scroll {
-    display: flex;
-    gap: 12px;
-    padding: 0 16px;
-    overflow-x: auto;
-  }
-
-  .tier-scroll::-webkit-scrollbar {
-    display: none;
-  }
-
-  .tier-column {
-    background: var(--pure-white);
-    border: 1.5px solid var(--border-gray);
-    border-radius: 14px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 140px;
+    border-radius: 99px;
     flex-shrink: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   }
 
-  .tier-column.active {
-    border-color: var(--action-orange);
+  .pass-status-badge.active {
+    background: rgba(26, 158, 86, 0.12);
+    color: #1A9E56;
   }
 
-  .tier-icon {
+  .pass-status-badge.starts_soon {
+    background: rgba(255, 92, 0, 0.12);
+    color: #FF5C00;
+  }
+
+  .pass-status-badge.waiting {
+    background: rgba(142, 142, 147, 0.12);
+    color: #8E8E93;
+  }
+
+  /* Unlock Next */
+  .unlock-next {
+    padding-bottom: 20px;
+  }
+
+  .unlock-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    padding: 16px;
+    margin: 0 16px;
+  }
+
+  .unlock-icon {
     width: 44px;
     height: 44px;
-    border-radius: 50%;
+    background: rgba(255, 92, 0, 0.1);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 10px;
-  }
-
-  .tier-name {
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    text-align: center;
-  }
-
-  .tier-underline {
-    width: 30px;
-    height: 3px;
-    border-radius: 2px;
-    margin-bottom: 12px;
-  }
-
-  .perks-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    font-size: 11px;
-    color: var(--system-gray);
-    text-align: center;
-  }
-
-  .perks-list li {
-    margin-bottom: 6px;
-    line-height: 1.3;
-  }
-
-  /* ───────────────────────────────────────────── */
-  /* MY REWARDS: Unlock Next                       */
-  /* ───────────────────────────────────────────── */
-  .unlock-next-section {
-    margin: 0 16px 24px;
-  }
-
-  .unlock-next-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .unlock-next-content {
     flex-shrink: 0;
   }
 
-  .unlock-next-label {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--system-gray);
-    letter-spacing: 0.5px;
+  .unlock-content {
+    flex-shrink: 0;
   }
 
-  .unlock-next-title {
-    font-size: 17px;
+  .unlock-title {
+    font-size: 14px;
     font-weight: 700;
-    margin: 4px 0 2px;
-  }
-
-  .unlock-next-desc {
-    font-size: 13px;
-    color: var(--action-orange);
-    font-weight: 600;
+    color: #1C1C1E;
     margin: 0;
   }
 
-  .unlock-next-progress {
+  .unlock-desc {
+    font-size: 12px;
+    color: #8E8E93;
+    margin: 2px 0 0;
+  }
+
+  .unlock-progress {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
   }
 
-  .unlock-next-bar {
-    height: 6px;
-    background: var(--border-gray);
-    border-radius: 3px;
+  .unlock-fraction {
+    font-size: 12px;
+    font-weight: 600;
+    color: #FF5C00;
+  }
+
+  .unlock-bar {
+    width: 100%;
+    height: 4px;
+    background: #E5E5EA;
+    border-radius: 2px;
     overflow: hidden;
-    margin-bottom: 4px;
   }
 
-  .unlock-next-fill {
+  .unlock-fill {
     height: 100%;
-    background: var(--action-orange);
-    border-radius: 3px;
-    transition: width 0.6s ease;
+    background: #FF5C00;
+    border-radius: 2px;
   }
 
-  .unlock-next-fraction {
-    font-size: 11px;
-    color: var(--system-gray);
+  .empty-state {
+    text-align: center;
+    padding: 60px 16px;
+    color: #8E8E93;
   }
 </style>

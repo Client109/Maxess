@@ -17,8 +17,20 @@ export function normalizeTicketmasterEvent(tmEvent: TicketmasterEvent): Event {
   const dateObj = new Date(tmEvent.dates.start.localDate);
   const dateDisplay = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-  // Get image URL if available
-  const image = tmEvent.images?.[0];
+  // Get best image — prefer 16:9 ratio, fallback to first available
+  const images = tmEvent.images || [];
+  const bestImage = images.find(img => img.width >= 640 && img.width / img.height > 1.5)
+    || images.find(img => img.width >= 400)
+    || images[0];
+  const imageUrl = bestImage?.url;
+
+  // Derive a tint color from category for fallback
+  const categoryColors: Record<string, string> = {
+    music: '#1a0a2e',
+    sports: '#0a1a2e',
+    comedy: '#2e1a0a',
+    festival: '#1a2e0a',
+  };
 
   return {
     event_id: `tm_${tmEvent.id}`,
@@ -36,11 +48,13 @@ export function normalizeTicketmasterEvent(tmEvent: TicketmasterEvent): Event {
     access_type: category === 'sports' ? 'SPORTS ACCESS' : 'MUSIC ACCESS',
     status: mapTmStatus(tmEvent.dates.status.code),
     featured: false,
-    image_color: '#1a1a2e',
+    image_color: categoryColors[category] || '#1a1a2e',
+    image_url: imageUrl,
     genre_tag: genre?.toUpperCase(),
     heat_score: undefined,
     match_percentage: undefined,
     sale_status: mapSaleStatus(tmEvent.dates.status.code),
+    external_url: tmEvent.url,
     trending: false,
     near_you: true,
     upcoming_for_you: true,

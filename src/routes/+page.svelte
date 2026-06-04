@@ -1,29 +1,12 @@
 <script>
-  import { onMount } from 'svelte';
-  import { Bell, ChevronRight, Zap } from 'lucide-svelte';
+  import { ChevronRight, Zap } from 'lucide-svelte';
   import { classifyTier } from '$lib/domain/xp.js';
-  import NotificationPanel from '$lib/components/NotificationPanel.svelte';
+  import NotificationBell from '$lib/components/NotificationBell.svelte';
 
   export let data;
 
-  let notifOpen = false;
-  let notifications = data.notifications || [];
-  $: unreadCount = notifications.filter(n => !n.read).length;
-
   $: currentTier = data.fan ? classifyTier(data.fan.xp_total) : null;
   $: tierName = currentTier?.name ?? 'Elite';
-  $: xpToNext = data.fan ? 12000 - data.fan.xp_total : 0;
-
-  // Tier progress steps
-  const tierSteps = ['General', 'Loyal', 'Superfan', 'Elite'];
-  $: currentTierIndex = (() => {
-    if (!currentTier) return 0;
-    const name = currentTier.name.toLowerCase();
-    if (name === 'general' || name === 'fan') return 0;
-    if (name === 'loyal') return 1;
-    if (name === 'superfan') return 2;
-    return 3;
-  })();
 
   let activeToggle = 'music';
 </script>
@@ -39,15 +22,8 @@
       <h1 class="brand-wordmark">Maxess</h1>
       <p class="brand-subtitle">Your fan profile</p>
     </div>
-    <button class="notification-btn" aria-label="Notifications" on:click={() => notifOpen = true}>
-      <Bell size={22} />
-      {#if unreadCount > 0}
-        <span class="notif-badge">{unreadCount}</span>
-      {/if}
-    </button>
+    <NotificationBell />
   </header>
-
-  <NotificationPanel bind:notifications open={notifOpen} on:close={() => notifOpen = false} />
 
   <!-- Music / Sports Toggle -->
   <div class="toggle-row">
@@ -84,25 +60,6 @@
       </div>
     </div>
 
-    <!-- Progress to Next Tier -->
-    <div class="progress-card">
-      <h3 class="progress-title">Progress to Elite+</h3>
-      <div class="tier-progress">
-        {#each tierSteps as step, i}
-          <div class="tier-step">
-            <div class="tier-dot" class:filled={i <= currentTierIndex} class:current={i === currentTierIndex}></div>
-            <span class="tier-step-label" class:active-label={i <= currentTierIndex}>{step}</span>
-          </div>
-          {#if i < tierSteps.length - 1}
-            <div class="tier-line" class:filled={i < currentTierIndex}></div>
-          {/if}
-        {/each}
-      </div>
-      <p class="progress-remaining">
-        <span class="remaining-xp">{xpToNext.toLocaleString()} pts</span> to next tier
-      </p>
-    </div>
-
     <!-- For You / Upcoming -->
     <section class="section">
       <div class="section-header">
@@ -111,7 +68,7 @@
       </div>
       <div class="cards-scroll">
         {#each data.upcomingEvents.slice(0, 4) as event}
-          <div class="for-you-card">
+          <a href={event.external_url || `/events/${event.event_id}`} target={event.external_url ? '_blank' : undefined} rel={event.external_url ? 'noopener noreferrer' : undefined} class="for-you-card">
             <div class="for-you-image" style="background-color: {event.image_color || '#2667FF'}">
               <div class="for-you-overlay">
                 <span class="for-you-tag">{event.category === 'sports' ? 'SPORTS ACCESS' : 'MUSIC ACCESS'}</span>
@@ -119,12 +76,9 @@
                   <h3 class="for-you-name">{event.title}</h3>
                   <p class="for-you-date">{event.date_display || event.date}</p>
                 </div>
-                <a href="/events" class="for-you-arrow" aria-label="View event">
-                  <ChevronRight size={20} />
-                </a>
               </div>
             </div>
-          </div>
+          </a>
         {/each}
       </div>
     </section>
@@ -140,7 +94,7 @@
           </div>
           <div class="climb-text">
             <span class="climb-title">Climb the ranks</span>
-            <a href="/rank-rewards" class="climb-link">See leaderboard <ChevronRight size={14} /></a>
+            <a href="/score" class="climb-link">See leaderboard <ChevronRight size={14} /></a>
           </div>
         </div>
       </div>
@@ -187,36 +141,6 @@
     font-size: 15px;
     color: var(--text-secondary);
     margin: 2px 0 0;
-  }
-
-  .notification-btn {
-    position: relative;
-    color: var(--text-primary);
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: var(--bg-card);
-    border: 1px solid var(--border-gray);
-  }
-
-  .notif-badge {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 18px;
-    height: 18px;
-    background: #EF4444;
-    color: white;
-    font-size: 10px;
-    font-weight: 700;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid var(--bg-primary);
   }
 
   /* ── Toggle ─────────────────────────────────── */
@@ -329,89 +253,6 @@
     color: #FFFFFF;
   }
 
-  /* ── Progress Card ──────────────────────────── */
-  .progress-card {
-    margin: 0 16px 24px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-gray);
-    border-radius: 18px;
-    padding: 20px;
-  }
-
-  .progress-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 16px;
-  }
-
-  .tier-progress {
-    display: flex;
-    align-items: center;
-    margin-bottom: 16px;
-  }
-
-  .tier-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .tier-dot {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid var(--border-gray);
-    background: var(--bg-card);
-    transition: all 0.3s ease;
-  }
-
-  .tier-dot.filled {
-    background: var(--deep-navy);
-    border-color: var(--deep-navy);
-  }
-
-  .tier-dot.current {
-    box-shadow: 0 0 0 4px rgba(38, 103, 255, 0.2);
-  }
-
-  .tier-line {
-    flex: 1;
-    height: 3px;
-    background: var(--border-gray);
-    margin: 0 -2px;
-    margin-bottom: 24px;
-  }
-
-  .tier-line.filled {
-    background: var(--deep-navy);
-  }
-
-  .tier-step-label {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--text-tertiary);
-    white-space: nowrap;
-  }
-
-  .tier-step-label.active-label {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-
-  .progress-remaining {
-    font-size: 14px;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .remaining-xp {
-    color: var(--action-orange);
-    font-weight: 700;
-  }
-
   /* ── Sections ───────────────────────────────── */
   .section {
     margin-bottom: 24px;
@@ -455,6 +296,8 @@
     flex-shrink: 0;
     border-radius: 16px;
     overflow: hidden;
+    text-decoration: none;
+    color: inherit;
   }
 
   .for-you-image {
@@ -499,20 +342,6 @@
     font-size: 12px;
     color: rgba(255, 255, 255, 0.7);
     margin: 0;
-  }
-
-  .for-you-arrow {
-    position: absolute;
-    bottom: 14px;
-    right: 14px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--action-orange);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   /* ── Climb the Ranks ────────────────────────── */

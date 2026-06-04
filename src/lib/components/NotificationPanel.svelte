@@ -1,32 +1,19 @@
 <script>
   import { X, ChevronRight } from 'lucide-svelte';
   import { fly, fade } from 'svelte/transition';
-  import { createEventDispatcher } from 'svelte';
-
-  /** @type {import('$lib/domain/types.js').Notification[]} */
-  export let notifications = [];
-  export let open = false;
-
-  const dispatch = createEventDispatcher();
-
-  $: unreadCount = notifications.filter(n => !n.read).length;
+  import { notifications, notifPanelOpen, unreadCount, markRead, markAllRead } from '$lib/stores/notifications.js';
 
   function close() {
-    dispatch('close');
+    $notifPanelOpen = false;
   }
 
   /** @param {import('$lib/domain/types.js').Notification} notif */
-  function markRead(notif) {
-    notif.read = true;
-    notifications = notifications;
-  }
-
-  function markAllRead() {
-    notifications = notifications.map(n => ({ ...n, read: true }));
+  function handleNotifClick(notif) {
+    markRead(notif.id);
   }
 </script>
 
-{#if open}
+{#if $notifPanelOpen}
   <!-- Backdrop -->
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -37,7 +24,7 @@
     <div class="panel-header">
       <h2 class="panel-title">Notifications</h2>
       <div class="panel-actions">
-        {#if unreadCount > 0}
+        {#if $unreadCount > 0}
           <button class="mark-all-btn" on:click={markAllRead}>Mark all read</button>
         {/if}
         <button class="close-btn" on:click={close} aria-label="Close notifications">
@@ -46,19 +33,19 @@
       </div>
     </div>
 
-    {#if notifications.length === 0}
+    {#if $notifications.length === 0}
       <div class="empty-state">
         <span class="empty-icon">🔔</span>
         <p>No notifications yet</p>
       </div>
     {:else}
       <div class="notif-list">
-        {#each notifications as notif (notif.id)}
+        {#each $notifications as notif (notif.id)}
           <a
             href={notif.action_url || '#'}
             class="notif-row"
             class:unread={!notif.read}
-            on:click={() => markRead(notif)}
+            on:click={() => handleNotifClick(notif)}
           >
             <span class="notif-icon">{notif.icon}</span>
             <div class="notif-content">

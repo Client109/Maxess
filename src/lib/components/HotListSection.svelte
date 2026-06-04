@@ -40,8 +40,8 @@
       <div class="cta-icon">
         <Music size={24} color="#FF5C00" />
       </div>
-      <h3 class="cta-title">Earn XP by listening</h3>
-      <p class="cta-description">Connect Apple Music to earn XP from Hot List artists</p>
+      <h3 class="cta-title">Earn points by listening</h3>
+      <p class="cta-description">Connect Apple Music to earn points from Hot List artists</p>
       <button class="cta-button" on:click={connectAppleMusic} disabled={$appleMusicLoading}>
         {$appleMusicLoading ? 'Connecting...' : 'Connect Apple Music'}
       </button>
@@ -52,7 +52,7 @@
   <section class="hotlist-section">
     <div class="hotlist-header">
       <h2 class="hotlist-title">HOT LIST</h2>
-      <span class="xp-badge">{$listeningXP.toLocaleString()} XP</span>
+      <span class="xp-badge">{$listeningXP.toLocaleString()} pts</span>
     </div>
 
     <!-- Artist Cards Scroll -->
@@ -61,7 +61,7 @@
         {@const progress = getProgress(artist.artist_id)}
         <div class="artist-card">
           {#if artist.is_featured}
-            <div class="featured-chip">FEATURED 2x XP</div>
+            <div class="featured-chip">FEATURED 2x PTS</div>
           {/if}
           <div class="artist-avatar" style="background-color: {getGenreColor(artist.genre)}">
             {artist.name[0]}
@@ -73,7 +73,7 @@
           </div>
           <div class="artist-stats">
             <span class="play-count">{progress.user_play_count} plays</span>
-            <span class="xp-earned">+{progress.xp_earned} XP</span>
+            <span class="xp-earned">+{progress.xp_earned} pts</span>
           </div>
         </div>
       {/each}

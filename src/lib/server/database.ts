@@ -95,6 +95,33 @@ export async function getLeaderboard(period: 'WEEKLY' | 'MONTHLY' | 'ALL_TIME' =
   });
 }
 
+export async function getAllLeaderboardEntries() {
+  return await db.leaderboardEntry.findMany({
+    orderBy: [{ period: 'asc' }, { rank: 'asc' }],
+    take: 300,
+  });
+}
+
+export async function getFriendUserIds(fanId: string): Promise<string[]> {
+  const user = await db.user.findUnique({ where: { fan_id: fanId } });
+  if (!user) return [];
+
+  const activities = await db.friendActivity.findMany({
+    where: { user_id: user.id },
+    select: { friend_name: true },
+  });
+
+  const friendNames = [...new Set(activities.map(a => a.friend_name))];
+  if (friendNames.length === 0) return [];
+
+  const friends = await db.user.findMany({
+    where: { name: { in: friendNames } },
+    select: { id: true },
+  });
+
+  return friends.map(f => f.id);
+}
+
 export async function getUserEvents(fanId: string) {
   return await db.userEvent.findMany({
     where: { 
@@ -336,6 +363,11 @@ export async function getFeaturedOffers(limit: number = 5) {
     take: limit,
     orderBy: { created_at: 'desc' },
   });
+}
+
+// Get a single pass by pass_id
+export async function getPassByPassId(passId: string) {
+  return await db.pass.findUnique({ where: { pass_id: passId } });
 }
 
 // Cleanup function

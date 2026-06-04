@@ -1,589 +1,612 @@
 <script>
-  import { Bell, Settings, ChevronRight } from 'lucide-svelte';
-  import { classifyTier } from '$lib/domain/xp.js';
+  import { ChevronRight, ChevronUp, UserPlus } from 'lucide-svelte';
+  import NotificationBell from '$lib/components/NotificationBell.svelte';
 
   export let data;
 
   $: fan = data.fan;
-  $: currentTier = fan ? classifyTier(fan.xp_total) : null;
-  $: xpBreakdown = data.xpBreakdown || {};
-  $: effectiveXPTotal = fan?.xp_total || 0;
-  $: recentActivity = data.recentActivity || [];
+  $: artists = data.artists || [];
+  $: topConnection = data.topConnection;
 
-  let tappedSetting = null;
-  let showXPGraph = false;
+  let activeCategory = 'music';
+  let howPointsOpen = true;
 
-  // Mock XP progression data (monthly totals)
-  const xpHistory = [
-    { month: 'Jan', xp: 1200 },
-    { month: 'Feb', xp: 2100 },
-    { month: 'Mar', xp: 3400 },
-    { month: 'Apr', xp: 4800 },
-    { month: 'May', xp: 6500 },
-    { month: 'Jun', xp: 8750 }
-  ];
-
-  const graphWidth = 300;
-  const graphHeight = 120;
-  const graphPadding = { top: 10, right: 10, bottom: 24, left: 10 };
-  const plotW = graphWidth - graphPadding.left - graphPadding.right;
-  const plotH = graphHeight - graphPadding.top - graphPadding.bottom;
-
-  $: maxXP = Math.max(...xpHistory.map(d => d.xp));
-  $: graphPoints = xpHistory.map((d, i) => {
-    const x = graphPadding.left + (i / (xpHistory.length - 1)) * plotW;
-    const y = graphPadding.top + plotH - (d.xp / maxXP) * plotH;
-    return { x, y, ...d };
-  });
-  $: linePath = graphPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
-  $: areaPath = linePath + ` L${graphPoints[graphPoints.length - 1].x},${graphPadding.top + plotH} L${graphPoints[0].x},${graphPadding.top + plotH} Z`;
-
-  function handleSettingTap(label) {
-    tappedSetting = label;
-    setTimeout(() => { tappedSetting = null; }, 1500);
-  }
-
-  const settingsItems = [
-    { label: 'Edit Profile', icon: '👤' },
-    { label: 'Connected Accounts', icon: '🔗' },
-    { label: 'Notifications', icon: '🔔' },
-    { label: 'Privacy & Security', icon: '🔒' },
-    { label: 'Help & Support', icon: '❓' }
+  const tiers = [
+    { name: 'Fan', range: '0 – 999', color: '#1A9E56', icon: '✓' },
+    { name: 'Loyal', range: '1,000 – 2,999', color: '#1A9E56', icon: '✓' },
+    { name: 'Superfan', range: '3,000 – 4,999', color: '#3B28CC', icon: '★' },
+    { name: 'Elite', range: '5,000+', color: '#FF5C00', icon: '◆' },
   ];
 </script>
 
 <svelte:head>
-  <title>Profile - Maxxes</title>
+  <title>Profile - Maxess</title>
 </svelte:head>
 
 <div class="page-container">
-  <!-- Status Bar -->
-  <div class="status-bar">
-    <span class="time">9:41</span>
-    <div class="status-icons">
-      <span class="signal">📶</span>
-      <span class="battery">🔋</span>
-    </div>
-  </div>
-
-  <!-- Page Header -->
+  <!-- Header -->
   <header class="page-header">
     <div>
       <h1 class="page-title">Profile</h1>
-      <p class="subtitle">Your fan journey</p>
+      <p class="subtitle">Your fan identity</p>
     </div>
-    <button class="settings-btn">
-      <Settings size={24} />
-    </button>
+    <NotificationBell />
   </header>
 
-  <!-- Profile Hero -->
-  <section class="profile-hero">
-    <div class="profile-avatar">
-      {fan.avatar_initials}
-    </div>
-    <h2 class="profile-name">{fan.name}</h2>
-    <p class="profile-location">{fan.city}</p>
-    
-    <div class="tier-badge-large">
-      <span>★</span>
-      {currentTier.name} Member
+  {#if fan}
+    <!-- User Card -->
+    <div class="user-card">
+      <div class="user-avatar">
+        <span>{fan.avatar_initials || fan.name.split(' ').map(n => n[0]).join('')}</span>
+      </div>
+      <div class="user-info">
+        <h2 class="user-name">{fan.name}</h2>
+        <p class="user-points">{fan.xp_total.toLocaleString()} total points</p>
+      </div>
+      <ChevronRight size={20} color="#8E8E93" />
     </div>
 
-    <div class="profile-stats">
-      <div class="stat-item">
-        <span class="stat-value">{fan.events_attended}</span>
-        <span class="stat-label">Events</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-value">#{fan.rank}</span>
-        <span class="stat-label">Rank</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-value">{fan.streak_days}</span>
-        <span class="stat-label">Day Streak</span>
-      </div>
+    <!-- Music / Sports Toggle -->
+    <div class="toggle-container">
+      <button class="toggle-pill">
+        <span
+          class="toggle-option"
+          class:active={activeCategory === 'music'}
+          on:click={() => activeCategory = 'music'}
+        >Music</span>
+        <span
+          class="toggle-option"
+          class:active={activeCategory === 'sports'}
+          on:click={() => activeCategory = 'sports'}
+        >Sports</span>
+        <div class="toggle-slider" class:right={activeCategory === 'sports'}></div>
+      </button>
     </div>
-  </section>
 
-  <!-- XP Breakdown -->
-  <section class="xp-section">
-    <h2 class="section-header">XP Breakdown</h2>
-    <div class="card xp-breakdown">
-      {#each Object.entries(xpBreakdown).filter(([, v]) => v > 0) as [source, xp]}
-        <div class="xp-row">
-          <span class="xp-source">{source}</span>
-          <div class="xp-bar-container">
-            <div class="xp-bar" style="width: {(xp / effectiveXPTotal) * 100}%"></div>
+    <!-- Your Top Connection -->
+    {#if topConnection}
+      <section class="section">
+        <div class="top-connection-card">
+          <span class="connection-label">YOUR TOP CONNECTION</span>
+          <div class="connection-content">
+            <div class="connection-avatar">
+              <span>{topConnection.name[0]}</span>
+            </div>
+            <div class="connection-info">
+              <h3 class="connection-name">{topConnection.name}</h3>
+              <div class="connection-stats">
+                <div class="conn-stat">
+                  <span class="conn-stat-label">Listener Percentile</span>
+                  <span class="conn-stat-value blue">Top {topConnection.listener_percentile}%</span>
+                </div>
+                <div class="conn-divider"></div>
+                <div class="conn-stat">
+                  <span class="conn-stat-label">Total points</span>
+                  <span class="conn-stat-value blue">{topConnection.points.toLocaleString()} pts</span>
+                </div>
+              </div>
+              <span class="connection-tier" style="background: {topConnection.tier_color}">
+                ★ {topConnection.tier}
+              </span>
+            </div>
           </div>
-          <span class="xp-value">{xp.toLocaleString()} XP</span>
         </div>
-      {/each}
+      </section>
+    {/if}
 
-      {#if showXPGraph}
-        <div class="xp-graph">
-          <div class="graph-label">XP Over Time</div>
-          <svg viewBox="0 0 {graphWidth} {graphHeight}" class="graph-svg">
-            <!-- Grid lines -->
-            {#each [0.25, 0.5, 0.75] as frac}
-              <line
-                x1={graphPadding.left}
-                y1={graphPadding.top + plotH * (1 - frac)}
-                x2={graphPadding.left + plotW}
-                y2={graphPadding.top + plotH * (1 - frac)}
-                stroke="var(--border-gray)"
-                stroke-width="0.5"
-                stroke-dasharray="4 4"
-              />
-            {/each}
+    <!-- All Artists -->
+    <section class="section">
+      <h2 class="section-title">All Artists</h2>
+      <div class="artists-list">
+        {#each artists as artist, i}
+          <a href="/artist/{artist.id}" class="artist-row">
+            <span class="artist-rank">{i + 1}</span>
+            <div class="artist-avatar-small">
+              <span>{artist.name[0]}</span>
+            </div>
+            <div class="artist-info">
+              <span class="artist-name">{artist.name}</span>
+              <div class="artist-progress-bar">
+                <div class="artist-progress-fill" style="width: {artist.progress * 100}%; background: {artist.tier_color}"></div>
+              </div>
+            </div>
+            <div class="artist-points-col">
+              <span class="artist-pts" style="color: {artist.tier_color}">{artist.points.toLocaleString()} pts</span>
+              <span class="artist-to-next">{artist.pts_to_next.toLocaleString()} pts to {artist.next_tier}</span>
+            </div>
+            <span class="artist-tier-chip" style="background: {artist.tier_color}">
+              {artist.tier}
+            </span>
+          </a>
+        {/each}
+      </div>
+    </section>
 
-            <!-- Area fill -->
-            <path d={areaPath} fill="rgba(255, 92, 0, 0.12)" />
+    <!-- How Points Work -->
+    <section class="section">
+      <button class="how-points-header" on:click={() => howPointsOpen = !howPointsOpen}>
+        <h2 class="section-title no-pad">How Points Work</h2>
+        <div class="chevron-wrap" class:open={howPointsOpen}>
+          <ChevronUp size={18} color="#8E8E93" />
+        </div>
+      </button>
 
-            <!-- Line -->
-            <path d={linePath} fill="none" stroke="var(--action-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      {#if howPointsOpen}
+        <div class="points-grid">
+          <div class="points-item">
+            <span class="points-icon">🎟️</span>
+            <span class="points-desc">Attend a show</span>
+            <span class="points-val orange">+500 pts</span>
+          </div>
+          <div class="points-item">
+            <span class="points-icon">🎧</span>
+            <span class="points-desc">Listening time</span>
+            <span class="points-val orange">+10 pts/hr</span>
+          </div>
+          <div class="points-item">
+            <span class="points-icon">❓</span>
+            <span class="points-desc">Trivia correct answer</span>
+            <span class="points-val orange">+50 pts</span>
+          </div>
+          <div class="points-item">
+            <span class="points-icon">🔥</span>
+            <span class="points-desc">Streak bonus</span>
+            <span class="points-val orange">+200 pts</span>
+          </div>
+        </div>
 
-            <!-- Dots + month labels -->
-            {#each graphPoints as point}
-              <circle cx={point.x} cy={point.y} r="3" fill="var(--action-orange)" />
-              <text
-                x={point.x}
-                y={graphPadding.top + plotH + 16}
-                text-anchor="middle"
-                fill="var(--system-gray)"
-                font-size="9"
-                font-weight="500"
-              >{point.month}</text>
-            {/each}
-          </svg>
+        <!-- Tier Legend -->
+        <div class="tier-legend">
+          {#each tiers as tier}
+            <div class="tier-item">
+              <div class="tier-dot" style="background: {tier.color}">
+                <span>{tier.icon}</span>
+              </div>
+              <span class="tier-name">{tier.name}</span>
+              <span class="tier-range">{tier.range}</span>
+            </div>
+          {/each}
         </div>
       {/if}
-    </div>
-  </section>
+    </section>
 
-  <!-- Recent Activity -->
-  <section class="activity-section">
-    <h2 class="section-header">Recent Activity</h2>
-    <div class="card activity-list">
-      {#each recentActivity as activity}
-        <div class="activity-row">
-          <div class="activity-icon">{activity.source_icon}</div>
-          <div class="activity-info">
-            <span class="activity-description">{activity.description}</span>
-            <span class="activity-time">{activity.timestamp}</span>
-          </div>
-          <span class="activity-xp">+{activity.xp_amount} XP</span>
-        </div>
-      {/each}
+    <!-- Follow a New Artist -->
+    <div class="follow-cta">
+      <button class="follow-btn">
+        <UserPlus size={18} />
+        Follow a new artist
+      </button>
     </div>
-  </section>
-
-  <!-- Settings Menu -->
-  <section class="settings-section">
-    <h2 class="section-header">Settings</h2>
-    <div class="card settings-menu">
-      <div class="settings-row toggle-row">
-        <span class="settings-icon">📊</span>
-        <span class="settings-label">Show XP Graph</span>
-        <button
-          class="toggle-switch"
-          class:on={showXPGraph}
-          on:click={() => { showXPGraph = !showXPGraph; }}
-          aria-label="Toggle XP Graph"
-          role="switch"
-          aria-checked={showXPGraph}
-        >
-          <span class="toggle-thumb"></span>
-        </button>
-      </div>
-      {#each settingsItems as item}
-        <button class="settings-row" on:click={() => handleSettingTap(item.label)}>
-          <span class="settings-icon">{item.icon}</span>
-          <span class="settings-label">{item.label}</span>
-          {#if item.connected}
-            <span class="connected-badge">Connected</span>
-          {:else if tappedSetting === item.label}
-            <span class="coming-soon-badge">Coming soon</span>
-          {:else}
-            <ChevronRight size={18} color="#8E8E93" />
-          {/if}
-        </button>
-      {/each}
+  {:else}
+    <div class="empty">
+      <p>Unable to load profile. Please try again later.</p>
     </div>
-  </section>
-
-  <!-- Member Since -->
-  <section class="member-info">
-    <p>Member since {new Date(fan.member_since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-  </section>
+  {/if}
 </div>
 
 <style>
-  .status-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 44px;
-    padding: 0 16px;
-    font-size: 14px;
-    font-weight: 600;
-    background: var(--off-white);
-  }
-
-  .status-icons {
-    display: flex;
-    gap: 4px;
+  .page-container {
+    background: var(--bg-primary, #FAFAFA);
+    min-height: 100vh;
+    padding-bottom: 100px;
   }
 
   .page-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 16px 16px 20px;
-    background: var(--off-white);
+    padding: 16px 16px 12px;
+  }
+
+  .page-title {
+    font-size: 34px;
+    font-weight: 700;
+    margin: 0;
+    color: #1C1C1E;
   }
 
   .subtitle {
-    color: var(--system-gray);
+    color: #8E8E93;
     font-size: 14px;
-    margin-top: 4px;
+    margin: 4px 0 0;
   }
 
-  .settings-btn {
-    background: none;
-    border: none;
-    color: var(--true-black);
-    cursor: pointer;
-    min-height: 44px;
-    min-width: 44px;
+  /* User Card */
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 16px 16px;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .user-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #3B28CC;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
   }
 
-  .profile-hero {
+  .user-info { flex: 1; }
+
+  .user-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: #1C1C1E;
+  }
+
+  .user-points {
+    font-size: 13px;
+    color: #8E8E93;
+    margin: 2px 0 0;
+  }
+
+  /* Toggle */
+  .toggle-container { padding: 0 16px 20px; }
+
+  .toggle-pill {
+    position: relative;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px 16px 32px;
-    background: var(--off-white);
+    background: #E5E5EA;
+    border-radius: 99px;
+    padding: 4px;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    height: 44px;
+    font-family: inherit;
   }
 
-  .profile-avatar {
+  .toggle-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: #8E8E93;
+    z-index: 2;
+    position: relative;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .toggle-option.active { color: #FFFFFF; }
+
+  .toggle-slider {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: 36px;
+    background: #3B28CC;
+    border-radius: 99px;
+    transition: transform 0.2s;
+    z-index: 1;
+  }
+
+  .toggle-slider.right { transform: translateX(100%); }
+
+  /* Sections */
+  .section { margin-bottom: 24px; }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1C1C1E;
+    margin: 0;
+    padding: 0 16px;
+  }
+
+  .section-title.no-pad { padding: 0; }
+
+  /* Top Connection */
+  .top-connection-card {
+    margin: 0 16px;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .connection-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #3B28CC;
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  .connection-content {
+    display: flex;
+    gap: 14px;
+  }
+
+  .connection-avatar {
     width: 80px;
     height: 80px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--action-orange) 0%, #FF7B3D 100%);
-    color: var(--pure-white);
-    font-size: 32px;
-    font-weight: 700;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
-  }
-
-  .profile-name {
-    font-size: 24px;
+    color: #FFFFFF;
+    font-size: 28px;
     font-weight: 700;
-    margin-bottom: 4px;
+    flex-shrink: 0;
   }
 
-  .profile-location {
-    font-size: 14px;
-    color: var(--system-gray);
-    margin-bottom: 16px;
+  .connection-info { flex: 1; }
+
+  .connection-name {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: #1C1C1E;
   }
 
-  .tier-badge-large {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--true-black);
-    color: var(--pure-white);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 24px;
-  }
-
-  .tier-badge-large span {
-    color: var(--action-orange);
-    font-size: 16px;
-  }
-
-  .profile-stats {
+  .connection-stats {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
+    margin-bottom: 10px;
   }
 
-  .stat-item {
+  .conn-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .conn-stat-label {
+    font-size: 10px;
+    color: #8E8E93;
+  }
+
+  .conn-stat-value {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .conn-stat-value.blue { color: #3B28CC; }
+
+  .conn-divider {
+    width: 1px;
+    height: 28px;
+    background: #E5E5EA;
+  }
+
+  .connection-tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #FFFFFF;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* All Artists */
+  .artists-list {
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    margin: 12px 16px 0;
+    overflow: hidden;
+  }
+
+  .artist-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border-bottom: 1px solid #F2F2F7;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .artist-row:last-child { border-bottom: none; }
+
+  .artist-rank {
+    font-size: 14px;
+    font-weight: 600;
+    color: #8E8E93;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .artist-avatar-small {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .artist-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .artist-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1C1C1E;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .artist-progress-bar {
+    height: 4px;
+    background: #E5E5EA;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .artist-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s;
+  }
+
+  .artist-points-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    flex-shrink: 0;
+  }
+
+  .artist-pts {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .artist-to-next {
+    font-size: 10px;
+    color: #8E8E93;
+  }
+
+  .artist-tier-chip {
+    font-size: 10px;
+    font-weight: 700;
+    color: #FFFFFF;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  /* How Points Work */
+  .how-points-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    margin-bottom: 12px;
+  }
+
+  .chevron-wrap { transition: transform 0.2s; }
+  .chevron-wrap:not(.open) { transform: rotate(180deg); }
+
+  .points-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 16px;
+    margin-bottom: 16px;
+  }
+
+  .points-item {
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .points-icon { font-size: 18px; margin-bottom: 2px; }
+
+  .points-desc {
+    font-size: 12px;
+    color: #1C1C1E;
+    font-weight: 500;
+  }
+
+  .points-val {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .points-val.orange { color: #FF5C00; }
+
+  /* Tier Legend */
+  .tier-legend {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 16px;
+    gap: 8px;
+  }
+
+  .tier-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-  }
-
-  .stat-value {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--true-black);
-  }
-
-  .stat-label {
-    font-size: 12px;
-    color: var(--system-gray);
-  }
-
-  .stat-divider {
-    width: 1px;
-    height: 30px;
-    background: var(--border-gray);
-  }
-
-  .section-header {
-    font-size: 15px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 0 16px 12px;
-    color: var(--true-black);
-  }
-
-  .xp-section {
-    margin-bottom: 24px;
-  }
-
-  .xp-breakdown {
-    margin: 0 16px;
-    padding: 16px;
-  }
-
-  .xp-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .xp-row:last-child {
-    margin-bottom: 0;
-  }
-
-  .xp-source {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--true-black);
-    min-width: 100px;
-  }
-
-  .xp-bar-container {
     flex: 1;
-    height: 8px;
-    background: var(--border-gray);
-    border-radius: 4px;
-    overflow: hidden;
   }
 
-  .xp-bar {
-    height: 100%;
-    background: var(--action-orange);
-    border-radius: 4px;
-    transition: width 0.6s ease;
-  }
-
-  .xp-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--action-orange);
-    min-width: 70px;
-    text-align: right;
-  }
-
-  .activity-section {
-    margin-bottom: 24px;
-  }
-
-  .activity-list {
-    margin: 0 16px;
-    padding: 0;
-    overflow: hidden;
-  }
-
-  .activity-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border-gray);
-  }
-
-  .activity-row:last-child {
-    border-bottom: none;
-  }
-
-  .activity-icon {
-    width: 36px;
-    height: 36px;
+  .tier-dot {
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: var(--off-white);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-  }
-
-  .activity-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .activity-description {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--true-black);
-  }
-
-  .activity-time {
+    color: #FFFFFF;
     font-size: 12px;
-    color: var(--system-gray);
   }
 
-  .activity-xp {
-    font-size: 14px;
+  .tier-name {
+    font-size: 11px;
     font-weight: 600;
-    color: var(--success-green);
+    color: #1C1C1E;
   }
 
-  .settings-section {
-    margin-bottom: 24px;
+  .tier-range {
+    font-size: 9px;
+    color: #8E8E93;
+    text-align: center;
   }
 
-  .settings-menu {
-    margin: 0 16px;
-    padding: 0;
-    overflow: hidden;
-  }
+  /* Follow CTA */
+  .follow-cta { padding: 0 16px; }
 
-  .settings-row {
+  .follow-btn {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border-gray);
+    justify-content: center;
+    gap: 8px;
     width: 100%;
-    text-align: left;
-    background: transparent;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .settings-row:last-child {
-    border-bottom: none;
-  }
-
-  .settings-row:hover {
-    background: var(--off-white);
-  }
-
-  .settings-icon {
-    font-size: 20px;
-  }
-
-  .settings-label {
-    flex: 1;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--true-black);
-  }
-
-  .coming-soon-badge {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--action-orange);
-    background: var(--warning-orange-light);
-    padding: 4px 8px;
-    border-radius: 8px;
-  }
-
-  .connected-badge {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--success-green);
-    background: rgba(52, 199, 89, 0.1);
-    padding: 4px 8px;
-    border-radius: 8px;
-  }
-
-  .member-info {
-    text-align: center;
-    padding: 20px 16px 40px;
-    color: var(--system-gray);
-    font-size: 13px;
-  }
-
-  /* XP Graph */
-  .xp-graph {
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-gray);
-  }
-
-  .graph-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--system-gray);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-bottom: 8px;
-  }
-
-  .graph-svg {
-    width: 100%;
-    height: auto;
-  }
-
-  /* Toggle Switch */
-  .toggle-row {
-    cursor: default;
-  }
-
-  .toggle-switch {
-    width: 48px;
-    height: 28px;
-    border-radius: 14px;
-    background: var(--border-gray);
+    padding: 14px;
+    background: #3B28CC;
+    color: #FFFFFF;
     border: none;
+    border-radius: 99px;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
-    position: relative;
-    transition: background 0.2s ease;
-    flex-shrink: 0;
-    padding: 0;
+    font-family: inherit;
   }
 
-  .toggle-switch.on {
-    background: var(--action-orange);
-  }
-
-  .toggle-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--pure-white);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    transition: transform 0.2s ease;
-  }
-
-  .toggle-switch.on .toggle-thumb {
-    transform: translateX(20px);
+  .empty {
+    text-align: center;
+    padding: 60px 16px;
+    color: #8E8E93;
   }
 </style>

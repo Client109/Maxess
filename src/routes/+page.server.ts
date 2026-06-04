@@ -5,7 +5,7 @@ import { TicketmasterClient } from '$lib/api/ticketmaster.js';
 import { normalizeTicketmasterEvent } from '$lib/server/events.js';
 import { enrichEventsWithMusicData, getUserTopArtists } from '$lib/server/music.js';
 import { serverConfig } from '$lib/config/env.js';
-import { mockEvents, mockNotifications } from '$lib/data/mockData.js';
+import { mockEvents } from '$lib/data/mockData.js';
 
 export async function load() {
   // Load fan profile from DB (hardcoded demo user)
