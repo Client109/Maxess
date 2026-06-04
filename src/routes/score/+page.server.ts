@@ -6,6 +6,7 @@ import {
   getUserChallenges,
   getFriendActivity,
   getXpBreakdown,
+  getXpHistory,
 } from '$lib/server/database.js';
 import {
   transformUserToFan,
@@ -21,13 +22,14 @@ export async function load() {
     return { fan: null, rank: null };
   }
 
-  const [xpBreakdown, dbLeaderboard, friendIds, dbChallenges, dbFriendActivity] =
+  const [xpBreakdown, dbLeaderboard, friendIds, dbChallenges, dbFriendActivity, xpHistory] =
     await Promise.all([
       getXpBreakdown('fan_001'),
       getAllLeaderboardEntries(),
       getFriendUserIds('fan_001'),
       getUserChallenges('fan_001'),
       getFriendActivity('fan_001', 15),
+      getXpHistory('fan_001', 14),
     ]);
 
   const fan = { ...transformUserToFan(dbUser), xp_breakdown: xpBreakdown };
@@ -37,6 +39,7 @@ export async function load() {
 
   return {
     fan,
+    xpHistory,
     rank: {
       leaderboard,
       challenges,

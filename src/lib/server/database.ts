@@ -1,12 +1,14 @@
 // Database client and utilities for Maxxes
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { dev } from '$app/environment';
 
+const { PrismaClient } = prismaPkg;
+
 // Singleton pattern for Prisma client
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma: InstanceType<typeof PrismaClient> | undefined;
 };
 
 function createPrismaClient() {
@@ -327,6 +329,36 @@ export async function getRecentActivity(fanId: string, limit: number = 20) {
     orderBy: { created_at: 'desc' },
     take: limit,
   });
+}
+
+// Get daily XP totals over the last N days (oldest → newest, gaps filled with 0)
+export async function getXpHistory(fanId: string, days: number = 14) {
+  const user = await db.user.findUnique({ where: { fan_id: fanId } });
+  if (!user) return [];
+
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - (days - 1));
+
+  const transactions = await db.xpTransaction.findMany({
+    where: { user_id: user.id, created_at: { gte: since } },
+    select: { amount: true, created_at: true },
+  });
+
+  const totals = new Map<string, number>();
+  for (const tx of transactions) {
+    const key = tx.created_at.toISOString().slice(0, 10);
+    totals.set(key, (totals.get(key) ?? 0) + tx.amount);
+  }
+
+  const series: { date: string; amount: number }[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setUTCDate(since.getUTCDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    series.push({ date: key, amount: totals.get(key) ?? 0 });
+  }
+  return series;
 }
 
 // Get XP breakdown by source for a user

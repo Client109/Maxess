@@ -1,6 +1,7 @@
 <script>
   import { ChevronRight, ChevronUp, UserPlus } from 'lucide-svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
+  import { showPointsGraph } from '$lib/stores/settings.js';
 
   export let data;
 
@@ -168,6 +169,29 @@
           {/each}
         </div>
       {/if}
+    </section>
+
+    <!-- Settings -->
+    <section class="section">
+      <h2 class="section-title">Settings</h2>
+      <div class="settings-card">
+        <div class="setting-row">
+          <div class="setting-text">
+            <span class="setting-label">Show points graph</span>
+            <span class="setting-desc">Display a 14-day points trend on the Score page.</span>
+          </div>
+          <button
+            class="switch"
+            class:on={$showPointsGraph}
+            role="switch"
+            aria-checked={$showPointsGraph}
+            aria-label="Show points graph"
+            on:click={() => showPointsGraph.update(v => !v)}
+          >
+            <span class="switch-thumb"></span>
+          </button>
+        </div>
+      </div>
     </section>
 
     <!-- Follow a New Artist -->
@@ -583,6 +607,69 @@
     color: #8E8E93;
     text-align: center;
   }
+
+  /* Settings */
+  .settings-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    margin: 12px 16px 0;
+    overflow: hidden;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .setting-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .setting-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1C1C1E;
+  }
+
+  .setting-desc {
+    font-size: 12px;
+    color: #8E8E93;
+  }
+
+  .switch {
+    width: 44px;
+    height: 26px;
+    border-radius: 99px;
+    border: none;
+    background: #E5E5EA;
+    position: relative;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .switch.on { background: #FF5C00; }
+
+  .switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+  }
+
+  .switch.on .switch-thumb { transform: translateX(18px); }
 
   /* Follow CTA */
   .follow-cta { padding: 0 16px; }

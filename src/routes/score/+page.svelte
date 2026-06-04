@@ -2,6 +2,7 @@
   import { TrendingUp, TrendingDown, ChevronRight } from 'lucide-svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { classifyTier } from '$lib/domain/xp.js';
+  import { showPointsGraph } from '$lib/stores/settings.js';
 
   export let data;
 
@@ -9,6 +10,25 @@
   $: currentTier = fan ? classifyTier(fan.xp_total) : null;
   $: challenges = data.rank?.challenges || [];
   $: friendActivity = data.rank?.friendActivity || [];
+  $: xpHistory = data.xpHistory || [];
+
+  const graphW = 320;
+  const graphH = 120;
+  const graphPad = { top: 12, right: 12, bottom: 20, left: 12 };
+
+  $: graphMax = Math.max(1, ...xpHistory.map(p => p.amount));
+  $: graphPoints = xpHistory.map((p, i) => {
+    const innerW = graphW - graphPad.left - graphPad.right;
+    const innerH = graphH - graphPad.top - graphPad.bottom;
+    const x = graphPad.left + (xpHistory.length === 1 ? innerW / 2 : (i / (xpHistory.length - 1)) * innerW);
+    const y = graphPad.top + innerH - (p.amount / graphMax) * innerH;
+    return { x, y, ...p };
+  });
+  $: graphLine = graphPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  $: graphArea = graphPoints.length
+    ? `${graphLine} L ${graphPoints[graphPoints.length - 1].x} ${graphH - graphPad.bottom} L ${graphPoints[0].x} ${graphH - graphPad.bottom} Z`
+    : '';
+  $: graphTotal = xpHistory.reduce((s, p) => s + p.amount, 0);
 
   let filterLocation = 'LA';
   let filterPeriod = 'This week';
@@ -77,6 +97,32 @@
         </div>
       </div>
     </div>
+
+    {#if $showPointsGraph}
+      <section class="section">
+        <div class="section-head">
+          <h2 class="section-title">Points over time</h2>
+          <span class="graph-total">+{graphTotal.toLocaleString()} pts · 14d</span>
+        </div>
+        <div class="graph-card">
+          {#if graphMax > 0 && xpHistory.length > 0}
+            <svg viewBox="0 0 {graphW} {graphH}" class="graph-svg" preserveAspectRatio="none">
+              <path d={graphArea} fill="rgba(255, 92, 0, 0.12)" />
+              <path d={graphLine} fill="none" stroke="#FF5C00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              {#each graphPoints as p}
+                <circle cx={p.x} cy={p.y} r="2.5" fill="#FF5C00" />
+              {/each}
+            </svg>
+            <div class="graph-axis">
+              <span>{xpHistory[0]?.date.slice(5)}</span>
+              <span>{xpHistory[xpHistory.length - 1]?.date.slice(5)}</span>
+            </div>
+          {:else}
+            <p class="graph-empty">No points earned in the last 14 days.</p>
+          {/if}
+        </div>
+      </section>
+    {/if}
 
     <!-- Community Leaderboard -->
     <section class="section">
@@ -377,6 +423,43 @@
     color: #1C1C1E;
     cursor: pointer;
     font-family: inherit;
+  }
+
+  /* Points graph */
+  .graph-card {
+    margin: 0 16px;
+    background: #FFFFFF;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    padding: 12px 14px 10px;
+  }
+
+  .graph-svg {
+    display: block;
+    width: 100%;
+    height: 120px;
+  }
+
+  .graph-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #8E8E93;
+    margin-top: 2px;
+  }
+
+  .graph-total {
+    font-size: 12px;
+    font-weight: 600;
+    color: #FF5C00;
+  }
+
+  .graph-empty {
+    margin: 0;
+    padding: 24px 0;
+    text-align: center;
+    color: #8E8E93;
+    font-size: 13px;
   }
 
   /* Leaderboard */
