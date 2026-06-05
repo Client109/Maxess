@@ -50,4 +50,29 @@ export class LastFmClient extends BaseApiClient {
       format: 'json',
     });
   }
+
+  // Recent scrobbles for the user. `from` is a UNIX-seconds cursor — only
+  // tracks played at or after that timestamp are returned. The currently
+  // playing track (if any) has no `date` field and is skipped at the call site.
+  async getUserRecentTracks(username: string, opts: { from?: number; limit?: number } = {}) {
+    const params: Record<string, string | number> = {
+      method: 'user.getrecenttracks',
+      user: username,
+      limit: opts.limit ?? 50,
+      api_key: this.apiKey,
+      format: 'json',
+    };
+    if (opts.from) params.from = opts.from;
+    return this.get<{
+      recenttracks: {
+        track: Array<{
+          name: string;
+          artist: { '#text': string } | { name: string };
+          date?: { uts: string };
+          duration?: string;
+          '@attr'?: { nowplaying?: string };
+        }>;
+      };
+    }>('', params);
+  }
 }

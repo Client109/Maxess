@@ -1,10 +1,12 @@
 <script>
-  import { ChevronRight, ChevronUp, Search, Plus, Check } from 'lucide-svelte';
+  import { ChevronUp, Search, Plus, Check } from 'lucide-svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { showPointsGraph, activeCategory } from '$lib/stores/settings.js';
   import { followedSet, toggleFollowArtist } from '$lib/stores/followedArtists.js';
   import { locationMode, requestLocation, isGeolocationAvailable, acceptLocationPrompt, declineLocationPrompt, locationPromptStatus } from '$lib/stores/location.js';
   import InviteCard from '$lib/components/InviteCard.svelte';
+  import FollowingCard from '$lib/components/FollowingCard.svelte';
+  import RecentListensCard from '$lib/components/RecentListensCard.svelte';
 
   /** @type {{ value: 'off' | 'once' | 'while_using'; label: string; desc: string }[]} */
   const LOCATION_OPTIONS = [
@@ -88,11 +90,16 @@
         <h2 class="user-name">{fan.name}</h2>
         <p class="user-points">{fan.xp_total.toLocaleString()} total points</p>
       </div>
-      <ChevronRight size={20} color="#8E8E93" />
     </div>
 
     <!-- Invite friends — referral_program -->
     <InviteCard />
+
+    <!-- Following + sync — listens_capture -->
+    <FollowingCard followedArtists={data.followedArtists ?? []} />
+
+    <!-- Recent listens — listens_capture -->
+    <RecentListensCard recentListens={data.recentListens ?? []} />
 
     <!-- Music / Sports Toggle -->
     <div class="toggle-container">
@@ -120,7 +127,7 @@
     <!-- Your Top Connection -->
     {#if connection}
       <section class="section">
-        <div class="top-connection-card">
+        <a href={rowHref(connection.id)} class="top-connection-card">
           <span class="connection-label" style:color={categoryColor}>YOUR TOP CONNECTION</span>
           <div class="connection-content">
             <div
@@ -132,24 +139,26 @@
               {/if}
             </div>
             <div class="connection-info">
-              <h3 class="connection-name">{connection.name}</h3>
+              <div class="connection-name-row">
+                <h3 class="connection-name">{connection.name}</h3>
+                <span class="connection-tier" style="background: {connection.tier_color}">
+                  ★ {connection.tier}
+                </span>
+              </div>
               <div class="connection-stats">
                 <div class="conn-stat">
                   <span class="conn-stat-label">{isMusic ? 'Listener Percentile' : 'Fan Percentile'}</span>
                   <span class="conn-stat-value" style:color={categoryColor}>Top {connection.listener_percentile}%</span>
                 </div>
                 <div class="conn-divider"></div>
-                <div class="conn-stat">
+                <div class="conn-stat conn-stat--end">
                   <span class="conn-stat-label">Total points</span>
                   <span class="conn-stat-value" style:color={categoryColor}>{connection.points.toLocaleString()} pts</span>
                 </div>
               </div>
-              <span class="connection-tier" style="background: {connection.tier_color}">
-                ★ {connection.tier}
-              </span>
             </div>
           </div>
-        </div>
+        </a>
       </section>
     {/if}
 
@@ -468,12 +477,18 @@
 
   /* Top Connection */
   .top-connection-card {
+    display: block;
     margin: 0 16px;
     background: #FFFFFF;
     border: 1px solid #E5E5EA;
     border-radius: 16px;
     padding: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
   }
+
+  .top-connection-card:hover { background: #FAFAFA; }
 
   .connection-label {
     font-size: 10px;
@@ -503,26 +518,49 @@
     flex-shrink: 0;
   }
 
-  .connection-info { flex: 1; }
+  .connection-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .connection-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
 
   .connection-name {
     font-size: 20px;
     font-weight: 700;
-    margin: 0 0 8px;
+    margin: 0;
     color: #1C1C1E;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .connection-stats {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
-    margin-bottom: 10px;
   }
 
   .conn-stat {
     display: flex;
     flex-direction: column;
     gap: 1px;
+  }
+
+  .conn-stat--end {
+    align-items: flex-end;
+    text-align: right;
   }
 
   .conn-stat-label {
@@ -550,6 +588,8 @@
     border-radius: 99px;
     font-size: 12px;
     font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   /* Teams search */
@@ -711,7 +751,7 @@
   }
   .artist-row-wrap:last-child { border-bottom: none; }
   .artist-row-wrap .artist-row {
-    padding-right: 100px;
+    padding-right: 116px;
     border-bottom: none;
   }
 

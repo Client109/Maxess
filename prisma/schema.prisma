@@ -43,6 +43,8 @@ model User {
   friend_activities  FriendActivity[] @relation("UserFriendActivities")
   recent_activities  RecentActivity[]
   invitations_sent   Invitation[]     @relation("ReferrerInvites")
+  followed_artists   FollowedArtist[]
+  listening_events   ListeningEvent[]
 
   @@map("users")
 }
@@ -188,6 +190,56 @@ model Pass {
   attendance_verifications AttendanceVerification[]
 
   @@map("passes")
+}
+
+// FollowedArtist — user's followed artists. lastfm_name is the canonical match
+// key against Last.fm scrobbles (lowercase, trimmed).
+model FollowedArtist {
+  id            String   @id @default(cuid())
+  user_id       String
+  lastfm_name   String
+  display_name  String
+  spotify_id    String?
+  image_url     String?
+  followed_at   DateTime @default(now())
+
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, lastfm_name])
+  @@index([user_id])
+  @@map("followed_artists")
+}
+
+// ListeningEvent — append-only log of music listens captured from external
+// sources. Plays whose artist_name_canonical matches a FollowedArtist for the
+// same user are flagged is_followed=true and feed daily XP attribution via
+// computeDailyListeningXp() in src/lib/domain/xp-rules.ts.
+model ListeningEvent {
+  id                     String       @id @default(cuid())
+  user_id                String
+  artist_name_canonical  String
+  artist_display_name    String
+  track_name             String
+  played_at              DateTime
+  source                 ListenSource
+  duration_seconds       Int?
+  is_followed            Boolean      @default(false)
+  xp_awarded             Int          @default(0)
+  recorded_at            DateTime     @default(now())
+
+  user                   User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, source, played_at, track_name])
+  @@index([user_id, played_at])
+  @@index([artist_name_canonical])
+  @@map("listening_events")
+}
+
+enum ListenSource {
+  LASTFM
+  SPOTIFY
+
+  @@map("listen_source")
 }
 
 // AttendanceVerification — append-only log of how a user's attendance at an event was verified

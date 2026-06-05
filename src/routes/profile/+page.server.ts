@@ -1,5 +1,6 @@
 // Profile page server load — fan identity, artists, sports teams, and point system
 import { getUserByFanId, getXpBreakdown } from '$lib/server/database.js';
+import { getFollowedArtists, getRecentListens } from '$lib/server/listens.js';
 import { transformUserToFan } from '$lib/server/transforms.js';
 import { TicketmasterClient } from '$lib/api/ticketmaster.js';
 import { getArtistImage } from '$lib/server/music.js';
@@ -111,6 +112,15 @@ async function loadSportsTeams(): Promise<ProfileTeam[]> {
 
       for (const a of attractions) {
         if (seen.has(a.id)) continue;
+        // Defensive segment guard: Ticketmaster's Sports-classified events
+        // occasionally surface mis-tagged music attractions (cross-genre
+        // venues, one-off benefit concerts in arenas). Drop anything whose
+        // attraction-level segment isn't Sports so the "All Teams" list on
+        // Profile can never display a music artist.
+        const segment = (a.classifications?.find(c => c.primary)?.segment?.name
+          ?? a.classifications?.[0]?.segment?.name
+          ?? '').toLowerCase();
+        if (segment && segment !== 'sports') continue;
         const img = a.images?.find(im => im.width >= 200 && im.width <= 800)?.url
           ?? a.images?.[0]?.url
           ?? null;
@@ -138,61 +148,77 @@ export async function load() {
     return { fan: null, artists: [], teams: [], topConnection: null, topTeamConnection: null };
   }
 
-  const [xpBreakdown, teams] = await Promise.all([
+  const [xpBreakdown, teams, followedArtists, recentListens] = await Promise.all([
     getXpBreakdown('fan_001'),
     loadSportsTeams(),
+    getFollowedArtists('fan_001'),
+    getRecentListens('fan_001', 10),
   ]);
   const fan = { ...transformUserToFan(dbUser), xp_breakdown: xpBreakdown };
 
-  // Mock per-artist data matching week-9 profile mockup
+  // Per-artist mock data. Points + tier_color span every tier band so the
+  // "All Artists" list demonstrates all four rank colors plus the Newcomer
+  // sky-blue. Thresholds (xp.ts → TIERS): 10K / 100K / 250K / 1M.
   const artists = [
     {
       id: 'weeknd',
       name: 'The Weeknd',
-      points: 5840,
+      points: 1_250_000,
       tier: 'Elite',
       tier_color: '#FF5C00',
-      pts_to_next: 1160,
+      pts_to_next: 0,
       next_tier: 'Elite',
-      progress: 0.83,
+      progress: 1,
       listener_percentile: 2,
       image: '/images/weeknd.jpg',
     },
     {
       id: 'kaytranada',
       name: 'Kaytranada',
-      points: 2780,
+      points: 410_000,
       tier: 'Superfan',
       tier_color: '#3B28CC',
-      pts_to_next: 220,
-      next_tier: 'Superfan',
-      progress: 0.93,
+      pts_to_next: 590_000,
+      next_tier: 'Elite',
+      progress: 0.21,
       listener_percentile: 8,
       image: '/images/kaytranada.jpg',
     },
     {
       id: 'daniel-caesar',
       name: 'Daniel Caesar',
-      points: 1920,
-      tier: 'Superfan',
-      tier_color: '#3B28CC',
-      pts_to_next: 1080,
+      points: 165_000,
+      tier: 'Loyal',
+      tier_color: '#2667FF',
+      pts_to_next: 85_000,
       next_tier: 'Superfan',
-      progress: 0.64,
+      progress: 0.43,
       listener_percentile: 12,
       image: '/images/daniel-caesar.jpg',
     },
     {
       id: 'odesza',
       name: 'ODESZA',
-      points: 1450,
-      tier: 'Loyal',
+      points: 42_000,
+      tier: 'Fan',
       tier_color: '#1A9E56',
-      pts_to_next: 550,
+      pts_to_next: 58_000,
       next_tier: 'Loyal',
-      progress: 0.73,
+      progress: 0.36,
       listener_percentile: 15,
       image: '/images/odesza.jpg',
+    },
+    {
+      id: 'arctic-monkeys',
+      name: 'Arctic Monkeys',
+      points: 4_500,
+      tier: 'Newcomer',
+      tier_color: '#5AC8FA',
+      pts_to_next: 5_500,
+      next_tier: 'Fan',
+      progress: 0.45,
+      listener_percentile: 22,
+      image: null,
     },
   ];
 
@@ -216,5 +242,19 @@ export async function load() {
     teams,
     topConnection,
     topTeamConnection,
+    followedArtists: followedArtists.map(a => ({
+      id: a.id,
+      display_name: a.display_name,
+      image_url: a.image_url,
+      followed_at: a.followed_at.toISOString(),
+    })),
+    recentListens: recentListens.map(l => ({
+      id: l.id,
+      artist: l.artist_display_name,
+      track: l.track_name,
+      played_at: l.played_at.toISOString(),
+      source: l.source,
+      is_followed: l.is_followed,
+    })),
   };
 }

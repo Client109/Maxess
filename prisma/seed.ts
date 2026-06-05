@@ -46,6 +46,8 @@ async function main() {
   await prisma.friendActivity.deleteMany();
   await prisma.recentActivity.deleteMany();
   await prisma.attendanceVerification.deleteMany();
+  await prisma.listeningEvent.deleteMany();
+  await prisma.followedArtist.deleteMany();
   await prisma.pass.deleteMany();
   await prisma.event.deleteMany();
   await prisma.challenge.deleteMany();
@@ -570,10 +572,58 @@ async function main() {
     ],
   });
 
+  // ── Followed artists (for Alex Chen) ──────────────────────────────────
+  const followedSeed = [
+    { display_name: 'The Weeknd' },
+    { display_name: 'Kaytranada' },
+    { display_name: 'Daniel Caesar' },
+    { display_name: 'ODESZA' },
+  ];
+  await prisma.followedArtist.createMany({
+    data: followedSeed.map(f => ({
+      user_id: mainUser.id,
+      display_name: f.display_name,
+      lastfm_name: f.display_name.trim().toLowerCase(),
+    })),
+  });
+
+  // ── Sample listening events for Alex Chen (recent listens panel) ──────
+  // Mix of followed-artist plays (is_followed=true) and others. played_at
+  // spaced across the last 24 hours so the "Recent listens" demo isn't all
+  // bunched up.
+  const now = Date.now();
+  const minuteMs = 60_000;
+  const listens = [
+    { artist: 'The Weeknd',     track: 'Blinding Lights',      ago: 15,  dur: 200, followed: true },
+    { artist: 'The Weeknd',     track: 'Save Your Tears',      ago: 19,  dur: 215, followed: true },
+    { artist: 'Kaytranada',     track: '10%',                  ago: 47,  dur: 198, followed: true },
+    { artist: 'Daniel Caesar',  track: 'Best Part',            ago: 88,  dur: 230, followed: true },
+    { artist: 'ODESZA',         track: 'A Moment Apart',       ago: 140, dur: 248, followed: true },
+    { artist: 'Tame Impala',    track: 'The Less I Know',      ago: 250, dur: 220, followed: false },
+    { artist: 'Kaytranada',     track: 'Lite Spots',           ago: 480, dur: 215, followed: true },
+    { artist: 'SZA',            track: 'Snooze',               ago: 720, dur: 200, followed: false },
+    { artist: 'The Weeknd',     track: 'After Hours',          ago: 900, dur: 360, followed: true },
+    { artist: 'Frank Ocean',    track: 'Pink + White',         ago: 1200, dur: 184, followed: false },
+  ];
+  await prisma.listeningEvent.createMany({
+    data: listens.map(l => ({
+      user_id: mainUser.id,
+      artist_display_name: l.artist,
+      artist_name_canonical: l.artist.trim().toLowerCase(),
+      track_name: l.track,
+      played_at: new Date(now - l.ago * minuteMs),
+      source: 'LASTFM',
+      duration_seconds: l.dur,
+      is_followed: l.followed,
+    })),
+  });
+
   const totalUsers = await prisma.user.count();
   const totalLeaderboard = await prisma.leaderboardEntry.count();
   const totalFriendActivities = await prisma.friendActivity.count();
-  console.log(`Seed completed: ${totalUsers} users, ${totalLeaderboard} leaderboard entries, ${totalFriendActivities} friend activities, 8 challenges, 10 passes (2 wallet tickets), 2 events`);
+  const totalFollowed = await prisma.followedArtist.count();
+  const totalListens = await prisma.listeningEvent.count();
+  console.log(`Seed completed: ${totalUsers} users, ${totalLeaderboard} leaderboard entries, ${totalFriendActivities} friend activities, 8 challenges, 10 passes (2 wallet tickets), 2 events, ${totalFollowed} followed artists, ${totalListens} listening events`);
 }
 
 main()

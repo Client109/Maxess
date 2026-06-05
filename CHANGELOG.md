@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `src/lib/domain/xp-rules.test.ts` — 9 vitest cases covering constants, daily cap clamping, partial-day deltas, fractional-hour flooring, and negative-input handling.
 - `specs/app.yml:xp_scoring_model` rewritten around the new constants plus an `anti_grind` section documenting the daily cap, 30-second listen threshold, idempotent concert verification, and worked earn-rate estimates (active fan ≈ 107K XP/yr, casual fan ≈ 33K XP/yr).
 - `specs/app.yml:tier_thresholds` expanded to a 5-row table with `prisma_enum`, `display_only`, and explicit `min_xp` / `max_xp` columns so the GENERAL → Newcomer/Fan split is unambiguous.
+- **Sophisticated Spotify/Last.fm listening capture** — periodically pulls each user's scrobbles, attributes plays to followed artists, and awards Streaming XP through the existing `computeDailyListeningXp()` helper.
+  - Prisma: `FollowedArtist` model (`user_id`, `lastfm_name` canonical, `display_name`, `spotify_id?`, `image_url?`), `ListeningEvent` model (idempotent on `(user_id, source, played_at, track_name)`, `is_followed` flag), `ListenSource` enum (`LASTFM | SPOTIFY`).
+  - `src/lib/server/listens.ts` — `syncUserListens(fanId)` polls Last.fm `user.getRecentTracks` from a per-user cursor, dedupes via unique constraint, recomputes today's followed-artist signal, writes the XP delta with source `Streaming`. Pure `attributeListens()` helper unit-tested. Spotify OAuth path stubbed for when auth lands.
+  - Endpoints: `POST /api/artists/follow`, `DELETE /api/artists/follow/[id]`, `GET /api/artists/followed`, `POST /api/listens/sync` (on-demand), `GET /api/cron/sync-listens` (Vercel Cron; recognized via `x-vercel-cron` header or `Authorization: Bearer ${CRON_SECRET}`).
+  - `vercel.json` — hourly cron schedule (`0 * * * *`). Vercel Hobby tier only supports daily cron; downgrade to `0 0 * * *` on Hobby.
+  - `LastFmClient.getUserRecentTracks(username, { from, limit })` — new method on `src/lib/api/lastfm.ts`.
+  - UI: `FollowingCard.svelte` on Profile (followed-artist chips with unfollow + "Sync now" button), `RecentListensCard.svelte` (last 10 plays with "Followed" badge), Follow/Unfollow button on `/artist/[id]` now also POSTs/DELETEs the server API so listens capture can attribute plays.
+  - Seed: pre-follows 4 artists for Alex (The Weeknd, Kaytranada, Daniel Caesar, ODESZA) + 10 sample `ListeningEvent` rows across the last 24 h so the demo UI populates without a real sync.
+  - `CRON_SECRET` env var documented (optional; only needed for manual cron triggering outside Vercel's automatic header).
+  - `src/lib/server/listens.test.ts` — 6 vitest cases covering canonical-name normalization, follow-set tagging, daily aggregation, MIN_LISTEN_SECONDS filtering, and missing-duration handling.
 
 ## [0.7.0] - 2026-06-04
 

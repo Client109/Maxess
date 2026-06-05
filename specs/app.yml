@@ -240,6 +240,17 @@ app_spec:
           constraints: ["@@unique([user_id, event_id, method])", "@@index([event_id])"]
           purpose: "Append-only log of attendance verification events. Each (user, event, method) tuple records once — re-scans are idempotent. Drives XP award via addXpTransaction with source='Event Attendance' and reference=event_id."
           table: "attendance_verifications"
+        FollowedArtist:
+          fields: ["id (cuid)", "user_id", "lastfm_name (canonical lowercase, used as match key against Last.fm scrobbles)", "display_name", "spotify_id?", "image_url?", "followed_at"]
+          relations: ["user → User", "listening_events → ListeningEvent (joined via artist_name_canonical)"]
+          constraints: ["@@unique([user_id, lastfm_name])", "@@index([user_id])"]
+          purpose: "User's followed artists. Listening capture only awards XP for plays whose canonical artist name matches a FollowedArtist row for the same user."
+          table: "followed_artists"
+        ListeningEvent:
+          fields: ["id (cuid)", "user_id", "artist_name_canonical (lowercase, trimmed)", "artist_display_name", "track_name", "played_at", "source (ListenSource)", "duration_seconds?", "is_followed (bool, set at insert based on FollowedArtist join)", "xp_awarded (Int, 0 if cap reached)", "recorded_at"]
+          constraints: ["@@unique([user_id, source, played_at, track_name])", "@@index([user_id, played_at])", "@@index([artist_name_canonical])"]
+          purpose: "Append-only log of music listens captured from external sources (Last.fm now, Spotify OAuth when auth lands). is_followed=true plays feed daily XP aggregation via computeDailyListeningXp() in xp-rules.ts."
+          table: "listening_events"
         FriendActivity:
           fields: ["id (cuid)", "user_id", "friend_name (string — not yet FK)", "activity", "xp_change?", "created_at"]
           notes: "friend_name is a plain string for demo. getFriendUserIds() resolves it to User rows by name match."
@@ -259,6 +270,7 @@ app_spec:
         Period: ["WEEKLY", "MONTHLY", "ALL_TIME"]
         PassKind: ["TICKET", "PERK", "PRESALE"]
         VerificationMethod: ["WALLET_SCAN", "SELF_CHECKIN", "MANUAL", "TICKETMASTER_WEBHOOK"]
+        ListenSource: ["LASTFM", "SPOTIFY"]
       seed_inventory:
         path: "prisma/seed.ts"
         run: "npm run db:seed"
@@ -441,7 +453,11 @@ app_spec:
     artist_detail:
       route: "/artist/[id]"
       load_function: "src/routes/artist/[id]/+page.server.ts"
-      data_sources: ["Per-artist tier progress + Spotify/Last.fm enrichment via getArtistData()"]
+      data_sources: ["Per-artist tier progress + Spotify/Last.fm enrichment via getArtistData()", "isArtistFollowed(fan_001, artistName) → drives follow-button state"]
+      primary_components:
+        - "Hero image, artist name, genre"
+        - "Follow / Unfollow button — POSTs /api/artists/follow or DELETEs /api/artists/follow/[id]"
+        - "Per-artist tier progress"
 
     profile:
       route: "/profile"
@@ -450,6 +466,8 @@ app_spec:
         - "getUserByFanId('fan_001') + getXpBreakdown('fan_001') → fan profile with XP-by-source"
         - "Static per-artist mock list (4 artists: The Weeknd, Kaytranada, Daniel Caesar, ODESZA) with tier / points / progress / listener_percentile"
         - "topConnection derived as artists[0]"
+        - "getFollowedArtists('fan_001') → followed-artists chips"
+        - "getRecentListens('fan_001', 10) → recent-listens panel"
       primary_components:
         - "Identity card (avatar initials, name, tier badge)"
         - "Per-artist tier cards with progress to next tier and listener percentile"
@@ -459,11 +477,15 @@ app_spec:
         - "Settings toggles for notifications and preferences"
         - "Location sharing segmented control (Off | Once | While Using) — see location_sharing section"
         - "Invite friends card — see referral_program section"
+        - "Following artists chips with unfollow affordance — see listens_capture section"
+        - "Recent listens panel (last 10 plays) with a 'followed' badge on attributed plays"
+        - "'Sync listens now' button that POSTs /api/listens/sync and reports new_plays / xp_awarded"
       required_interactions:
         - "Settings toggles persist state changes"
         - "Tier progression shows next milestone"
         - "Location sharing selection triggers the native browser permission prompt when changing from Off → Once or Off → While Using"
         - "Invite button opens a popover with an email input and a Send button; on submit POSTs to /api/invites"
+        - "Sync now button shows a toast with the number of new plays and XP awarded"
       after_data_layer: "Alex Chen's real XP breakdown — 3,600 Event Attendance, 2,840 Streaming, 960 Watch XP, 440 Spend XP, 910 Challenges. Events attended count from User.events_attended. Top artist/venue from User row."
 
   navigation:
@@ -545,6 +567,44 @@ app_spec:
     signing_modes:
       unsigned_default: "When any of APPLE_PASS_TYPE_ID / APPLE_TEAM_ID / APPLE_PASS_CERT_P12_BASE64 / APPLE_PASS_CERT_PASSWORD is missing, the generator emits a valid .pkpass zip with pass.json + manifest.json but no signature.bin. iOS will refuse to add it but the download flow, scan endpoint, attendance ledger, and XP wiring are fully exercised."
       signed: "When all four env vars are set, generator inserts a PKCS#7 detached signature of manifest.json under Apple's WWDR cert chain. Implementation slot present; full PKCS#7 path is a follow-up (current ship: unsigned-only)."
+
+  listens_capture:
+    description: "Sophisticated music-listening capture. Periodically polls each user's Last.fm scrobbles (and, when Spotify OAuth ships, /me/player/recently-played), inserts new ListeningEvent rows, flags those whose canonical artist name matches a FollowedArtist row, and feeds the day's followed-artist tally into computeDailyListeningXp() — writing the delta to xp_transactions with source='Streaming'."
+    sources:
+      lastfm:
+        status: "Active — works today, no user OAuth, uses existing LASTFM_API_KEY + user.lastfm_username"
+        endpoint: "user.getRecentTracks (last 50 plays, supports `from` cursor for resumable polling)"
+        rate_limits: "5 req/sec global (shared with existing lastfm.ts usage)"
+      spotify:
+        status: "Stubbed — activates when Spotify OAuth (Authorization Code + PKCE) ships; requires User.spotify_access_token + refresh logic (deferred with auth)"
+        endpoint: "GET /v1/me/player/recently-played (Spotify caps at 50 most recent plays per call)"
+    components:
+      service:
+        path: "src/lib/server/listens.ts"
+        exports:
+          - "syncUserListens(fanId) — polls active source for the user, dedupes against ListeningEvent, awards XP delta"
+          - "attributeListens(rawListens, followedArtists) — pure: tags each event with is_followed, returns daily aggregate {trackListens, minutesListened}"
+          - "followArtist(fanId, {display_name, spotify_id?, image_url?})"
+          - "unfollowArtist(fanId, followedArtistId)"
+          - "getFollowedArtists(fanId)"
+          - "getRecentListens(fanId, limit)"
+        helpers: "computeDailyListeningXp() from src/lib/domain/xp-rules.ts is the single source of truth for the formula"
+      endpoints:
+        follow:
+          POST: "/api/artists/follow — body { display_name, spotify_id?, image_url? } — creates FollowedArtist row, 409 on duplicate"
+          DELETE: "/api/artists/follow/[id] — removes by FollowedArtist.id"
+          GET: "/api/artists/followed — current user's followed artists"
+        sync:
+          POST: "/api/listens/sync — manual sync trigger for the current user; returns { new_plays, xp_awarded }"
+        cron:
+          GET: "/api/cron/sync-listens — Vercel Cron entry point; iterates all users with lastfm_username; gated by header `x-vercel-cron` (Vercel sets it automatically) OR `Authorization: Bearer ${CRON_SECRET}` for manual triggering. Returns aggregate { users_synced, total_new_plays, total_xp_awarded }."
+      cron_schedule:
+        config: "vercel.json — { crons: [{ path: '/api/cron/sync-listens', schedule: '0 * * * *' }] }"
+        cadence: "Every hour at minute 0. Hobby tier allows daily cron only; Pro tier allows up to per-minute. Lower the frequency in vercel.json if hitting the Hobby limit."
+    idempotency: "ListeningEvent @@unique([user_id, source, played_at, track_name]) — duplicate scrobbles from overlapping poll windows are silently skipped. XP awarded is the delta against the day's prior Streaming XP, so a re-sync within the same day awards 0 new XP."
+    privacy: "Only Last.fm public scrobble data is fetched. lastfm_username is set per user; if unset, that user is skipped by the cron. No PII beyond the username crosses the boundary."
+    env_vars:
+      CRON_SECRET: "Optional shared secret for manual cron triggering. Vercel Cron's own invocations are recognized via the x-vercel-cron header and don't need the secret."
 
   xp_scoring_model:
     description: "Signal-based XP calculation. Music-listening and concert-attendance rates are the canonical earn rules for the points economy. Constants live in src/lib/domain/xp-rules.ts; helpers there are unit-tested in xp-rules.test.ts."
@@ -816,6 +876,7 @@ app_spec:
       APPLE_PASS_CERT_P12_BASE64: "Base64-encoded signing certificate (.p12). Optional — required for real-device-installable passes."
       APPLE_PASS_CERT_PASSWORD: "Password for the .p12 cert. Optional, paired with APPLE_PASS_CERT_P12_BASE64."
       APPLE_PASS_ORGANIZATION_NAME: "Organization name shown in Wallet UI (default 'Maxxes')."
+      CRON_SECRET: "Optional shared secret for hitting /api/cron/sync-listens outside of Vercel's automatic cron. Vercel's own cron pings carry an x-vercel-cron header and bypass the check."
 
     build_process:
       1: "package.json postinstall runs `prisma generate` automatically"
@@ -937,9 +998,16 @@ app_spec:
       │   │       └── +page.server.ts (lists Alex's TICKET passes)
       │   └── api/
       │       ├── events/+server.ts (search endpoint)
-      │       └── passes/
-      │           ├── [passId]/wallet/+server.ts (.pkpass download)
-      │           └── scan/[serial]/+server.ts (attendance scan ingest)
+      │       ├── passes/
+      │       │   ├── [passId]/wallet/+server.ts (.pkpass download)
+      │       │   └── scan/[serial]/+server.ts (attendance scan ingest)
+      │       ├── artists/
+      │       │   ├── follow/+server.ts (POST follow, GET list)
+      │       │   └── follow/[id]/+server.ts (DELETE unfollow)
+      │       ├── listens/
+      │       │   └── sync/+server.ts (POST on-demand sync for current user)
+      │       └── cron/
+      │           └── sync-listens/+server.ts (GET Vercel Cron hourly sync)
       ├── lib/
       │   ├── api/
       │   │   ├── base.ts (BaseApiClient with rate limiting, SimpleCache)
@@ -962,6 +1030,7 @@ app_spec:
       │   │   ├── transforms.ts (Prisma row → UI domain type mappers + getTierPerks)
       │   │   ├── events.ts (Ticketmaster → Event normalizer + filterNearYouThisWeek helper)
       │   │   ├── music.ts (Spotify-first / Last.fm-fallback intelligence service)
+      │   │   ├── listens.ts (Last.fm scrobble polling + followed-artist XP attribution)
       │   │   └── wallet/
       │   │       └── pkpass.ts (Apple Wallet .pkpass generator + pluggable signer)
       │   ├── stores/

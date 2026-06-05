@@ -7,8 +7,36 @@
   $: artist = data.artist;
   $: upcomingEvents = data.upcomingEvents;
   $: leaderboard = data.leaderboard;
-  $: isFollowing = $followedSet.has(artist.id);
+  // Server-truth on first paint, then mirrors client-side store after toggles.
+  let serverFollowId = data.serverFollow?.id ?? null;
+  let serverFollowing = data.serverFollow?.followed ?? false;
+  $: isFollowing = serverFollowing || $followedSet.has(artist.id);
   $: hasListeningData = artist.monthly_plays > 0;
+
+  async function persistFollowToggle() {
+    // Mirror the existing client-side store, then sync to server so listens
+    // capture can attribute plays. Server is authoritative for XP attribution.
+    if (serverFollowing && serverFollowId) {
+      const res = await fetch(`/api/artists/follow/${serverFollowId}`, { method: 'DELETE' });
+      if (res.ok) {
+        serverFollowing = false;
+        serverFollowId = null;
+      }
+    } else {
+      const res = await fetch('/api/artists/follow', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ display_name: artist.name }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        serverFollowing = true;
+        serverFollowId = body?.followed?.id ?? null;
+      } else if (res.status === 409) {
+        serverFollowing = true;
+      }
+    }
+  }
 
   // Sports genres (NHL, NBA, MLB, NFL, soccer) ride the same /artist/[id] route.
   // Category controls how progress is grouped in the home "YOUR PROGRESS" section.
@@ -74,7 +102,10 @@
           class="follow-btn"
           class:follow-btn--on={isFollowing}
           aria-pressed={isFollowing}
-          on:click={() => toggleFollowArtist(artist.id, artist.name, { category: followCategory, points: followPointsSeed })}
+          on:click={() => {
+            toggleFollowArtist(artist.id, artist.name, { category: followCategory, points: followPointsSeed });
+            persistFollowToggle();
+          }}
         >
           {#if isFollowing}
             <Check size={14} />

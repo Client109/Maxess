@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { mockEvents, mockFanProfile } from '$lib/data/mockData.js';
+import { isArtistFollowed } from '$lib/server/listens.js';
 
 // Mock artist data keyed by slug
 type MockArtist = {
@@ -233,9 +234,13 @@ export async function load({ params }) {
     { rank: 5, name: 'Sam K.', score: 79, city: 'LA' },
   ];
 
+  // Server-side follow state from FollowedArtist table (authoritative across reloads)
+  const followState = await isArtistFollowed('fan_001', artist.name);
+
   return {
     artist,
     upcomingEvents,
     leaderboard,
+    serverFollow: followState,
   };
 }
