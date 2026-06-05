@@ -1,0 +1,31 @@
+# Vercel-only ignore (in addition to .gitignore). Excludes anything that's
+# not needed at build/runtime so the upload stays under the 100 MB limit.
+# Leading `/` anchors to the project root so we don't accidentally match
+# nested paths like src/lib/data/.
+
+# Dev artifacts
+/.svelte-kit
+/.vercel
+/build
+/node_modules
+/dist
+/.specstory
+*.log
+
+# Reference datasets — not loaded at runtime
+/data
+/legacy
+/research
+/_archive
+/_llm-artifacts
+/backend-setup
+/tools
+/static-preview
+/generated
+/assets
+/doc
+
+# Misc dev files
+/preview-server.err
+/preview-server.log
+/TOKENS.jsonl
