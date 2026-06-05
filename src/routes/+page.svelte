@@ -52,13 +52,35 @@
     })
     .filter(t => t !== null);
 
-  // Top 3 followed fandoms for the "Your fandoms" list.
-  $: topFandoms = [...progressThreads]
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 3);
+  // Top 3 fandoms for the "Your fandoms" list. Prefer the server-side
+  // FanTier.points_balance ordering — that's what the Home mockup is
+  // wired to (Weeknd 5,480 / Ducks 2,340 / Ariana 930). Falls back to
+  // the client-side followed/progress store when server data is missing.
+  $: serverFandoms = (data.topFandomsByBalance ?? []).map(f => ({
+    id: f.fandom_id,
+    name: f.name,
+    image: f.image,
+    points: f.points_balance,
+    tier_name: f.tier,
+    tier_color: f.tier_color,
+    category: 'music',
+  }));
+  $: topFandoms = serverFandoms.length > 0
+    ? serverFandoms
+    : [...progressThreads].sort((a, b) => b.points - a.points).slice(0, 3);
 
-  // Top fandom for the Universal Balance hero pill.
-  $: heroFandom = topFandoms[0] ?? data.topFandom ?? null;
+  // Hero pill: tier for the user's *selected* fandom (User.selected_fandom_id).
+  // Falls back to the top fandom by balance.
+  $: heroFandom = data.selectedFandomTier
+    ? {
+        name: data.selectedFandomTier.fandom_name,
+        tier_name: data.selectedFandomTier.name,
+        tier_color: data.selectedFandomTier.color_hex,
+        points: topFandoms.find(f => f.name === data.selectedFandomTier?.fandom_name)?.points
+          ?? topFandoms[0]?.points
+          ?? 0,
+      }
+    : topFandoms[0] ?? data.topFandom ?? null;
 
   // Top upcoming event (1 card).
   $: nextEvent = (data.upcomingEvents ?? [])
@@ -132,7 +154,7 @@
     <div class="balance-card">
       <div class="balance-left">
         <span class="balance-label">Universal Balance</span>
-        <div class="balance-value">{fan.xp_total.toLocaleString()}</div>
+        <div class="balance-value">{(data.universalBalance ?? 0).toLocaleString()}</div>
         <span class="balance-sub">Points never expire</span>
         {#if heroFandom && heroTone}
           <span class="balance-pill" style:background={heroTone.fg}>
@@ -171,8 +193,12 @@
             {@const tone = tierTone(t.tier_name)}
             <li>
               <a class="fandom-row" href={t.category === 'sports' ? `/score` : `/artist/${t.id}`}>
-                <span class="fandom-avatar" style:background={t.tier_color}>
-                  {t.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                <span class="fandom-avatar" style:background={t.image ? '#1F1F21' : t.tier_color}>
+                  {#if t.image}
+                    <img src={t.image} alt={t.name} />
+                  {:else}
+                    {t.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                  {/if}
                 </span>
                 <span class="fandom-name">{t.name}</span>
                 <span class="fandom-points">
@@ -435,6 +461,13 @@
     font-weight: 700;
     color: var(--text-primary);
     flex-shrink: 0;
+    overflow: hidden;
+  }
+  .fandom-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
   .fandom-name {
     font-size: 16px;

@@ -109,7 +109,7 @@
 
   <!-- Search -->
   <div class="search">
-    <Search size={18} color="#8E8E93" />
+    <span class="search-icon"><Search size={18} /></span>
     <input
       type="text"
       class="search-input"
@@ -182,7 +182,7 @@
                 <Icon size={12} />
                 {tier}
               </span>
-              <ChevronRight size={18} color="#5A5A60" />
+              <span class="chevron-dim"><ChevronRight size={18} /></span>
             </div>
           </a>
         {/each}
@@ -200,7 +200,7 @@
         <p class="recommend-line">Maxxes App</p>
         <p class="recommend-cta">Earn <span class="recommend-pts">+50</span> per correct answer</p>
       </div>
-      <ChevronRight size={18} color="#5A5A60" />
+      <span class="chevron-dim"><ChevronRight size={18} /></span>
     </a>
   </section>
 
@@ -217,7 +217,7 @@
   .page {
     min-height: 100vh;
     background: var(--bg-primary);
-    color: #FFFFFF;
+    color: var(--text-primary);
     padding: 8px 20px 96px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   }
@@ -236,11 +236,11 @@
     font-weight: 700;
     letter-spacing: -0.5px;
     line-height: 1.1;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
   .page-subtitle {
     margin: 6px 0 0;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     font-size: 15px;
   }
   .bell-btn {
@@ -250,7 +250,7 @@
     border-radius: 50%;
     background: transparent;
     border: 1px solid var(--border-strong);
-    color: #FFFFFF;
+    color: var(--text-primary);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -265,7 +265,7 @@
     height: 8px;
     border-radius: 50%;
     background: #FF5C00;
-    box-shadow: 0 0 0 2px #000000;
+    box-shadow: 0 0 0 2px var(--bg-primary);
   }
 
   /* Search */
@@ -287,12 +287,12 @@
     background: transparent;
     border: none;
     outline: none;
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-size: 16px;
     font-family: inherit;
     min-width: 0;
   }
-  .search-input::placeholder { color: #8E8E93; }
+  .search-input::placeholder { color: var(--text-tertiary); }
 
   /* Chips */
   .chips-row {
@@ -308,7 +308,7 @@
   .chip {
     flex-shrink: 0;
     background: transparent;
-    color: #C7C7CC;
+    color: var(--text-secondary);
     border: 1px solid var(--border-strong);
     border-radius: 14px;
     padding: 12px 22px;
@@ -334,7 +334,7 @@
     margin: 0 0 14px;
     font-size: 20px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   /* Event cards */
@@ -357,7 +357,7 @@
     transition: border-color 0.15s ease, transform 0.1s ease;
   }
   .event-card:active { transform: scale(0.998); }
-  .event-card:hover { border-color: #25252A; }
+  .event-card:hover { border-color: var(--border-strong); }
 
   .event-thumb {
     width: 100%;
@@ -383,7 +383,7 @@
     margin: 0 0 4px;
     font-size: 17px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -394,7 +394,7 @@
   .event-line {
     margin: 0;
     font-size: 14px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
     line-height: 1.35;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -403,7 +403,7 @@
   .event-meta {
     margin: 0;
     font-size: 14px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
   }
   .event-cta {
     margin: 6px 0 0;
@@ -432,6 +432,12 @@
     font-weight: 600;
     background: transparent;
   }
+
+  /* Icon-color wrappers — lucide-svelte inherits currentColor when no explicit
+     color attribute is set, so wrapping a span lets the icon hue flip with
+     the theme via tokens. */
+  .chevron-dim { display: inline-flex; color: var(--icon-dim); }
+  .search-icon { display: inline-flex; color: var(--text-tertiary); }
 
   /* Recommended */
   .recommend-card {
@@ -465,17 +471,17 @@
     margin: 0;
     font-size: 17px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
   .recommend-line {
     margin: 0;
     font-size: 14px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
   }
   .recommend-cta {
     margin: 2px 0 0;
     font-size: 14px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
   }
   .recommend-pts {
     color: #FF5C00;
@@ -484,7 +490,7 @@
 
   .footer-note {
     margin: 32px 0 0;
-    color: #6E6E73;
+    color: var(--text-muted);
     font-size: 13px;
     text-align: center;
     line-height: 1.5;
@@ -492,7 +498,7 @@
 
   .empty {
     margin: 8px 0 0;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     font-size: 14px;
   }
 </style>
