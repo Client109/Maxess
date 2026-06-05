@@ -38,7 +38,7 @@
   <section class="hotlist-cta">
     <div class="cta-card">
       <div class="cta-icon">
-        <Music size={24} color="#FF5C00" />
+        <Music size={24} color="#2667FF" />
       </div>
       <h3 class="cta-title">Earn points by listening</h3>
       <p class="cta-description">Connect Apple Music to earn points from Hot List artists</p>

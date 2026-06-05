@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-06-04
+
+### Added
+- Location sharing — user-controlled native geolocation with three modes (Off | Once | While Using). Profile → Settings hosts a custom Svelte segmented control; Home → Near You This Week gets an inline "Use my location" chip for one-shot opt-in. Coordinates stay on-device (localStorage + in-memory Svelte store); never sent to the server.
+- `src/lib/stores/location.ts` — `locationMode` and `lastLocation` writables, `requestLocation({ forceOnce? })` helper, `isGeolocationAvailable()` capability check, `isFreshEnough()` cache helper. Auto-reverts `once` → `off` after capture; reuses fixes within 30 min for `while_using`; hard-discards readings older than 24 h on cold load.
+- Permission handling: `PERMISSION_DENIED` flips mode to off + toast; 10 s timeout reverts `once` to off; insecure-context detection renders the control disabled with "Not supported on this device" caption.
+- `src/lib/stores/location.test.ts` — 9 vitest cases covering mode transitions, cache freshness, permission denial, timeout, force-once bypass, SSR safety.
+- App spec: new `location_sharing` section documenting modes, consumers, privacy posture, store shape, and test coverage.
+
 ## [0.6.0] - 2026-06-04
 
 ### Added

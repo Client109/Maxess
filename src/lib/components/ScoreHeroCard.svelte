@@ -39,10 +39,13 @@
   $: bottomValue2 = fan?.top_venue ?? '';
   $: streakLabel = mode === 'sports' ? 'GAME STREAK' : 'DAY STREAK';
 
+  // Category accent — blue for music, orange for sports
+  $: accent = mode === 'music' ? '#2667FF' : '#FF5C00';
+
   // Gradient shifts based on mode
   $: bgGradient = mode === 'sports'
-    ? 'linear-gradient(135deg, #1a1a1a 0%, #2d1810 100%)'
-    : 'linear-gradient(135deg, #1a1ae0 0%, #5a2dd5 100%)';
+    ? 'linear-gradient(135deg, #FF5C00 0%, #C13800 100%)'
+    : 'linear-gradient(135deg, #2667FF 0%, #3B28CC 100%)';
 </script>
 
 <div class="hero-card" class:animated style="background: {bgGradient}">
@@ -66,11 +69,11 @@
       <div class="right-stats">
         <div class="streak-section">
           <div class="streak-badge">
-            <Flame size={16} fill="#FF5C00" color="#FF5C00" />
+            <Flame size={16} fill={accent} color={accent} />
             <span class="streak-number">{streak}</span>
           </div>
-          <div class="streak-label">{streakLabel}</div>
-          <div class="streak-divider"></div>
+          <div class="streak-label" style:color={accent}>{streakLabel}</div>
+          <div class="streak-divider" style:background={accent}></div>
         </div>
         <div class="percentage-section">
           <div class="percentage-main">Top {percentile}%</div>
@@ -197,7 +200,6 @@
   .streak-label {
     font-size: 11px;
     font-weight: 600;
-    color: #FF5C00;
     letter-spacing: 0.5px;
     margin-bottom: 6px;
   }
@@ -205,7 +207,6 @@
   .streak-divider {
     width: 100%;
     height: 2px;
-    background: #FF5C00;
     border-radius: 1px;
   }
 

@@ -14,3 +14,26 @@ if (browser) {
     localStorage.setItem(STORAGE_KEY, String(v));
   });
 }
+
+// Recommendation category preferences. Default to both on so the user sees
+// suggestions across music and sports until they narrow it down.
+function persistedBool(key: string, defaultValue: boolean) {
+  const initial = browser
+    ? (localStorage.getItem(key) ?? String(defaultValue)) === 'true'
+    : defaultValue;
+  const store = writable<boolean>(initial);
+  if (browser) {
+    store.subscribe(v => localStorage.setItem(key, String(v)));
+  }
+  return store;
+}
+
+export const recMusic = persistedBool('maxess.recMusic', true);
+export const recSports = persistedBool('maxess.recSports', true);
+
+// Cross-page Music/Sports preference. Pages with a Music↔Sports toggle
+// (home, profile, events) read from and write to this store so the choice
+// carries over when navigating (e.g. home → See All → events). In-memory
+// only — matches the spec rule "persists during session, resets on reload".
+export type Category = 'music' | 'sports';
+export const activeCategory = writable<Category>('music');

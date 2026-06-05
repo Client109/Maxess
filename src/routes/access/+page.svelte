@@ -7,6 +7,10 @@
 
   $: fan = data.fan;
   $: currentTier = fan ? classifyTier(fan.xp_total) : { name: 'Fan' };
+
+  const PASSES_COLLAPSED_COUNT = 3;
+  let passesExpanded = false;
+  $: visiblePasses = passesExpanded ? data.passes : data.passes.slice(0, PASSES_COLLAPSED_COUNT);
 </script>
 
 <svelte:head>
@@ -114,15 +118,22 @@
 
     <!-- Your Passes -->
     <section class="section">
-      <h2 class="section-title padded">Your passes</h2>
+      <div class="section-header row">
+        <h2 class="section-title">Your passes</h2>
+        <button type="button" class="view-all" on:click={() => passesExpanded = !passesExpanded}>
+          {passesExpanded ? 'Show less' : `View all (${data.passes.length})`}
+        </button>
+      </div>
       <div class="passes-list">
-        {#each data.passes as pass}
+        {#each visiblePasses as pass}
           <a href="/passes/{pass.pass_id}" class="pass-row">
             <div class="pass-icon {pass.status}">
               {#if pass.status === 'active'}
                 <Shield size={18} color="white" />
               {:else if pass.status === 'starts_soon'}
                 <Zap size={18} color="white" />
+              {:else if pass.status === 'unclaimed'}
+                <Crown size={18} color="white" />
               {:else}
                 <Star size={18} color="white" />
               {/if}
@@ -133,6 +144,7 @@
             <span class="pass-status-badge {pass.status}">
               {#if pass.status === 'active'}Active
               {:else if pass.status === 'starts_soon'}Starts soon
+              {:else if pass.status === 'unclaimed'}Claim
               {:else}Waiting list
               {/if}
             </span>
@@ -159,7 +171,6 @@
             <div class="unlock-fill" style="width: 50%"></div>
           </div>
         </div>
-        <ChevronRight size={18} color="#8E8E93" />
       </div>
     </section>
   {:else}
@@ -267,6 +278,13 @@
     padding: 0 16px 8px;
   }
 
+  .section-header.row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0 16px 12px;
+  }
+
   .section-title {
     font-size: 18px;
     font-weight: 700;
@@ -277,6 +295,18 @@
   .section-title.padded {
     padding: 0 16px;
     margin-bottom: 12px;
+  }
+
+  .view-all {
+    font-size: 13px;
+    font-weight: 600;
+    color: #FF5C00;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
   }
 
   .section-sub {
@@ -509,6 +539,7 @@
   .pass-icon.active { background: #1A9E56; }
   .pass-icon.starts_soon { background: #FF5C00; }
   .pass-icon.waiting { background: #8E8E93; }
+  .pass-icon.unclaimed { background: #3B28CC; }
 
   .pass-info {
     flex: 1;
@@ -542,6 +573,11 @@
   .pass-status-badge.waiting {
     background: rgba(142, 142, 147, 0.12);
     color: #8E8E93;
+  }
+
+  .pass-status-badge.unclaimed {
+    background: #FF5C00;
+    color: #FFFFFF;
   }
 
   /* Unlock Next */

@@ -108,11 +108,35 @@ export function pointsToNextLevel(points: number): number {
 export const MAX_LEVEL = LEVEL_THRESHOLDS.length;
 export const MAX_POINTS = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
 
-// ── Tier functions (kept for backward compat) ─────────────────────────────
+// ── Tier functions ────────────────────────────────────────────────────────
+// Tiers (Elite, Superfan, etc.) apply per-artist / per-team, not as a global
+// user attribute. classifyArtistTier(points) is the canonical helper; pass the
+// user's points *with a specific artist or team*. classifyTier(xp) is retained
+// as a thin alias so legacy callers keep compiling.
 
 export function classifyTier(xp: number): Tier {
   const qualifiedTiers = TIERS.filter(tier => xp >= tier.xp_threshold);
   return qualifiedTiers[qualifiedTiers.length - 1] || TIERS[0];
+}
+
+export function classifyArtistTier(artistPoints: number): Tier {
+  return classifyTier(artistPoints);
+}
+
+export function pointsToNextArtistTier(artistPoints: number): { nextTier: Tier | null; pointsNeeded: number; progress: number } {
+  const current = classifyTier(artistPoints);
+  const currentIndex = TIERS.findIndex(t => t.name === current.name);
+  if (currentIndex === TIERS.length - 1) {
+    return { nextTier: null, pointsNeeded: 0, progress: 1 };
+  }
+  const next = TIERS[currentIndex + 1];
+  const range = next.xp_threshold - current.xp_threshold;
+  const inTier = artistPoints - current.xp_threshold;
+  return {
+    nextTier: next,
+    pointsNeeded: next.xp_threshold - artistPoints,
+    progress: Math.min(1, Math.max(0, inTier / range)),
+  };
 }
 
 export function xpToNextTier(xp: number): number {

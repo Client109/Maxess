@@ -18,6 +18,13 @@ type MockArtist = {
   monthly_plays: number;
   monthly_hours: number;
   top_track: string;
+  // Richer listening data surfaced in the Monthly recap card.
+  // For sports artists (no listening), top_tracks is empty and discovery_count is 0.
+  top_tracks: Array<{ title: string; plays: number }>;
+  longest_session_min: number;
+  peak_day: string;
+  peak_day_hours: number;
+  discovery_count: number;
 };
 
 const weekndData: MockArtist = {
@@ -36,6 +43,15 @@ const weekndData: MockArtist = {
   monthly_plays: 186,
   monthly_hours: 28,
   top_track: 'Blinding Lights',
+  top_tracks: [
+    { title: 'Blinding Lights', plays: 47 },
+    { title: 'Save Your Tears', plays: 38 },
+    { title: 'After Hours', plays: 29 },
+  ],
+  longest_session_min: 107,
+  peak_day: 'Wed, May 14',
+  peak_day_hours: 4.2,
+  discovery_count: 12,
 };
 
 const mockArtists: Record<string, MockArtist> = {
@@ -58,6 +74,15 @@ const mockArtists: Record<string, MockArtist> = {
     monthly_plays: 142,
     monthly_hours: 21,
     top_track: 'BUBBA',
+    top_tracks: [
+      { title: '10%', plays: 36 },
+      { title: 'You’re The One', plays: 31 },
+      { title: 'Lite Spots', plays: 24 },
+    ],
+    longest_session_min: 84,
+    peak_day: 'Fri, May 9',
+    peak_day_hours: 3.1,
+    discovery_count: 9,
   },
   'daniel-caesar': {
     id: 'daniel-caesar',
@@ -75,6 +100,15 @@ const mockArtists: Record<string, MockArtist> = {
     monthly_plays: 88,
     monthly_hours: 13,
     top_track: 'Best Part',
+    top_tracks: [
+      { title: 'Best Part', plays: 22 },
+      { title: 'Get You', plays: 18 },
+      { title: 'Japanese Denim', plays: 14 },
+    ],
+    longest_session_min: 62,
+    peak_day: 'Sun, May 11',
+    peak_day_hours: 2.4,
+    discovery_count: 6,
   },
   'odesza': {
     id: 'odesza',
@@ -92,6 +126,15 @@ const mockArtists: Record<string, MockArtist> = {
     monthly_plays: 72,
     monthly_hours: 11,
     top_track: 'A Moment Apart',
+    top_tracks: [
+      { title: 'A Moment Apart', plays: 19 },
+      { title: 'Bloom', plays: 15 },
+      { title: 'Say My Name', plays: 12 },
+    ],
+    longest_session_min: 73,
+    peak_day: 'Sat, May 17',
+    peak_day_hours: 2.7,
+    discovery_count: 5,
   },
   'ducks': {
     id: 'ducks',
@@ -109,6 +152,11 @@ const mockArtists: Record<string, MockArtist> = {
     monthly_plays: 0,
     monthly_hours: 0,
     top_track: 'N/A',
+    top_tracks: [],
+    longest_session_min: 0,
+    peak_day: '',
+    peak_day_hours: 0,
+    discovery_count: 0,
   },
   'kendrick-lamar': {
     id: 'kendrick-lamar',
@@ -126,6 +174,15 @@ const mockArtists: Record<string, MockArtist> = {
     monthly_plays: 124,
     monthly_hours: 18,
     top_track: 'HUMBLE.',
+    top_tracks: [
+      { title: 'HUMBLE.', plays: 32 },
+      { title: 'DNA.', plays: 27 },
+      { title: 'Money Trees', plays: 21 },
+    ],
+    longest_session_min: 91,
+    peak_day: 'Thu, May 15',
+    peak_day_hours: 3.4,
+    discovery_count: 8,
   },
   'sza': {
     id: 'sza',
@@ -143,6 +200,15 @@ const mockArtists: Record<string, MockArtist> = {
     monthly_plays: 98,
     monthly_hours: 14,
     top_track: 'Kill Bill',
+    top_tracks: [
+      { title: 'Kill Bill', plays: 26 },
+      { title: 'Snooze', plays: 22 },
+      { title: 'Good Days', plays: 17 },
+    ],
+    longest_session_min: 68,
+    peak_day: 'Tue, May 13',
+    peak_day_hours: 2.9,
+    discovery_count: 7,
   },
 };
 

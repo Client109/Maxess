@@ -32,7 +32,7 @@ Maxess connects ticketing history and music streaming behavior into a verified f
    - Profile hero with avatar and stats
    - XP breakdown with progress bars
    - Recent activity feed
-   - Settings menu
+   - Settings menu — including a Location Sharing segmented control (Off | Once | While Using) backed by the native browser permission prompt. Coordinates stay on-device.
 
 ### Design System
 

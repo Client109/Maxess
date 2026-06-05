@@ -35,11 +35,29 @@
   let friendsOnly = false;
 
   $: allLeaderboard = data.rank?.leaderboard || [];
+
+  // Match short codes (UI) to long city names (DB) — accept either.
+  const cityAliases = {
+    LA: ['LA', 'Los Angeles'],
+    SF: ['SF', 'San Francisco'],
+    NYC: ['NYC', 'New York']
+  };
+
+  // Time-period hierarchy: This week ⊂ This month ⊂ All time
+  const periodIncludes = {
+    'This week': ['This week'],
+    'This month': ['This week', 'This month'],
+    'All time': ['This week', 'This month', 'All time']
+  };
+
   $: filteredLeaderboard = allLeaderboard
     .filter(e => {
       if (friendsOnly && !e.is_friend && !e.is_me) return false;
+      if (!cityAliases[filterLocation].includes(e.city)) return false;
+      if (!periodIncludes[filterPeriod].includes(e.time_period)) return false;
       return true;
     })
+    .sort((a, b) => a.rank - b.rank)
     .slice(0, 5);
 </script>
 
@@ -236,9 +254,6 @@
         {/each}
       </div>
 
-      <a href="/score" class="view-all-challenges">
-        View all challenges <ChevronRight size={14} />
-      </a>
     </section>
   {:else}
     <div class="empty">
@@ -410,20 +425,41 @@
 
   .filter-row {
     display: flex;
-    gap: 6px;
+    gap: 8px;
   }
 
   .filter-select {
-    background: #F2F2F7;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: #FFFFFF;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%231C1C1E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 10px 6px;
     border: 1px solid #E5E5EA;
-    border-radius: 8px;
-    padding: 6px 8px;
+    border-radius: 99px;
+    padding: 7px 30px 7px 14px;
     font-size: 12px;
     font-weight: 600;
     color: #1C1C1E;
     cursor: pointer;
     font-family: inherit;
+    line-height: 1;
+    transition: border-color 0.15s, background-color 0.15s;
   }
+
+  .filter-select:hover {
+    border-color: #C7C7CC;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: #FF5C00;
+    box-shadow: 0 0 0 3px rgba(255, 92, 0, 0.15);
+  }
+
+  .filter-select::-ms-expand { display: none; }
 
   /* Points graph */
   .graph-card {
@@ -774,18 +810,6 @@
   .task-text.done {
     text-decoration: line-through;
     color: #8E8E93;
-  }
-
-  .view-all-challenges {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #FF5C00;
-    text-decoration: none;
   }
 
   .empty {

@@ -2,11 +2,22 @@
   import { Search, MapPin, Calendar, Flame, Bell, BellRing, ChevronRight, ExternalLink } from 'lucide-svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { subscribedSet, toggleSubscription } from '$lib/stores/subscriptions.js';
+  import { activeCategory } from '$lib/stores/settings.js';
 
   export let data;
 
   let searchQuery = '';
-  let activeFilter = 'For you';
+  // Open on the chip that matches the shared Music/Sports preference, so a
+  // "See All" tap from home (in sports mode) lands here on the Sports chip.
+  // Switching to Music/Sports mirrors the choice back into the shared store
+  // so other pages stay in sync; other chips ("For you"/"Following"/"This
+  // week") are page-local and don't touch the store.
+  let activeFilter = $activeCategory === 'sports' ? 'Sports' : 'Music';
+  function setFilter(f) {
+    activeFilter = f;
+    if (f === 'Music') activeCategory.set('music');
+    else if (f === 'Sports') activeCategory.set('sports');
+  }
 
   const filters = ['For you', 'Following', 'Music', 'Sports', 'This week'];
 
@@ -32,8 +43,13 @@
     return true;
   });
 
-  // Featured event (trending + featured)
-  $: featuredEvent = allEvents.find(e => e.trending && e.featured) || data.featuredEvent;
+  // Featured event — always derived from the currently filtered set so the hero
+  // matches the active category. Priority: trending+featured → trending → featured → first.
+  $: featuredEvent = allEvents.find(e => e.trending && e.featured)
+    || allEvents.find(e => e.trending)
+    || allEvents.find(e => e.featured)
+    || allEvents[0]
+    || null;
 
   let trendingExpanded = false;
   let upcomingExpanded = false;
@@ -118,7 +134,7 @@
       <button
         class="chip {f === 'Music' ? 'music' : f === 'Sports' ? 'sports' : ''}"
         class:active={activeFilter === f}
-        on:click={() => activeFilter = f}
+        on:click={() => setFilter(f)}
       >
         {f}
       </button>
@@ -134,7 +150,10 @@
         style="background-color: {featuredEvent.image_color}; {featuredEvent.image_url ? `background-image: url(${featuredEvent.image_url}); background-size: cover; background-position: center;` : ''}"
       >
         <div class="featured-overlay">
-          <span class="featured-badge">★ FEATURED</span>
+          <span
+            class="featured-badge"
+            style:background={featuredEvent.category === 'music' ? 'var(--color-music)' : 'var(--color-sports)'}
+          >★ FEATURED</span>
           <h2 class="featured-title">{featuredEvent.title}</h2>
           {#if featuredEvent.subtitle}
             <p class="featured-subtitle">{featuredEvent.subtitle}</p>

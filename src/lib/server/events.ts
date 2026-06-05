@@ -24,10 +24,11 @@ export function normalizeTicketmasterEvent(tmEvent: TicketmasterEvent): Event {
     || images[0];
   const imageUrl = bestImage?.url;
 
-  // Derive a tint color from category for fallback
+  // Derive a tint color from category for fallback.
+  // Music → blue family, sports → orange family (matches --color-music / --color-sports tokens).
   const categoryColors: Record<string, string> = {
-    music: '#1a0a2e',
-    sports: '#0a1a2e',
+    music: '#0a1530',
+    sports: '#2e1500',
     comedy: '#2e1a0a',
     festival: '#1a2e0a',
   };
@@ -79,4 +80,20 @@ function mapSaleStatus(code: string): string {
     case 'rescheduled': return 'Rescheduled';
     default: return 'Available';
   }
+}
+
+// Filter events to "Near You This Week" — same-city, single category, within an
+// N-day window from `now`. `now` is injected so callers (and tests) control the
+// clock; date math uses ISO YYYY-MM-DD string compare to avoid timezone drift.
+export function filterNearYouThisWeek(
+  events: Event[],
+  options: { city: string; category: 'music' | 'sports' | 'comedy' | 'festival'; now: Date; days?: number; limit?: number },
+): Event[] {
+  const { city, category, now, days = 7, limit = 5 } = options;
+  const start = now.toISOString().slice(0, 10);
+  const end = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return events
+    .filter(e => e.category === category && e.city === city && e.date >= start && e.date <= end)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, limit);
 }

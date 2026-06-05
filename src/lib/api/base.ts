@@ -59,20 +59,18 @@ export class BaseApiClient {
     };
 
     const requestPromise = fetch(url, requestOptions);
-    
+
     if (cacheKey) {
       this.requestQueue.set(cacheKey, requestPromise);
-      // Clean up after request completes
-      requestPromise.finally(() => this.requestQueue.delete(cacheKey));
     }
 
-    const response = await requestPromise;
-
-    if (!response.ok) {
-      await this.handleErrorResponse(response);
+    try {
+      const response = await requestPromise;
+      if (!response.ok) await this.handleErrorResponse(response);
+      return response;
+    } finally {
+      if (cacheKey) this.requestQueue.delete(cacheKey);
     }
-
-    return response;
   }
 
   protected async handleErrorResponse(response: Response): Promise<never> {

@@ -1,14 +1,25 @@
 <script>
-  import { ArrowLeft, Music, Ticket, Headphones, Trophy, Calendar, ChevronDown, ChevronUp, Star, Users, BarChart3 } from 'lucide-svelte';
+  import { ArrowLeft, Music, Ticket, Headphones, Trophy, Calendar, ChevronDown, ChevronUp, Star, Users, BarChart3, Plus, Check, Sparkles, Flame } from 'lucide-svelte';
+  import { followedSet, toggleFollowArtist } from '$lib/stores/followedArtists.js';
 
   export let data;
 
   $: artist = data.artist;
   $: upcomingEvents = data.upcomingEvents;
   $: leaderboard = data.leaderboard;
+  $: isFollowing = $followedSet.has(artist.id);
+  $: hasListeningData = artist.monthly_plays > 0;
+
+  // Sports genres (NHL, NBA, MLB, NFL, soccer) ride the same /artist/[id] route.
+  // Category controls how progress is grouped in the home "YOUR PROGRESS" section.
+  $: followCategory = /hockey|basketball|baseball|football|nfl|nba|mlb|nhl|soccer/i.test(artist.genre)
+    ? 'sports'
+    : 'music';
+  // superfan_score is 0–100. Scale to the points domain used by tier classification
+  // (Loyal=1000, Superfan=2500, Elite=5000). 60× lands ~Superfan at 50, Elite at 85.
+  $: followPointsSeed = Math.round((artist.superfan_score ?? 0) * 60);
 
   let perksOpen = true;
-  let recapOpen = false;
 
   const tierThresholds = [
     { name: 'General', min: 0, color: '#8E8E93' },
@@ -58,6 +69,21 @@
       <div class="score-meta">
         <span class="score-genre">{artist.genre}</span>
         <span class="tier-badge" style="background: {artist.tier_color}">{artist.tier}</span>
+        <button
+          type="button"
+          class="follow-btn"
+          class:follow-btn--on={isFollowing}
+          aria-pressed={isFollowing}
+          on:click={() => toggleFollowArtist(artist.id, artist.name, { category: followCategory, points: followPointsSeed })}
+        >
+          {#if isFollowing}
+            <Check size={14} />
+            Following
+          {:else}
+            <Plus size={14} />
+            Follow
+          {/if}
+        </button>
       </div>
     </div>
 
@@ -159,39 +185,71 @@
     </div>
   </section>
 
-  <!-- Monthly Recap -->
-  <section class="section">
-    <button class="section-header" on:click={() => recapOpen = !recapOpen}>
-      <h3 class="section-title">Monthly recap</h3>
-      {#if recapOpen}<ChevronUp size={18} color="#8E8E93" />{:else}<ChevronDown size={18} color="#8E8E93" />{/if}
-    </button>
-    {#if recapOpen}
+  <!-- Monthly Recap — always visible when there's listening data -->
+  {#if hasListeningData}
+    <section class="section">
+      <h3 class="section-title pad">Monthly recap</h3>
       <div class="recap-card">
-        <div class="recap-row">
-          <Music size={16} color="#FF5C00" />
-          <span class="recap-label">Top track</span>
-          <span class="recap-value">{artist.top_track}</span>
+        <div class="recap-stats">
+          <div class="recap-stat">
+            <BarChart3 size={14} color="#3B28CC" />
+            <span class="recap-stat-value">{artist.monthly_plays}</span>
+            <span class="recap-stat-label">plays</span>
+          </div>
+          <div class="recap-stat">
+            <Headphones size={14} color="#34D399" />
+            <span class="recap-stat-value">{artist.monthly_hours}h</span>
+            <span class="recap-stat-label">listened</span>
+          </div>
+          <div class="recap-stat">
+            <Sparkles size={14} color="#FF5C00" />
+            <span class="recap-stat-value">{artist.discovery_count}</span>
+            <span class="recap-stat-label">discovered</span>
+          </div>
         </div>
-        <div class="recap-row">
-          <BarChart3 size={16} color="#3B28CC" />
-          <span class="recap-label">Plays this month</span>
-          <span class="recap-value">{artist.monthly_plays}</span>
-        </div>
-        <div class="recap-row">
-          <Headphones size={16} color="#34D399" />
-          <span class="recap-label">Hours this month</span>
-          <span class="recap-value">{artist.monthly_hours}h</span>
+
+        {#if artist.top_tracks.length > 0}
+          <div class="recap-block">
+            <span class="recap-block-label">
+              <Music size={13} color="#2667FF" />
+              Top tracks
+            </span>
+            <ol class="recap-tracks">
+              {#each artist.top_tracks as track, i}
+                <li class="recap-track">
+                  <span class="recap-track-rank">{i + 1}</span>
+                  <span class="recap-track-title">{track.title}</span>
+                  <span class="recap-track-plays">{track.plays} plays</span>
+                </li>
+              {/each}
+            </ol>
+          </div>
+        {/if}
+
+        <div class="recap-footer">
+          {#if artist.peak_day}
+            <div class="recap-footer-item">
+              <Flame size={13} color="#FF5C00" />
+              <span>Peak day · <strong>{artist.peak_day}</strong> ({artist.peak_day_hours}h)</span>
+            </div>
+          {/if}
+          {#if artist.longest_session_min > 0}
+            <div class="recap-footer-item">
+              <Headphones size={13} color="#3B28CC" />
+              <span>Longest session · <strong>{Math.floor(artist.longest_session_min / 60)}h {artist.longest_session_min % 60}m</strong></span>
+            </div>
+          {/if}
         </div>
       </div>
-    {/if}
-  </section>
+    </section>
+  {/if}
 </div>
 
 <style>
   .page {
     background: #F2F2F7;
     min-height: 100vh;
-    padding-bottom: 120px;
+    padding-bottom: 180px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
     color: #1C1C1E;
   }
@@ -301,6 +359,30 @@
     border-radius: 6px;
     color: #FFFFFF;
     align-self: flex-start;
+  }
+
+  .follow-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    margin-top: 4px;
+    padding: 7px 14px;
+    border-radius: 99px;
+    border: 1.5px solid #FFFFFF;
+    background: #FFFFFF;
+    color: #0f1923;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .follow-btn--on {
+    background: transparent;
+    color: #FFFFFF;
+    border-color: rgba(255, 255, 255, 0.5);
   }
 
   /* Tier progress */
@@ -569,28 +651,126 @@
     background: #FFFFFF;
     border: 1px solid #E5E5EA;
     border-radius: 14px;
-    overflow: hidden;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
-  .recap-row {
+  .recap-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .recap-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: #F8F8FA;
+    border-radius: 12px;
+    padding: 12px 8px;
+  }
+
+  .recap-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1C1C1E;
+    line-height: 1.1;
+  }
+
+  .recap-stat-label {
+    font-size: 11px;
+    color: #6E6E73;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .recap-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .recap-block-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6E6E73;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .recap-tracks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .recap-track {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px;
+    padding: 8px 0;
     border-bottom: 1px solid #F2F2F7;
   }
 
-  .recap-row:last-child { border-bottom: none; }
+  .recap-track:last-child { border-bottom: none; }
 
-  .recap-label {
+  .recap-track-rank {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #F2F2F7;
+    color: #6E6E73;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .recap-track-title {
     flex: 1;
     font-size: 14px;
+    font-weight: 500;
+    color: #1C1C1E;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .recap-track-plays {
+    font-size: 12px;
+    color: #8E8E93;
+    flex-shrink: 0;
+  }
+
+  .recap-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 12px;
+    border-top: 1px solid #F2F2F7;
+  }
+
+  .recap-footer-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
     color: #6E6E73;
   }
 
-  .recap-value {
-    font-size: 14px;
-    font-weight: 600;
+  .recap-footer-item strong {
     color: #1C1C1E;
+    font-weight: 600;
   }
 </style>

@@ -508,7 +508,7 @@ export const PassSchema = z.object({
   name: z.string(),
   venue: z.string(),
   date: z.string(),
-  status: z.enum(['active', 'starts_soon', 'waiting']),
+  status: z.enum(['active', 'starts_soon', 'waiting', 'unclaimed']),
   pass_type: z.enum(['elite', 'diamond', 'general']),
   xp_tier_required: z.number(),
   icon_color: z.string(),

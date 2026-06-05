@@ -43,7 +43,7 @@ export const mockEvents: Event[] = [
     access_type: 'MUSIC ACCESS',
     status: 'upcoming',
     featured: true,
-    image_color: '#1a0a2e',
+    image_color: '#0a1530',
     image_url: '/images/events/concert-hiphop.jpg',
     genre_tag: 'HIP-HOP',
     heat_score: 98,
@@ -67,7 +67,7 @@ export const mockEvents: Event[] = [
     access_type: 'MUSIC ACCESS',
     status: 'upcoming',
     featured: false,
-    image_color: '#2d1256',
+    image_color: '#0a1a3d',
     image_url: '/images/events/concert-rap.jpg',
     genre_tag: 'RAP',
     heat_score: 86,
@@ -89,7 +89,7 @@ export const mockEvents: Event[] = [
     access_type: 'MUSIC ACCESS',
     status: 'upcoming',
     featured: false,
-    image_color: '#1a0d2e',
+    image_color: '#0d1530',
     image_url: '/images/events/concert-rnb.jpg',
     genre_tag: 'R&B',
     heat_score: 91,
@@ -133,7 +133,7 @@ export const mockEvents: Event[] = [
     access_type: 'SPORTS ACCESS',
     status: 'upcoming',
     featured: false,
-    image_color: '#200040',
+    image_color: '#2e1500',
     image_url: '/images/events/basketball.jpg',
     genre_tag: 'NBA',
     heat_score: 93,
@@ -178,7 +178,7 @@ export const mockEvents: Event[] = [
     access_type: 'MUSIC ACCESS',
     status: 'upcoming',
     featured: false,
-    image_color: '#2a0a1e',
+    image_color: '#0a1530',
     image_url: '/images/events/concert-pop.jpg',
     genre_tag: 'POP',
     heat_score: 84,
@@ -200,7 +200,7 @@ export const mockEvents: Event[] = [
     access_type: 'MUSIC ACCESS',
     status: 'upcoming',
     featured: false,
-    image_color: '#0d1a30',
+    image_color: '#0a1530',
     image_url: '/images/events/festival-crowd.jpg',
     genre_tag: 'FESTIVAL',
     heat_score: 88,
@@ -222,7 +222,7 @@ export const mockEvents: Event[] = [
     access_type: 'SPORTS ACCESS',
     status: 'upcoming',
     featured: false,
-    image_color: '#001433',
+    image_color: '#2e1500',
     image_url: '/images/events/baseball.jpg',
     genre_tag: 'MLB',
     heat_score: 78,
@@ -272,11 +272,37 @@ export const fansAttendingCount = 28;
 
 // Mock Leaderboard
 export const mockLeaderboard: LeaderboardEntry[] = [
-  { rank: 1, name: 'Sarah Kim', score: 12450, delta: 23, is_me: false, city: 'LA', time_period: 'This week' },
-  { rank: 2, name: 'Mike Rodriguez', score: 11890, delta: -5, is_me: false, city: 'LA', time_period: 'This week' },
-  { rank: 3, name: 'Emma Davis', score: 11200, delta: 18, is_me: false, city: 'LA', time_period: 'This week' },
-  { rank: 18, name: 'Alex Chen', score: 8750, delta: 12, is_me: true, city: 'LA', time_period: 'This week' },
-  { rank: 19, name: 'Jordan Lee', score: 8690, delta: 8, is_me: false, city: 'LA', time_period: 'This week' }
+  // LA — This week
+  { rank: 1, name: 'Sarah Kim', score: 12450, delta: 23, is_me: false, is_friend: false, city: 'LA', time_period: 'This week' },
+  { rank: 2, name: 'Mike Rodriguez', score: 11890, delta: -5, is_me: false, is_friend: true, city: 'LA', time_period: 'This week' },
+  { rank: 3, name: 'Emma Davis', score: 11200, delta: 18, is_me: false, is_friend: false, city: 'LA', time_period: 'This week' },
+  { rank: 18, name: 'Alex Chen', score: 8750, delta: 12, is_me: true, is_friend: false, city: 'LA', time_period: 'This week' },
+  { rank: 19, name: 'Jordan Lee', score: 8690, delta: 8, is_me: false, is_friend: true, city: 'LA', time_period: 'This week' },
+
+  // LA — This month
+  { rank: 4, name: 'Priya Shah', score: 38200, delta: 41, is_me: false, is_friend: false, city: 'LA', time_period: 'This month' },
+  { rank: 5, name: 'Marcus Diaz', score: 35800, delta: 27, is_me: false, is_friend: false, city: 'LA', time_period: 'This month' },
+  { rank: 22, name: 'Kai Wong', score: 24100, delta: -2, is_me: false, is_friend: true, city: 'LA', time_period: 'This month' },
+
+  // LA — All time
+  { rank: 6, name: 'Olivia Park', score: 184500, delta: 0, is_me: false, is_friend: false, city: 'LA', time_period: 'All time' },
+  { rank: 7, name: 'Devon Brooks', score: 172300, delta: 0, is_me: false, is_friend: false, city: 'LA', time_period: 'All time' },
+
+  // SF
+  { rank: 1, name: 'Lin Yang', score: 13100, delta: 14, is_me: false, is_friend: false, city: 'SF', time_period: 'This week' },
+  { rank: 2, name: 'Theo Carter', score: 10980, delta: 9, is_me: false, is_friend: false, city: 'SF', time_period: 'This week' },
+  { rank: 3, name: 'Nadia Hill', score: 10220, delta: -3, is_me: false, is_friend: true, city: 'SF', time_period: 'This week' },
+  { rank: 8, name: 'Ravi Kapoor', score: 42100, delta: 6, is_me: false, is_friend: false, city: 'SF', time_period: 'This month' },
+  { rank: 9, name: 'Jules Moreau', score: 39750, delta: 18, is_me: false, is_friend: false, city: 'SF', time_period: 'This month' },
+  { rank: 10, name: 'Sienna Walsh', score: 201400, delta: 0, is_me: false, is_friend: false, city: 'SF', time_period: 'All time' },
+
+  // NYC
+  { rank: 1, name: 'Avery Nguyen', score: 14820, delta: 31, is_me: false, is_friend: false, city: 'NYC', time_period: 'This week' },
+  { rank: 2, name: 'Cole Bennett', score: 12740, delta: -7, is_me: false, is_friend: false, city: 'NYC', time_period: 'This week' },
+  { rank: 3, name: 'Maya Goldberg', score: 12010, delta: 22, is_me: false, is_friend: true, city: 'NYC', time_period: 'This week' },
+  { rank: 4, name: 'Ezra Fields', score: 44650, delta: 15, is_me: false, is_friend: false, city: 'NYC', time_period: 'This month' },
+  { rank: 5, name: 'Tasha Reilly', score: 41020, delta: 4, is_me: false, is_friend: false, city: 'NYC', time_period: 'This month' },
+  { rank: 6, name: 'Hiro Tanaka', score: 218900, delta: 0, is_me: false, is_friend: false, city: 'NYC', time_period: 'All time' }
 ];
 
 // Mock Challenges
@@ -345,6 +371,17 @@ export const mockPasses: Pass[] = [
     xp_tier_required: 2500,
     icon_color: '#8E8E93',
     metadata: 'Access to partner venues'
+  },
+  {
+    pass_id: 'pass_004',
+    name: 'Backstage Lounge Pass',
+    venue: 'The Wiltern',
+    date: 'Claim by Jul 1',
+    status: 'unclaimed',
+    pass_type: 'elite',
+    xp_tier_required: 5000,
+    icon_color: '#3B28CC',
+    metadata: 'You earned this — tap to claim'
   }
 ];
 
