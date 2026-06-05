@@ -15,9 +15,12 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient() {
   // pg.Pool only speaks raw postgres. If DATABASE_URL is a `prisma+postgres://`
   // proxy URL (from `prisma dev`), fall back to the embedded raw-postgres port.
+  // Neon hands out `postgresql://` URLs; we accept either spelling so prod
+  // doesn't silently drop into the local fallback.
   const envUrl = env.DATABASE_URL;
-  const connectionString = envUrl && envUrl.startsWith('postgres://')
-    ? envUrl
+  const isRawPostgres = !!envUrl && (envUrl.startsWith('postgres://') || envUrl.startsWith('postgresql://'));
+  const connectionString = isRawPostgres
+    ? envUrl!
     : 'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable';
   const pool = new pg.Pool({ connectionString });
   const adapter = new PrismaPg(pool);

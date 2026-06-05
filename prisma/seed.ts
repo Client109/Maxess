@@ -8,9 +8,11 @@ import { XP_PER_CHECKIN, XP_PER_LISTENING_HOUR, XP_PER_TRIVIA_CORRECT, XP_PER_ST
 
 // pg.Pool only speaks raw postgres. If DATABASE_URL is a `prisma+postgres://`
 // proxy URL (from `prisma dev`), fall back to the embedded raw-postgres port.
+// Neon hands out `postgresql://` URLs; accept either spelling.
 const envUrl = process.env.DATABASE_URL;
-const connectionString = envUrl && envUrl.startsWith('postgres://')
-  ? envUrl
+const isRawPostgres = !!envUrl && (envUrl.startsWith('postgres://') || envUrl.startsWith('postgresql://'));
+const connectionString = isRawPostgres
+  ? envUrl!
   : 'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable';
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
@@ -76,6 +78,11 @@ async function main() {
       xp_total: ALEX_XP_TOTAL,
       current_tier: tierFromXp(ALEX_XP_TOTAL),
       streak_days: 12,
+      // Seed last_streak_at to ~6 hours ago so the first page load on the
+      // running demo lands in the "same-day, no-op" branch of touchUserStreak
+      // — keeps the seeded streak of 12 instead of immediately bumping it to
+      // 13 on the very next navigation.
+      last_streak_at: new Date(Date.now() - 6 * 60 * 60 * 1000),
       rank: 18,
       percentile: 3,
       top_artist: 'The Weeknd',
