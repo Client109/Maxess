@@ -689,7 +689,7 @@ async function main() {
   };
   const ARTIST_REWARDS: RewardSeed[] = [
     // Elite-tier unlockables (the four hero cards in the mockup)
-    { name: '48hr Early Presale',  point_cost: 600,   tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1567002260062-d1b9a18b9a91?w=400&h=400&fit=crop' },
+    { name: '48hr Early Presale',  point_cost: 600,   tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=400&fit=crop' },
     { name: 'Soundcheck Access',   point_cost: 1_200, tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1471478331149-c72f17e33c73?w=400&h=400&fit=crop' },
     { name: 'Meet and Greet',      point_cost: 2_500, tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=400&h=400&fit=crop' },
     { name: 'Backstage Experience', point_cost: 3_000, tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1518972559570-7cc1309f3229?w=400&h=400&fit=crop' },

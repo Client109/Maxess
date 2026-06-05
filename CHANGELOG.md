@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-06-04
+
+### Added
+- **Home page rewired to the dark mockup.**
+  - **Universal Balance** = sum of `FanTier.points_balance` across all of the user's fandoms (distinct from `xp_total`/lifetime). Pure helper `universalBalance()` in `src/lib/server/home.ts` with 3 vitest cases.
+  - **Your fandoms list** now reads top 3 by `points_balance` from `FanTier` via new `topByBalance()` helper (3 vitest cases including tie-breaker + zero-balance exclusion). Falls back to the client-side `followedArtists` store when server data is absent.
+  - **Hero pill** ("`<Tier>` for `<Fandom>`") sourced from `User.selected_fandom_id` → classified via `classifyArtistTier()`. Links to `/access`.
+  - **Upcoming preview** picks the first event whose title matches the user's selected fandom (otherwise first upcoming event).
+  - **"Earn more points" row** renders four cards driven by `XP_PER_CHECKIN` / `XP_PER_LISTENING_HOUR` / `XP_PER_TRIVIA_CORRECT` / `XP_PER_STREAK_BONUS` constants from `xp-rules.ts`.
+  - 14-day sparkline on the hero card sourced from `getXpHistory(14)` with soft orange gradient fill + end-of-line dot.
+- **Fandom data adjusted to match the mockup tier chips:**
+  - The Weeknd lifetime 280K → **1,000,000** (Elite floor).
+  - Anaheim Ducks lifetime 55K → **105,000** (Loyal floor).
+  - Ariana Grande lifetime 2K → **10,500** (Fan floor).
+  - FanTier balance override block in seed pins Weeknd 5,480 / Ducks 2,340 / Ariana 930; all other fandom balances zeroed so Universal Balance reads **8,750** and the top-3 fandom list matches the mockup precisely.
+
+### Changed
+- Hero card label is now **Universal Balance** (sum of spendable balances) instead of **Universal Points** (lifetime `xp_total`).
+- `src/routes/+page.server.ts` queries `FanTier` and exposes `universalBalance`, `topFandomsByBalance`, `selectedFandomTier`, `upcomingPreview`, and `earnRates` on the page payload.
+- `visual_design.dark_pages` adds `/` (home) to the dark-route list.
+- Pushing The Weeknd to Elite-floor lifetime moves Alex's `xp_total` from Superfan into Elite app-wide; leaderboard rank shifts accordingly. Per mockup precision.
+
+### Fixed
+- `navigation.test.js` updated for the dark-theme `--bg-card: #0B0B0D` token value (was asserting the pre-refactor `#1A1A1C`).
+
 ## [0.9.0] - 2026-06-04
 
 ### Added

@@ -1,6 +1,6 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
-  version: "0.9.0-MVP"
+  version: "0.10.0-MVP"
   status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel, Apple Wallet attendance verification (unsigned-mode demo)"
 
   product_direction:
@@ -16,7 +16,7 @@ app_spec:
       - "Which events should I attend for maximum fan engagement?"
 
   mvp_boundary:
-    version_target: "0.9.0 — currently shipping"
+    version_target: "0.10.0 — currently shipping"
     must_build:
       - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
       - "Events screen with filtering, search, and booking capabilities"
@@ -66,6 +66,7 @@ app_spec:
         text_secondary: "#8E8E93"
         accent_orange: "#FF5C00"
       routes:
+        - "/ — Home page (Universal Balance + fandoms + upcoming + earn-more)"
         - "/access — Access page (selected fandom + rewards)"
         - "/profile — Profile page (identity + fandom breakdown)"
     color_palette:
@@ -346,28 +347,27 @@ app_spec:
     home:
       route: "/"
       load_function: "src/routes/+page.server.ts"
+      theme: "DARK theme scoped to this route (#000 page bg, white text, #FF5C00 accent) — see visual_design.dark_pages."
       data_sources:
-        - "getUserByFanId('fan_001') + getXpBreakdown('fan_001') → fan profile with XP-by-source"
-        - "getLeaderboard('WEEKLY') → top-5 leaderboard preview"
-        - "getFriendActivity('fan_001', 5) → community activity feed"
-        - "TicketmasterClient.searchEvents (parallel music + sports for LA) → enrichEventsWithMusicData → upcoming events. Falls back to mockEvents if Ticketmaster key missing or call fails."
+        - "getUserByFanId('fan_001') → user identity + selected_fandom_id"
+        - "db.fanTier.findMany({ user_id }) → all of the user's per-fandom tiers (lifetime + balance)"
+        - "universalBalance(rows) + topByBalance(rows, 3) from src/lib/server/home.ts → Universal Balance figure + Your Fandoms preview rows"
+        - "TicketmasterClient.searchEvents (parallel music + sports) → enriched upcoming events; first one becomes the Upcoming preview card"
+        - "getXpHistory('fan_001', 14) → 14-day sparkline data for the Universal Balance hero card"
+        - "Earn-rate constants from src/lib/domain/xp-rules.ts (XP_PER_CHECKIN, XP_PER_LISTENING_HOUR, XP_PER_TRIVIA_CORRECT, XP_PER_STREAK_BONUS) → 'Earn more points' card row"
       primary_components:
-        - "Brand header with Zap icon + MAXESS wordmark"
-        - "Time-based greeting (Good morning/afternoon/evening, Alex)"
-        - "Momentum Score hero card with sparkline SVG, tier badge, XP progress bar, and weekly delta"
-        - "Music / Sports Events toggle pill row — drives client-side filtering of FOR YOU cards and gates the music-only NEAR YOU THIS WEEK section"
-        - "Upcoming For You horizontal card scroll, filtered to active toggle's category (music OR sports), top 4 by server order"
-        - "Near You This Week — music-only vertical list of upcoming music events in user's city (LA) within next 7 days, max 5; visible only when Music toggle is active. When the user has opted into location sharing (Once or While Using) and a fresh coordinate exists, header copy reflects 'using your location'; otherwise falls back to the hardcoded LA filter."
-        - "Your Ranking card with rank, percentile, city leaderboard position"
-        - "Community Activity feed showing friend actions"
+        - "Header: time-based greeting ('Good morning, Alex') + 2-line headline 'Your fan world, all in one place.' + Notifications bell button"
+        - "Universal Balance hero card: 'Universal Balance' label, large numeric balance (sum of FanTier.points_balance across all fandoms), 'Points never expire' caption, orange tier pill '<Tier> for <Selected Fandom>', 'Current fandom balance: <pts>' sub-line, orange sparkline with end-of-line dot and soft gradient fill (14-day xp history)"
+        - "Your fandoms section: 'Your fandoms' title + orange 'View all' link → /profile; 3 fandom rows (top by balance) showing portrait + name + points + tier chip (Elite/Loyal/Fan with Diamond/Shield/Heart glyph)"
+        - "Upcoming section: 'Upcoming' title + 'View all' → /events; single event card with portrait + artist/tour/venue/date+time + tier chip + chevron"
+        - "Earn more points section: 4-card grid for Verified check-in (+XP_PER_CHECKIN), Spotify (+XP_PER_LISTENING_HOUR/hr, green Spotify glyph), Trivia (+XP_PER_TRIVIA_CORRECT), Streak (+XP_PER_STREAK_BONUS, flame). Each card is themed; no native inputs."
       required_interactions:
-        - "XP progress bar animates to fill percentage on load"
-        - "Event cards link to /events/[id]"
-        - "Your Ranking card links to /score"
-        - "Community Activity shows friend names with action descriptions"
-        - "Music/Sports toggle change re-filters FOR YOU cards and shows/hides NEAR YOU THIS WEEK section"
-        - "NEAR YOU THIS WEEK rows link to /events/[id]; shows empty state copy when no qualifying events exist"
-      after_data_layer: "Real fan score (8,750 XP), real Elite tier badge, real 12-day streak, server-side data from PostgreSQL, community activity from friend_activities, upcoming events from Ticketmaster (LA music + sports) enriched with user's top artists"
+        - "Tier pill links to /access"
+        - "Fandom row tap → /artist/[id]"
+        - "Upcoming card tap → /events/[id]"
+        - "View all links navigate to /profile and /events respectively"
+        - "Bell button opens the NotificationPanel store"
+      after_data_layer: "Universal Balance reads 8,750 (Weeknd 5,480 + Ducks 2,340 + Ariana 930). Hero pill reads 'Elite for The Weeknd'. Your fandoms list shows The Weeknd (Elite) / Anaheim Ducks (Loyal) / Ariana Grande (Fan). Upcoming card pulled from Ticketmaster (or mockEvents fallback). Earn rates rendered from xp-rules.ts constants."
 
     events:
       route: "/events"

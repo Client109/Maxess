@@ -54,7 +54,7 @@ describe('Dark theme', () => {
     const tokens = readFileSync(resolve('src/lib/styles/tokens.css'), 'utf-8');
     expect(tokens).toContain('--bg-primary: #000000');
     expect(tokens).toContain('--text-primary: #FFFFFF');
-    expect(tokens).toContain('--bg-card: #1A1A1C');
+    expect(tokens).toContain('--bg-card: #0B0B0D');
   });
 
   it('layout.svelte uses theme CSS variables', () => {
