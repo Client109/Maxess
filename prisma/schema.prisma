@@ -13,6 +13,9 @@ model User {
   id              String   @id @default(cuid())
   fan_id          String   @unique // For compatibility with existing frontend
   email           String?  @unique
+  handle          String?  @unique // @username displayed on profile (e.g. "alexchen")
+  avatar_url      String?  // Portrait photo URL; falls back to avatar_initials when null
+  rewards_redeemed Int     @default(0) // Denormalized counter for profile stat
   name            String
   avatar_initials String
   city            String
@@ -35,7 +38,11 @@ model User {
   apple_music_id  String?
   discord_id      String?
   lastfm_username String?
-  
+
+  // Per-fandom access page state — which fandom's tier + rewards to surface
+  // on /access by default. Null = default to the user's highest-points fandom.
+  selected_fandom_id String?
+
   // Relationships
   event_interactions UserEvent[]
   challenge_progress UserChallenge[]
@@ -45,6 +52,8 @@ model User {
   invitations_sent   Invitation[]     @relation("ReferrerInvites")
   followed_artists   FollowedArtist[]
   listening_events   ListeningEvent[]
+  fan_tiers          FanTier[]
+  reward_redemptions RewardRedemption[]
 
   @@map("users")
 }
@@ -166,6 +175,85 @@ model XpTransaction {
   user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   
   @@map("xp_transactions")
+}
+
+// FanTier — per-fandom tier + points balance.
+// lifetime_points is sticky (climbs tiers, never decreases on redemption).
+// points_balance = lifetime_points − Σ RewardRedemption.points_spent for this user+fandom.
+// fandom_id matches src/lib/data/seedFandoms.ts ids (e.g. 'weeknd', 'lakers').
+model FanTier {
+  id              String     @id @default(cuid())
+  user_id         String
+  fandom_id       String
+  fandom_kind     FandomKind
+  lifetime_points Int        @default(0)
+  points_balance  Int        @default(0)
+  created_at      DateTime   @default(now())
+  updated_at      DateTime   @updatedAt
+
+  user            User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, fandom_id])
+  @@index([user_id])
+  @@map("fan_tiers")
+}
+
+// Reward catalog — tier-gated experiences a user can redeem with their
+// fandom-specific points_balance. tier_required is the minimum FanTierBand
+// the user must reach for this reward to be Unlocked. is_included_perk=true
+// rewards appear in the "Included from lower tiers" list (no redemption flow).
+model Reward {
+  id                String        @id @default(cuid())
+  fandom_id         String
+  fandom_kind       FandomKind
+  name              String
+  point_cost        Int
+  tier_required     FanTierBand
+  image_url         String?
+  icon_name         String?       // lucide icon name for icon-only rewards
+  is_included_perk  Boolean       @default(false)
+  sort_order        Int           @default(0)
+  created_at        DateTime      @default(now())
+
+  redemptions       RewardRedemption[]
+
+  @@index([fandom_id, tier_required])
+  @@map("rewards")
+}
+
+// RewardRedemption — append-only log of a user redeeming a Reward.
+// Subtracts points_spent from FanTier.points_balance; does NOT change
+// lifetime_points so tier is unaffected.
+model RewardRedemption {
+  id           String   @id @default(cuid())
+  user_id      String
+  reward_id    String
+  points_spent Int
+  redeemed_at  DateTime @default(now())
+
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  reward       Reward   @relation(fields: [reward_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([reward_id])
+  @@map("reward_redemptions")
+}
+
+enum FandomKind {
+  ARTIST
+  TEAM
+
+  @@map("fandom_kind")
+}
+
+enum FanTierBand {
+  NEWCOMER
+  FAN
+  LOYAL
+  SUPERFAN
+  ELITE
+
+  @@map("fan_tier_band")
 }
 
 // Passes (Access tier rewards)

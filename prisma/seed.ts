@@ -3,6 +3,7 @@ import 'dotenv/config';
 import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { totalSeededXp, REWARDS_XP_TOTAL, FOLLOWED_ARTISTS, FOLLOWED_TEAMS } from '../src/lib/data/seedFandoms.js';
 
 // pg.Pool only speaks raw postgres. If DATABASE_URL is a `prisma+postgres://`
 // proxy URL (from `prisma dev`), fall back to the embedded raw-postgres port.
@@ -48,20 +49,31 @@ async function main() {
   await prisma.attendanceVerification.deleteMany();
   await prisma.listeningEvent.deleteMany();
   await prisma.followedArtist.deleteMany();
+  await prisma.rewardRedemption.deleteMany();
+  await prisma.reward.deleteMany();
+  await prisma.fanTier.deleteMany();
   await prisma.pass.deleteMany();
   await prisma.event.deleteMany();
   await prisma.challenge.deleteMany();
   await prisma.user.deleteMany();
 
   // ── Main user (Alex Chen — demo protagonist) ──────────────────────────
+  // xp_total is derived from the canonical follow seed so it always equals
+  // Σ followed artists + Σ followed teams + reward XP. See
+  // src/lib/data/seedFandoms.ts. The xp_transactions block below must sum to
+  // REWARDS_XP_TOTAL for the audit log to balance.
+  const ALEX_XP_TOTAL = totalSeededXp();
   const mainUser = await prisma.user.create({
     data: {
       fan_id: 'fan_001',
       name: 'Alex Chen',
+      handle: 'alexchen',
       avatar_initials: 'AC',
+      avatar_url: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400&h=400&fit=crop&crop=faces',
+      rewards_redeemed: 12,
       city: 'Los Angeles',
-      xp_total: 750_000,
-      current_tier: 'SUPERFAN',
+      xp_total: ALEX_XP_TOTAL,
+      current_tier: tierFromXp(ALEX_XP_TOTAL),
       streak_days: 12,
       rank: 18,
       percentile: 3,
@@ -324,14 +336,28 @@ async function main() {
     ],
   });
 
-  // ── XP Transactions (detailed history for Alex Chen) ──────────────────
+  // ── XP Transactions (rewards audit log for Alex Chen) ────────────────
+  // Must sum to REWARDS_XP_TOTAL (currently 90,000). These are the points
+  // earned outside per-fandom follow depth (challenges, attendance scans,
+  // streaming, watch, spend) — the "rewards" leg of the xp_total identity
+  // documented in src/lib/data/seedFandoms.ts.
   const xpTransactions = [
-    { amount: 3600, source: 'Event Attendance', description: 'XP from attending 9 events' },
-    { amount: 2840, source: 'Streaming', description: 'Music streaming XP' },
-    { amount: 960, source: 'Watch XP', description: 'Watching live streams and replays' },
-    { amount: 440, source: 'Spend XP', description: 'Merchandise and ticket purchases' },
-    { amount: 910, source: 'Challenges', description: 'Challenge completion rewards' },
+    { amount: 50_000, source: 'Event Attendance', description: '5 verified concerts × 10,000' },
+    { amount: 22_000, source: 'Streaming', description: 'Music streaming XP (capped daily)' },
+    { amount: 8_000,  source: 'Challenges', description: 'Challenge completion rewards' },
+    { amount: 6_000,  source: 'Watch XP', description: 'Watching live streams and replays' },
+    { amount: 4_000,  source: 'Spend XP', description: 'Merchandise and ticket purchases' },
   ];
+
+  // Sanity-check at seed time: a refactor to the per-source amounts above must
+  // keep the sum in lockstep with REWARDS_XP_TOTAL, otherwise xp_total stops
+  // equalling Σ follows + Σ rewards.
+  const rewardsSum = xpTransactions.reduce((s, tx) => s + tx.amount, 0);
+  if (rewardsSum !== REWARDS_XP_TOTAL) {
+    throw new Error(
+      `xp_transactions sum (${rewardsSum}) != REWARDS_XP_TOTAL (${REWARDS_XP_TOTAL})`,
+    );
+  }
 
   for (const tx of xpTransactions) {
     await prisma.xpTransaction.create({
@@ -618,12 +644,107 @@ async function main() {
     })),
   });
 
+  // ── FanTier rows (Alex Chen) ──────────────────────────────────────────
+  // One row per followed artist + team, with lifetime_points equal to the
+  // canonical seed. points_balance starts == lifetime_points; redemptions below
+  // subtract from balance only.
+  const fanTierRows = [
+    ...FOLLOWED_ARTISTS.map(a => ({
+      user_id: mainUser.id,
+      fandom_id: a.id,
+      fandom_kind: 'ARTIST' as const,
+      lifetime_points: a.points,
+      points_balance: a.points,
+    })),
+    ...FOLLOWED_TEAMS.map(t => ({
+      user_id: mainUser.id,
+      fandom_id: t.id,
+      fandom_kind: 'TEAM' as const,
+      lifetime_points: t.points,
+      points_balance: t.points,
+    })),
+  ];
+  await prisma.fanTier.createMany({ data: fanTierRows });
+
+  // Alex's default selected fandom = The Weeknd (highest-points music fandom)
+  await prisma.user.update({
+    where: { id: mainUser.id },
+    data: { selected_fandom_id: 'weeknd' },
+  });
+
+  // ── Reward catalog ────────────────────────────────────────────────────
+  // Per-fandom rewards split by tier_required. Point costs come from the
+  // /access mockup (48hr Early Presale = 600, Soundcheck = 1,200, Meet &
+  // Greet = 2,500, Backstage Experience = 3,000). Included-from-lower-tier
+  // perks are flagged is_included_perk=true and have no cost.
+  type RewardSeed = {
+    name: string; point_cost: number; tier_required: 'NEWCOMER' | 'FAN' | 'LOYAL' | 'SUPERFAN' | 'ELITE';
+    icon?: string; is_included?: boolean; image_url?: string;
+  };
+  const ARTIST_REWARDS: RewardSeed[] = [
+    // Elite-tier unlockables (the four hero cards in the mockup)
+    { name: '48hr Early Presale',  point_cost: 600,   tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1567002260062-d1b9a18b9a91?w=400&h=400&fit=crop' },
+    { name: 'Soundcheck Access',   point_cost: 1_200, tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1471478331149-c72f17e33c73?w=400&h=400&fit=crop' },
+    { name: 'Meet and Greet',      point_cost: 2_500, tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=400&h=400&fit=crop' },
+    { name: 'Backstage Experience', point_cost: 3_000, tier_required: 'ELITE', image_url: 'https://images.unsplash.com/photo-1518972559570-7cc1309f3229?w=400&h=400&fit=crop' },
+    // Included from lower tiers
+    { name: 'Presale Access Window', point_cost: 0, tier_required: 'SUPERFAN', icon: 'Ticket', is_included: true },
+    { name: 'VIP Lane',              point_cost: 0, tier_required: 'LOYAL',    icon: 'Users',  is_included: true },
+    { name: 'Food Credit',           point_cost: 0, tier_required: 'FAN',      icon: 'UtensilsCrossed', is_included: true },
+  ];
+  const TEAM_REWARDS: RewardSeed[] = [
+    { name: 'Season Ticket Presale', point_cost: 500,  tier_required: 'ELITE',    image_url: null as any },
+    { name: 'Courtside Upgrade',     point_cost: 2_000, tier_required: 'ELITE',    image_url: null as any },
+    { name: 'Locker Room Tour',      point_cost: 2_800, tier_required: 'ELITE',    image_url: null as any },
+    { name: 'Pre-Game Warmups Pass', point_cost: 3_200, tier_required: 'ELITE',    image_url: null as any },
+    { name: 'Single-Game Presale',   point_cost: 0,    tier_required: 'SUPERFAN', icon: 'Ticket', is_included: true },
+    { name: 'Express Entry',         point_cost: 0,    tier_required: 'LOYAL',    icon: 'Users',  is_included: true },
+    { name: 'Concession Credit',     point_cost: 0,    tier_required: 'FAN',      icon: 'UtensilsCrossed', is_included: true },
+  ];
+
+  const rewardData = [
+    ...FOLLOWED_ARTISTS.flatMap(a => ARTIST_REWARDS.map((r, i) => ({
+      fandom_id: a.id, fandom_kind: 'ARTIST' as const,
+      name: r.name, point_cost: r.point_cost, tier_required: r.tier_required,
+      image_url: r.image_url ?? null, icon_name: r.icon ?? null,
+      is_included_perk: r.is_included ?? false, sort_order: i,
+    }))),
+    ...FOLLOWED_TEAMS.flatMap(t => TEAM_REWARDS.map((r, i) => ({
+      fandom_id: t.id, fandom_kind: 'TEAM' as const,
+      name: r.name, point_cost: r.point_cost, tier_required: r.tier_required,
+      image_url: r.image_url ?? null, icon_name: r.icon ?? null,
+      is_included_perk: r.is_included ?? false, sort_order: i,
+    }))),
+  ];
+  await prisma.reward.createMany({ data: rewardData });
+
+  // ── Reward redemptions (drop Alex's Weeknd balance to 5,480 to match the
+  // mockup hero card: lifetime 280,000 minus 274,520 spent = 5,480 available).
+  const weekndReward = await prisma.reward.findFirst({
+    where: { fandom_id: 'weeknd', name: 'Backstage Experience' },
+  });
+  if (weekndReward) {
+    await prisma.rewardRedemption.create({
+      data: {
+        user_id: mainUser.id,
+        reward_id: weekndReward.id,
+        points_spent: 274_520,
+      },
+    });
+    await prisma.fanTier.update({
+      where: { user_id_fandom_id: { user_id: mainUser.id, fandom_id: 'weeknd' } },
+      data: { points_balance: 280_000 - 274_520 },
+    });
+  }
+
   const totalUsers = await prisma.user.count();
   const totalLeaderboard = await prisma.leaderboardEntry.count();
   const totalFriendActivities = await prisma.friendActivity.count();
   const totalFollowed = await prisma.followedArtist.count();
   const totalListens = await prisma.listeningEvent.count();
-  console.log(`Seed completed: ${totalUsers} users, ${totalLeaderboard} leaderboard entries, ${totalFriendActivities} friend activities, 8 challenges, 10 passes (2 wallet tickets), 2 events, ${totalFollowed} followed artists, ${totalListens} listening events`);
+  const totalFanTiers = await prisma.fanTier.count();
+  const totalRewards = await prisma.reward.count();
+  console.log(`Seed completed: ${totalUsers} users, ${totalLeaderboard} leaderboard entries, ${totalFriendActivities} friend activities, 8 challenges, 10 passes (2 wallet tickets), 2 events, ${totalFollowed} followed artists, ${totalListens} listening events, ${totalFanTiers} fan tiers, ${totalRewards} rewards`);
 }
 
 main()

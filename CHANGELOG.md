@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-06-04
+
+### Added
+- **/access page redesigned to the dark mockup with a full per-fandom tier model.**
+  - Prisma: `FanTier` (per-user × per-fandom lifetime/balance), `Reward` catalog (tier-gated, with `is_included_perk` for the lower-tier list), `RewardRedemption` ledger, `User.selected_fandom_id`. New enums `FandomKind` (`ARTIST | TEAM`) and `FanTierBand` (`NEWCOMER | FAN | LOYAL | SUPERFAN | ELITE`).
+  - `src/routes/access/+page.svelte` rewritten in dark theme (`#000` page bg, `#0E0E10` cards, `#FF5C00` accent). Sections: page header with notification bell, selected-fandom card (portrait + tier chip + spendable balance), explainer copy, Rewards/Passes segmented toggle (custom themed, no native input), Unlocked-for-Tier horizontal-scroll reward grid with image + check overlay, Included-from-lower-tiers list, per-fandom tier footnote ("You are Elite for The Weeknd, …").
+  - `src/lib/server/access.ts` — pure helpers `partitionRewards()` and `resolveSelectedFandom()` (extracted so they're unit-testable without a DB). 12 vitest cases in `access.test.ts`.
+  - `src/routes/access/+page.server.ts` — loads FanTier rows, joins display metadata from `seedFandoms.ts`, resolves selected fandom (explicit-or-top-points), partitions rewards by tier vs the user's current tier.
+  - `POST /api/fandoms/select` — switches `User.selected_fandom_id`. Guards 404 when fandom isn't in the user's FanTier list.
+  - Fandom switcher: tapping the selected-fandom card opens a bottom sheet listing all the user's FanTier rows; selecting one swaps the page.
+  - Seed: FanTier rows for all 10 of Alex's fandoms (5 artists + 5 teams) from `FOLLOWED_ARTISTS`/`FOLLOWED_TEAMS`; 70 Reward catalog rows (7 per fandom: 4 Elite hero unlockables + 3 included-from-lower perks); RewardRedemption row dropping Weeknd balance to **5,480** to match the mockup. `selected_fandom_id = 'weeknd'` for the demo user.
+  - Earn-and-burn model: redeeming a reward subtracts from `FanTier.points_balance` but never decreases `lifetime_points`, so tier is sticky.
+
+### Changed
+- **BottomNav reordered** to `Home / Score / Access / Events / Profile` (was `Home / Events / Score / Access / Profile`). Icons updated to match the mockup: Score → `Trophy`, Access → `Ticket`, Events → `Calendar` (was `Target` / `Crown` / `Compass`).
+- `specs/app.yml:visual_design` adds a `dark_pages` carve-out documenting `/access` (and the already-dark `/profile`) so the "light theme app-wide" rule has an explicit exception.
+
 ## [0.8.0] - 2026-06-04
 
 ### Changed

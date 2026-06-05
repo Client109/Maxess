@@ -1,6 +1,6 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
-  version: "0.8.0-MVP"
+  version: "0.9.0-MVP"
   status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel, Apple Wallet attendance verification (unsigned-mode demo)"
 
   product_direction:
@@ -16,7 +16,7 @@ app_spec:
       - "Which events should I attend for maximum fan engagement?"
 
   mvp_boundary:
-    version_target: "0.8.0 — currently shipping"
+    version_target: "0.9.0 — currently shipping"
     must_build:
       - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
       - "Events screen with filtering, search, and booking capabilities"
@@ -55,7 +55,19 @@ app_spec:
       - "@playwright/test for E2E testing (planned)"
 
   visual_design:
-    theme: "Light theme (app-wide)"
+    theme: "Light theme app-wide by default; specific routes opt into a dark palette via page-scoped styles (see dark_pages)."
+    dark_pages:
+      description: "Routes that render in a full-bleed dark palette. Scoped via page-local CSS on the route's +page.svelte; the BottomNav and global layout stay neutral and inherit from the page."
+      palette:
+        page_background: "#000000"
+        card_background: "#0E0E10"
+        card_border: "#1F1F21"
+        text_primary: "#FFFFFF"
+        text_secondary: "#8E8E93"
+        accent_orange: "#FF5C00"
+      routes:
+        - "/access — Access page (selected fandom + rewards)"
+        - "/profile — Profile page (identity + fandom breakdown)"
     color_palette:
       primary_orange: "#FF5C00"
       bg_primary: "#F8F8FA"
@@ -251,6 +263,21 @@ app_spec:
           constraints: ["@@unique([user_id, source, played_at, track_name])", "@@index([user_id, played_at])", "@@index([artist_name_canonical])"]
           purpose: "Append-only log of music listens captured from external sources (Last.fm now, Spotify OAuth when auth lands). is_followed=true plays feed daily XP aggregation via computeDailyListeningXp() in xp-rules.ts."
           table: "listening_events"
+        FanTier:
+          fields: ["id (cuid)", "user_id", "fandom_id", "fandom_kind (FandomKind)", "lifetime_points (Int)", "points_balance (Int)", "created_at", "updated_at"]
+          constraints: ["@@unique([user_id, fandom_id])", "@@index([user_id])"]
+          purpose: "Per-fandom tier + points balance for the /access page. lifetime_points is sticky (climbs tiers, never decreases). points_balance = lifetime_points − Σ RewardRedemption.points_spent for the (user, fandom). fandom_id matches src/lib/data/seedFandoms.ts ids."
+          table: "fan_tiers"
+        Reward:
+          fields: ["id (cuid)", "fandom_id", "fandom_kind (FandomKind)", "name", "point_cost (Int)", "tier_required (FanTierBand)", "image_url?", "icon_name?", "is_included_perk (bool)", "sort_order (Int)", "created_at"]
+          constraints: ["@@index([fandom_id, tier_required])"]
+          purpose: "Tier-gated reward catalog rendered on /access. tier_required is the minimum FanTierBand the user must reach. is_included_perk=true rows appear in the 'Included from lower tiers' list with no redemption flow."
+          table: "rewards"
+        RewardRedemption:
+          fields: ["id (cuid)", "user_id", "reward_id", "points_spent (Int)", "redeemed_at"]
+          constraints: ["@@index([user_id])", "@@index([reward_id])"]
+          purpose: "Append-only log of a user redeeming a Reward. Subtracts points_spent from FanTier.points_balance; does NOT change lifetime_points so tier is unaffected (earn-and-burn within tier)."
+          table: "reward_redemptions"
         FriendActivity:
           fields: ["id (cuid)", "user_id", "friend_name (string — not yet FK)", "activity", "xp_change?", "created_at"]
           notes: "friend_name is a plain string for demo. getFriendUserIds() resolves it to User rows by name match."
@@ -271,6 +298,8 @@ app_spec:
         PassKind: ["TICKET", "PERK", "PRESALE"]
         VerificationMethod: ["WALLET_SCAN", "SELF_CHECKIN", "MANUAL", "TICKETMASTER_WEBHOOK"]
         ListenSource: ["LASTFM", "SPOTIFY"]
+        FandomKind: ["ARTIST", "TEAM"]
+        FanTierBand: ["NEWCOMER", "FAN", "LOYAL", "SUPERFAN", "ELITE"]
       seed_inventory:
         path: "prisma/seed.ts"
         run: "npm run db:seed"
@@ -403,28 +432,47 @@ app_spec:
       route: "/access"
       nav_label: "Access"
       load_function: "src/routes/access/+page.server.ts"
+      theme: "DARK theme scoped to this route (black background #000, white text, orange accent #FF5C00) — carve-out from the app-wide light theme. See visual_design.dark_pages."
       data_sources:
-        - "getUserByFanId('fan_001')"
-        - "getUserPasses('fan_001') → owned passes"
-        - "getFeaturedOffers(5) → available/unassigned passes for featured cards"
-        - "Static topArtists list (3 entries: The Weeknd, Anaheim Ducks, Kaytranada) with per-artist tier progress"
-        - "Derives activePasses count (status=active) and expiringSoon count (status=starts_soon)"
+        - "db.user.findUnique({ fan_id: 'fan_001' }) → user + selected_fandom_id"
+        - "db.fanTier.findMany({ user_id }) → all of the user's per-fandom tiers ordered by lifetime_points desc"
+        - "FOLLOWED_ARTISTS + FOLLOWED_TEAMS from src/lib/data/seedFandoms.ts → display metadata (image, name, sport) joined by fandom_id"
+        - "db.reward.findMany({ fandom_id, fandom_kind }) for the selected fandom → partitioned into unlocked/included/locked by tier_required vs the user's current tier"
+        - "getUserPasses('fan_001') → legacy passes list rendered under the Passes tab of the segmented toggle"
+      selected_fandom_resolution: "Explicit User.selected_fandom_id wins; falls back to the user's top-points fandom (first row by lifetime_points desc) when null."
+      reward_partitioning:
+        unlocked: "reward.tier_required == user's current tier AND is_included_perk=false → hero unlock cards"
+        included: "reward.tier_required <  user's current tier OR (is_included_perk=true AND reachable) → 'Included from lower tiers' list"
+        locked: "reward.tier_required >  user's current tier → not currently surfaced (kept in payload for future teasers)"
       primary_components:
-        - "Elite access summary bar (active count, expiring soon, top tier perks label)"
-        - "Featured access cards from getFeaturedOffers (Backstage Experience, Festival VIP Upgrade, etc.)"
-        - "Your passes list with status badges (active / starts_soon / waiting)"
-        - "Top artists/teams progress cards (per-artist tier progress)"
-        - "Perks by tier carousel via getTierPerks() (Fan / Loyal / Superfan / Elite)"
+        - "Page header: 'Access' (36px bold) + subtitle 'Your rewards. Your way in.' + Notifications bell button (top right)"
+        - "Selected fandom card — portrait, label 'Selected fandom: <name>', tier chip with Diamond icon, vertical divider, points balance + 'available' caption. Tapping opens the fandom switcher sheet."
+        - "Explainer paragraph: 'Points unlock the tier first, then the same points are spent to redeem experiences.'"
+        - "Rewards / Passes segmented toggle (custom Svelte, no native input; 44px touch target; orange border on active)"
+        - "Unlocked-for-<Tier> rewards: horizontal scroll of square cards with image, orange checkmark overlay, 'Unlocked' label, reward name, point cost"
+        - "Included from lower tiers list: row per perk with lucide icon + name; footnote 'Unlocked through Superfan and below'"
+        - "Per-fandom tier footnote: 'Tier is specific to each artist or team. You are <Tier> for <Fandom>, ...' (top 3 by lifetime_points)"
+        - "Fandom switcher sheet: bottom-anchored modal listing all the user's FanTier rows with portrait, name, tier chip; tap → POST /api/fandoms/select then reload"
       required_interactions:
-        - "Pass status display matches UI badge text exactly"
-        - "Tier perks show current and locked tiers"
-        - "Claim access and View pass CTAs"
-        - "Pass card tap → /passes/[id]"
+        - "Tapping the selected-fandom card opens the fandom switcher sheet"
+        - "Selecting a different fandom in the sheet POSTs /api/fandoms/select then reloads with the new fandom's tier + rewards"
+        - "Rewards / Passes segmented toggle swaps the section content client-side; default = Rewards"
+        - "Bell button → /profile/notifications"
+        - "Reward card layout uses horizontal overflow scroll on narrow screens"
       color_system:
-        active_earned: "#FF5C00 (orange)"
-        elite_tier: "#3B28CC (purple)"
-        completed_unlocked: "#1A9E56 (green)"
-        locked_pending: "#8E8E93 (gray)"
+        page_background: "#000000"
+        card_background: "#0E0E10"
+        card_border: "#1F1F21"
+        accent_orange: "#FF5C00"
+        text_primary: "#FFFFFF"
+        text_secondary: "#8E8E93"
+        text_tertiary: "#C7C7CC"
+      endpoints:
+        select_fandom:
+          route: "POST /api/fandoms/select"
+          body: "{ fandom_id: string }"
+          response: "{ selected_fandom_id }"
+          guards: "404 if the fandom is not in the user's FanTier list (prevents selecting an unfollowed fandom)"
 
     pass_detail:
       route: "/passes/[id]"
@@ -497,9 +545,9 @@ app_spec:
       inactive_color: "#8E8E93"
       tabs:
         - { id: "home", icon: "Home", label: "Home", route: "/" }
-        - { id: "events", icon: "Compass", label: "Events", route: "/events" }
-        - { id: "score", icon: "Target", label: "Score", route: "/score" }
-        - { id: "access", icon: "Crown", label: "Access", route: "/access" }
+        - { id: "score", icon: "Trophy", label: "Score", route: "/score" }
+        - { id: "access", icon: "Ticket", label: "Access", route: "/access" }
+        - { id: "events", icon: "Calendar", label: "Events", route: "/events" }
         - { id: "profile", icon: "User", label: "Profile", route: "/profile" }
       active_tab_logic: "First path segment matches tab.id; root path '/' → 'home'"
       animations:

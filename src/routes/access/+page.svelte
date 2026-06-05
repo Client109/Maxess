@@ -1,660 +1,540 @@
 <script>
-  import { Star, Clock, Crown, ChevronRight, Zap, Shield } from 'lucide-svelte';
-  import NotificationBell from '$lib/components/NotificationBell.svelte';
-  import { classifyTier } from '$lib/domain/xp.js';
+  import { Bell, Diamond, Check, Ticket, Users, UtensilsCrossed, X, Info } from 'lucide-svelte';
 
   export let data;
 
-  $: fan = data.fan;
-  $: currentTier = fan ? classifyTier(fan.xp_total) : { name: 'Fan' };
+  $: user = data.user;
+  $: fandoms = data.fandoms ?? [];
+  $: selected = data.selected;
+  $: rewards = data.rewards ?? { unlocked: [], included: [], locked: [] };
+  $: tierLine = data.tierLine ?? [];
 
-  const PASSES_COLLAPSED_COUNT = 3;
-  let passesExpanded = false;
-  $: visiblePasses = passesExpanded ? data.passes : data.passes.slice(0, PASSES_COLLAPSED_COUNT);
+  let tab = 'rewards';                       // 'rewards' | 'passes'
+  let pickerOpen = false;
+  let switching = false;
+
+  // Map icon_name -> lucide component for included perks.
+  const iconMap = { Ticket, Users, UtensilsCrossed };
+  function iconFor(name) {
+    return iconMap[name] ?? Ticket;
+  }
+
+  async function selectFandom(fandom_id) {
+    if (switching) return;
+    switching = true;
+    try {
+      const res = await fetch('/api/fandoms/select', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ fandom_id }),
+      });
+      if (res.ok && typeof window !== 'undefined') window.location.reload();
+    } finally {
+      switching = false;
+      pickerOpen = false;
+    }
+  }
 </script>
 
 <svelte:head>
   <title>Access - Maxess</title>
 </svelte:head>
 
-<div class="page-container">
-  <!-- Header -->
+<div class="page">
   <header class="page-header">
-    <div>
+    <div class="title-block">
       <h1 class="page-title">Access</h1>
-      <p class="subtitle">Presales, perks, and your progress</p>
+      <p class="page-subtitle">Your rewards. Your way in.</p>
     </div>
-    <NotificationBell />
+    <a href="/profile/notifications" class="bell-btn" aria-label="Notifications">
+      <Bell size={22} color="#FFFFFF" />
+      <span class="bell-dot"></span>
+    </a>
   </header>
 
-  {#if fan}
-    <!-- Elite Access KPI Strip -->
-    <div class="kpi-strip">
-      <div class="kpi-item">
-        <div class="kpi-icon orange">
-          <Zap size={16} />
-        </div>
-        <div class="kpi-text">
-          <span class="kpi-value">{fan.xp_total.toLocaleString()}</span>
-          <span class="kpi-unit">pts</span>
-        </div>
-        <span class="kpi-label">Total points</span>
+  {#if !user || !selected}
+    <div class="empty"><p>Unable to load access data. Please try again later.</p></div>
+  {:else}
+    <!-- Selected fandom card -->
+    <button class="fandom-card" type="button" on:click={() => pickerOpen = true} aria-label="Change selected fandom">
+      <div class="fandom-portrait">
+        {#if selected.image}
+          <img src={selected.image} alt={selected.name} />
+        {:else}
+          <span>{selected.name.slice(0, 1)}</span>
+        {/if}
       </div>
-      <div class="kpi-item">
-        <div class="kpi-icon purple">
-          <Shield size={16} />
+      <div class="fandom-info">
+        <p class="fandom-label">
+          Selected fandom: <strong>{selected.name}</strong>
+        </p>
+        <div class="fandom-row">
+          <span class="tier-chip" style:--chip-color={selected.tier_color}>
+            <Diamond size={12} />
+            {selected.tier}
+          </span>
+          <span class="fandom-divider" aria-hidden="true"></span>
+          <span class="points-block">
+            <span class="points-line">
+              <span class="points-value">{selected.points_balance.toLocaleString()}</span>
+              <span class="points-unit">pts</span>
+            </span>
+            <span class="points-state">available</span>
+          </span>
         </div>
-        <span class="kpi-value tier-value">{currentTier.name}</span>
-        <span class="kpi-label">Your tier</span>
       </div>
-      <div class="kpi-item">
-        <div class="kpi-icon green">
-          <Crown size={16} />
-        </div>
-        <span class="kpi-value">{data.activePasses}</span>
-        <span class="kpi-label">Active</span>
-      </div>
-      <div class="kpi-item">
-        <div class="kpi-icon red">
-          <Clock size={16} />
-        </div>
-        <span class="kpi-value">{data.expiringSoon}</span>
-        <span class="kpi-label">Expiring soon</span>
-      </div>
+    </button>
+
+    <p class="explainer">
+      Points unlock the tier first, then the same points are spent<br/>
+      to redeem experiences.
+    </p>
+
+    <!-- Rewards / Passes segmented toggle -->
+    <div class="segmented" role="tablist" aria-label="Access view">
+      <button
+        type="button"
+        role="tab"
+        class="seg-btn"
+        class:seg-btn--active={tab === 'rewards'}
+        aria-selected={tab === 'rewards'}
+        on:click={() => tab = 'rewards'}
+      >Rewards</button>
+      <button
+        type="button"
+        role="tab"
+        class="seg-btn"
+        class:seg-btn--active={tab === 'passes'}
+        aria-selected={tab === 'passes'}
+        on:click={() => tab = 'passes'}
+      >Passes</button>
     </div>
 
-    <!-- Top Artists & Teams -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Top artists & teams</h2>
-        <p class="section-sub">Each one progresses separately.</p>
-      </div>
-      <div class="artists-list">
-        {#each data.topArtists as artist}
-          <a href="/artist/{artist.id}" class="artist-row">
-            <div class="artist-avatar" style="background: linear-gradient(135deg, #1a1a2e, #16213e);">
-              <span class="artist-initial">{artist.name[0]}</span>
-            </div>
-            <div class="artist-info">
-              <div class="artist-name-row">
-                <span class="artist-name">{artist.name}</span>
-                <span class="tier-chip" style="background: {artist.tier_color}">{artist.tier}</span>
-              </div>
-              <div class="artist-progress-row">
-                <span class="artist-points">{artist.points.toLocaleString()} pts</span>
-                <div class="progress-bar-wrap">
-                  <span class="pts-to-next">{artist.pts_to_next.toLocaleString()} pts to {artist.next_tier}</span>
-                  <div class="progress-bar">
-                    <div class="progress-fill" style="width: {artist.progress * 100}%; background: {artist.tier_color}"></div>
-                  </div>
+    {#if tab === 'rewards'}
+      <h3 class="section-title">Unlocked for {selected.tier}</h3>
+      {#if rewards.unlocked.length === 0}
+        <p class="section-empty">No rewards at your current tier yet. Earn more points to unlock the next tier.</p>
+      {:else}
+        <div class="reward-grid">
+          {#each rewards.unlocked as r (r.id)}
+            <article class="reward-card">
+              <div class="reward-image">
+                {#if r.image_url}
+                  <img src={r.image_url} alt="" />
+                {/if}
+                <div class="reward-overlay">
+                  <span class="reward-check"><Check size={20} strokeWidth={2.4} /></span>
                 </div>
               </div>
-            </div>
-            <ChevronRight size={18} color="#8E8E93" />
-          </a>
-        {/each}
-      </div>
-    </section>
-
-    <!-- Featured Access -->
-    {#if data.featuredOffers.length > 0}
-      <section class="section">
-        <h2 class="section-title padded">Featured access</h2>
-        <div class="featured-card">
-          <div class="featured-image">
-            <span class="top-pick-badge"><Star size={10} /> TOP PICK</span>
-          </div>
-          <div class="featured-content">
-            <h3 class="featured-name">{data.featuredOffers[0].name}</h3>
-            <p class="featured-desc">Priority entry + lounge access</p>
-            <div class="featured-footer">
-              <span class="featured-time"><Clock size={12} /> Opens in 18h</span>
-              <a href="/passes/{data.featuredOffers[0].pass_id}" class="view-pass-btn">View pass</a>
-            </div>
-          </div>
+              <div class="reward-body">
+                <p class="reward-status">Unlocked</p>
+                <h4 class="reward-name">{r.name}</h4>
+                <p class="reward-cost">{r.point_cost.toLocaleString()} pts</p>
+              </div>
+            </article>
+          {/each}
         </div>
-      </section>
+      {/if}
+
+      {#if rewards.included.length > 0}
+        <h3 class="section-title">Included from lower tiers</h3>
+        <ul class="included-list">
+          {#each rewards.included as r (r.id)}
+            <li class="included-row">
+              <span class="included-icon">
+                <svelte:component this={iconFor(r.icon_name)} size={18} color="#FF5C00" />
+              </span>
+              <span class="included-name">{r.name}</span>
+            </li>
+          {/each}
+        </ul>
+        <p class="included-footnote">Unlocked through Superfan and below</p>
+      {/if}
+
+      {#if tierLine.length > 0}
+        <div class="tier-footnote">
+          <Info size={14} color="#8E8E93" />
+          <p>
+            Tier is specific to each artist or team. You are
+            {#each tierLine as line, i}{i === tierLine.length - 1 && tierLine.length > 1 ? ', and ' : i > 0 ? ', ' : ''}{line}{/each}.
+          </p>
+        </div>
+      {/if}
+    {:else}
+      <!-- Passes tab — legacy passes list -->
+      <h3 class="section-title">Your passes</h3>
+      {#if (data.passes ?? []).length === 0}
+        <p class="section-empty">No passes yet.</p>
+      {:else}
+        <ul class="pass-list">
+          {#each data.passes as p (p.pass_id)}
+            <li class="pass-row">
+              <a class="pass-link" href={`/passes/${p.pass_id}`}>
+                <Ticket size={18} color="#FF5C00" />
+                <div class="pass-info">
+                  <span class="pass-name">{p.name}</span>
+                  <span class="pass-venue">{p.venue}</span>
+                </div>
+                <span class="pass-status">{p.status}</span>
+              </a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
     {/if}
-
-    <!-- Your Passes -->
-    <section class="section">
-      <div class="section-header row">
-        <h2 class="section-title">Your passes</h2>
-        <button type="button" class="view-all" on:click={() => passesExpanded = !passesExpanded}>
-          {passesExpanded ? 'Show less' : `View all (${data.passes.length})`}
-        </button>
-      </div>
-      <div class="passes-list">
-        {#each visiblePasses as pass}
-          <a href="/passes/{pass.pass_id}" class="pass-row">
-            <div class="pass-icon {pass.status}">
-              {#if pass.status === 'active'}
-                <Shield size={18} color="white" />
-              {:else if pass.status === 'starts_soon'}
-                <Zap size={18} color="white" />
-              {:else if pass.status === 'unclaimed'}
-                <Crown size={18} color="white" />
-              {:else}
-                <Star size={18} color="white" />
-              {/if}
-            </div>
-            <div class="pass-info">
-              <h3 class="pass-name">{pass.name}</h3>
-            </div>
-            <span class="pass-status-badge {pass.status}">
-              {#if pass.status === 'active'}Active
-              {:else if pass.status === 'starts_soon'}Starts soon
-              {:else if pass.status === 'unclaimed'}Claim
-              {:else}Waiting list
-              {/if}
-            </span>
-            <ChevronRight size={16} color="#8E8E93" />
-          </a>
-        {/each}
-      </div>
-    </section>
-
-    <!-- Unlock Next -->
-    <section class="section unlock-next">
-      <h2 class="section-title padded">Unlock next</h2>
-      <div class="unlock-card">
-        <div class="unlock-icon">
-          <Star size={20} color="#FF5C00" />
-        </div>
-        <div class="unlock-content">
-          <h3 class="unlock-title">Complete 1 more event</h3>
-          <p class="unlock-desc">to unlock lounge access</p>
-        </div>
-        <div class="unlock-progress">
-          <span class="unlock-fraction">1 / 2</span>
-          <div class="unlock-bar">
-            <div class="unlock-fill" style="width: 50%"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-  {:else}
-    <div class="empty-state">
-      <p>Unable to load your access data. Please try again later.</p>
-    </div>
   {/if}
 </div>
 
+<!-- Fandom switcher sheet -->
+{#if pickerOpen}
+  <div class="sheet-backdrop" on:click={() => pickerOpen = false} on:keydown={(e) => e.key === 'Escape' && (pickerOpen = false)} role="presentation"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Choose fandom">
+    <header class="sheet-header">
+      <h2>Choose a fandom</h2>
+      <button class="sheet-close" type="button" on:click={() => pickerOpen = false} aria-label="Close">
+        <X size={18} color="#FFFFFF" />
+      </button>
+    </header>
+    <ul class="sheet-list">
+      {#each fandoms as f (f.fandom_id)}
+        <li>
+          <button
+            class="sheet-row"
+            type="button"
+            class:sheet-row--active={f.fandom_id === selected.fandom_id}
+            on:click={() => selectFandom(f.fandom_id)}
+            disabled={switching}
+          >
+            <span class="sheet-portrait">
+              {#if f.image}<img src={f.image} alt={f.name} />{:else}<span>{f.name.slice(0, 1)}</span>{/if}
+            </span>
+            <span class="sheet-name">{f.name}</span>
+            <span class="sheet-tier" style:--chip-color={f.tier_color}>
+              <Diamond size={11} />
+              {f.tier}
+            </span>
+          </button>
+        </li>
+      {/each}
+    </ul>
+  </div>
+{/if}
+
 <style>
-  .page-container {
-    background: var(--bg-primary, #FAFAFA);
+  .page {
+    background: #000000;
     min-height: 100vh;
-    padding-bottom: 100px;
+    padding: 12px 16px 120px;
+    color: #FFFFFF;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   }
 
+  /* Header */
   .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 16px 16px 12px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 8px 0 12px;
   }
-
+  .title-block { display: flex; flex-direction: column; gap: 4px; }
   .page-title {
-    font-size: 34px;
-    font-weight: 700;
+    font-size: 36px; font-weight: 700;
+    letter-spacing: -0.5px;
     margin: 0;
-    color: var(--text-primary, #1C1C1E);
+  }
+  .page-subtitle {
+    font-size: 15px; color: #8E8E93;
+    margin: 0;
+  }
+  .bell-btn {
+    position: relative;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: transparent; border: 1px solid #2C2C2E;
+    color: #FFFFFF;
+    margin-top: 4px;
+  }
+  .bell-dot {
+    position: absolute;
+    top: 9px; right: 11px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #FF5C00;
+    border: 2px solid #000000;
   }
 
-  .subtitle {
-    color: #8E8E93;
-    font-size: 14px;
-    margin: 4px 0 0;
-  }
-
-  /* KPI Strip */
-  .kpi-strip {
+  /* Selected fandom card */
+  .fandom-card {
     display: flex;
-    justify-content: space-between;
-    margin: 0 16px 24px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 16px;
-    padding: 16px 12px;
-  }
-
-  .kpi-item {
-    display: flex;
-    flex-direction: column;
+    gap: 14px;
     align-items: center;
-    gap: 4px;
-    flex: 1;
+    width: 100%;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
+    border-radius: 18px;
+    padding: 14px;
+    margin: 8px 0 16px;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
   }
-
-  .kpi-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 2px;
+  .fandom-card:active { transform: scale(0.995); }
+  .fandom-portrait {
+    width: 88px; height: 88px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1F1F21;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
   }
-
-  .kpi-icon.orange { background: rgba(255, 92, 0, 0.12); color: #FF5C00; }
-  .kpi-icon.purple { background: rgba(59, 40, 204, 0.12); color: #3B28CC; }
-  .kpi-icon.green { background: rgba(26, 158, 86, 0.12); color: #1A9E56; }
-  .kpi-icon.red { background: rgba(255, 59, 48, 0.12); color: #FF3B30; }
-
-  .kpi-text {
-    display: flex;
-    align-items: baseline;
-    gap: 2px;
-  }
-
-  .kpi-value {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1C1C1E;
-  }
-
-  .kpi-unit {
-    font-size: 11px;
-    color: #8E8E93;
-    font-weight: 500;
-  }
-
-  .tier-value {
+  .fandom-portrait img { width: 100%; height: 100%; object-fit: cover; }
+  .fandom-portrait span { font-size: 28px; font-weight: 600; color: #FFFFFF; }
+  .fandom-info { flex: 1; min-width: 0; }
+  .fandom-label {
     font-size: 14px;
+    color: #C7C7CC;
+    margin: 0 0 10px;
   }
+  .fandom-label strong { color: #FFFFFF; font-weight: 600; }
+  .fandom-row {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .tier-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: transparent;
+    border: 1px solid var(--chip-color, #FF5C00);
+    color: var(--chip-color, #FF5C00);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .fandom-divider {
+    width: 1px;
+    height: 28px;
+    background: #2C2C2E;
+  }
+  .points-block {
+    display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1;
+  }
+  .points-line { display: flex; align-items: baseline; gap: 3px; }
+  .points-value { font-size: 22px; font-weight: 700; color: #FFFFFF; }
+  .points-unit { font-size: 13px; color: #8E8E93; }
+  .points-state { font-size: 11px; color: #8E8E93; margin-top: 2px; }
 
-  .kpi-label {
-    font-size: 10px;
-    color: #8E8E93;
+  .explainer {
     text-align: center;
+    font-size: 13px;
+    color: #8E8E93;
+    line-height: 1.4;
+    margin: 8px 16px 18px;
   }
 
-  /* Sections */
-  .section {
-    margin-bottom: 24px;
-  }
-
-  .section-header {
-    padding: 0 16px 8px;
-  }
-
-  .section-header.row {
+  /* Segmented toggle */
+  .segmented {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding: 0 16px 12px;
+    background: transparent;
+    border: 1px solid #2C2C2E;
+    border-radius: 10px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 22px;
+  }
+  .seg-btn {
+    flex: 1;
+    min-height: 44px;
+    background: transparent;
+    color: #8E8E93;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .seg-btn--active {
+    background: #1A1A1C;
+    color: #FFFFFF;
+    border-color: #FF5C00;
   }
 
+  /* Section */
   .section-title {
     font-size: 18px;
     font-weight: 700;
-    color: #1C1C1E;
-    margin: 0;
+    margin: 22px 0 12px;
   }
-
-  .section-title.padded {
-    padding: 0 16px;
-    margin-bottom: 12px;
-  }
-
-  .view-all {
-    font-size: 13px;
-    font-weight: 600;
-    color: #FF5C00;
-    text-decoration: none;
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .section-sub {
+  .section-empty {
     font-size: 13px;
     color: #8E8E93;
-    margin: 2px 0 0;
+    margin: 0 0 18px;
   }
 
-  /* Artists List */
-  .artists-list {
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 16px;
-    margin: 0 16px;
+  /* Reward grid (horizontal scroll on mobile) */
+  .reward-grid {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+  }
+  .reward-grid::-webkit-scrollbar { display: none; }
+  .reward-card {
+    flex: 0 0 158px;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
+    border-radius: 14px;
     overflow: hidden;
+    display: flex; flex-direction: column;
   }
-
-  .artist-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    border-bottom: 1px solid #E5E5EA;
-    text-decoration: none;
-    color: inherit;
-  }
-
-  .artist-row:last-child {
-    border-bottom: none;
-  }
-
-  .artist-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .artist-initial {
-    color: #FFFFFF;
-    font-size: 18px;
-    font-weight: 700;
-  }
-
-  .artist-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .artist-name-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-
-  .artist-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1C1C1E;
-  }
-
-  .tier-chip {
-    font-size: 10px;
-    font-weight: 700;
-    color: #FFFFFF;
-    padding: 2px 8px;
-    border-radius: 6px;
-  }
-
-  .artist-progress-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .artist-points {
-    font-size: 13px;
-    font-weight: 600;
-    color: #1C1C1E;
-    flex-shrink: 0;
-  }
-
-  .progress-bar-wrap {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .pts-to-next {
-    font-size: 10px;
-    color: #8E8E93;
-  }
-
-  .progress-bar {
-    height: 4px;
-    background: #E5E5EA;
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.6s ease;
-  }
-
-  /* Featured Access */
-  .featured-card {
-    margin: 0 16px;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border-radius: 16px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    gap: 0;
-  }
-
-  .featured-image {
-    width: 120px;
-    height: 120px;
-    background: linear-gradient(135deg, #2d1b4e, #1a1a3e);
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 10px;
-    flex-shrink: 0;
+  .reward-image {
     position: relative;
-  }
-
-  .top-pick-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: #FF5C00;
-    color: #FFFFFF;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 4px 8px;
-    border-radius: 6px;
-    letter-spacing: 0.3px;
-  }
-
-  .featured-content {
-    flex: 1;
-    padding: 16px;
-    color: #FFFFFF;
-  }
-
-  .featured-name {
-    font-size: 16px;
-    font-weight: 700;
-    margin: 0 0 4px;
-  }
-
-  .featured-desc {
-    font-size: 13px;
-    opacity: 0.8;
-    margin: 0 0 12px;
-  }
-
-  .featured-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .featured-time {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    opacity: 0.7;
-  }
-
-  .view-pass-btn {
-    font-size: 13px;
-    font-weight: 600;
-    color: #FF5C00;
-    text-decoration: none;
-    border: 1px solid rgba(255, 92, 0, 0.4);
-    padding: 6px 14px;
-    border-radius: 99px;
-    transition: background 0.2s;
-  }
-
-  .view-pass-btn:hover {
-    background: rgba(255, 92, 0, 0.1);
-  }
-
-  /* Passes List */
-  .passes-list {
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 16px;
-    margin: 0 16px;
-    overflow: hidden;
-  }
-
-  .pass-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    border-bottom: 1px solid #E5E5EA;
-    text-decoration: none;
-    color: inherit;
-  }
-
-  .pass-row:last-child {
-    border-bottom: none;
-  }
-
-  .pass-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .pass-icon.active { background: #1A9E56; }
-  .pass-icon.starts_soon { background: #FF5C00; }
-  .pass-icon.waiting { background: #8E8E93; }
-  .pass-icon.unclaimed { background: #3B28CC; }
-
-  .pass-info {
-    flex: 1;
-  }
-
-  .pass-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1C1C1E;
-    margin: 0;
-  }
-
-  .pass-status-badge {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 99px;
-    flex-shrink: 0;
-  }
-
-  .pass-status-badge.active {
-    background: rgba(26, 158, 86, 0.12);
-    color: #1A9E56;
-  }
-
-  .pass-status-badge.starts_soon {
-    background: rgba(255, 92, 0, 0.12);
-    color: #FF5C00;
-  }
-
-  .pass-status-badge.waiting {
-    background: rgba(142, 142, 147, 0.12);
-    color: #8E8E93;
-  }
-
-  .pass-status-badge.unclaimed {
-    background: #FF5C00;
-    color: #FFFFFF;
-  }
-
-  /* Unlock Next */
-  .unlock-next {
-    padding-bottom: 20px;
-  }
-
-  .unlock-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 16px;
-    padding: 16px;
-    margin: 0 16px;
-  }
-
-  .unlock-icon {
-    width: 44px;
-    height: 44px;
-    background: rgba(255, 92, 0, 0.1);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .unlock-content {
-    flex-shrink: 0;
-  }
-
-  .unlock-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #1C1C1E;
-    margin: 0;
-  }
-
-  .unlock-desc {
-    font-size: 12px;
-    color: #8E8E93;
-    margin: 2px 0 0;
-  }
-
-  .unlock-progress {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-  }
-
-  .unlock-fraction {
-    font-size: 12px;
-    font-weight: 600;
-    color: #FF5C00;
-  }
-
-  .unlock-bar {
     width: 100%;
-    height: 4px;
-    background: #E5E5EA;
-    border-radius: 2px;
-    overflow: hidden;
+    aspect-ratio: 1;
+    background: #1F1F21;
+    display: flex; align-items: center; justify-content: center;
   }
-
-  .unlock-fill {
-    height: 100%;
-    background: #FF5C00;
-    border-radius: 2px;
+  .reward-image img { width: 100%; height: 100%; object-fit: cover; }
+  .reward-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.15);
+    display: flex; align-items: center; justify-content: center;
   }
-
-  .empty-state {
+  .reward-check {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid #FF5C00;
+    color: #FF5C00;
+    background: rgba(0, 0, 0, 0.35);
+  }
+  .reward-body {
+    padding: 12px;
     text-align: center;
-    padding: 60px 16px;
-    color: #8E8E93;
+    display: flex; flex-direction: column; gap: 4px;
+    min-height: 92px;
   }
+  .reward-status {
+    font-size: 12px;
+    color: #FF5C00;
+    font-weight: 600;
+    margin: 0;
+  }
+  .reward-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.25;
+  }
+  .reward-cost {
+    font-size: 12px;
+    color: #8E8E93;
+    margin: auto 0 0;
+  }
+
+  /* Included from lower tiers */
+  .included-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .included-row {
+    display: flex; align-items: center; gap: 12px;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-height: 56px;
+  }
+  .included-icon { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .included-name { font-size: 15px; font-weight: 500; }
+  .included-footnote {
+    text-align: center;
+    font-size: 12px;
+    color: #8E8E93;
+    margin: 14px 0 18px;
+  }
+
+  /* Per-fandom tier footnote */
+  .tier-footnote {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    border-top: 1px solid #1F1F21;
+    padding: 16px 4px 4px;
+    margin-top: 10px;
+  }
+  .tier-footnote p { font-size: 12px; color: #8E8E93; line-height: 1.5; margin: 0; }
+
+  /* Passes tab fallback list */
+  .pass-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .pass-row { background: #0E0E10; border: 1px solid #1F1F21; border-radius: 12px; }
+  .pass-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    min-height: 56px;
+    color: inherit; text-decoration: none;
+  }
+  .pass-info { flex: 1; display: flex; flex-direction: column; }
+  .pass-name { font-size: 14px; font-weight: 500; }
+  .pass-venue { font-size: 12px; color: #8E8E93; }
+  .pass-status { font-size: 11px; color: #FF5C00; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Fandom picker sheet */
+  .sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 200;
+  }
+  .sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 201;
+    background: #0E0E10;
+    border-top: 1px solid #1F1F21;
+    border-radius: 18px 18px 0 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0));
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .sheet-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+  .sheet-close {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: #1F1F21; border: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #FFFFFF;
+    cursor: pointer;
+  }
+  .sheet-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .sheet-row {
+    width: 100%;
+    display: flex; align-items: center; gap: 12px;
+    background: transparent;
+    border: 1px solid #1F1F21;
+    border-radius: 12px;
+    padding: 10px 12px;
+    min-height: 56px;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .sheet-row:disabled { opacity: 0.5; cursor: not-allowed; }
+  .sheet-row--active { border-color: #FF5C00; }
+  .sheet-portrait {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: #1F1F21;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .sheet-portrait img { width: 100%; height: 100%; object-fit: cover; }
+  .sheet-portrait span { font-size: 14px; font-weight: 600; }
+  .sheet-name { flex: 1; font-size: 14px; font-weight: 500; }
+  .sheet-tier {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid var(--chip-color, #FF5C00);
+    color: var(--chip-color, #FF5C00);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+  }
+
+  .empty { padding: 24px 0; color: #8E8E93; text-align: center; font-size: 14px; }
 </style>
