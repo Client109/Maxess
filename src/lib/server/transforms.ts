@@ -120,7 +120,7 @@ export function transformPass(pass: any): Pass {
       : '',
     status: statusMap[pass.status] || 'waiting',
     pass_type: tierMap[pass.tier] || 'general',
-    xp_tier_required: pass.tier === 'ELITE' ? 5000 : pass.tier === 'SUPERFAN' ? 2500 : pass.tier === 'LOYAL' ? 1000 : 0,
+    xp_tier_required: pass.tier === 'ELITE' ? 1_000_000 : pass.tier === 'SUPERFAN' ? 250_000 : pass.tier === 'LOYAL' ? 100_000 : 10_000,
     icon_color: colorMap[pass.tier] || '#8E8E93',
     metadata: pass.description,
   };

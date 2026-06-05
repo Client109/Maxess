@@ -9,7 +9,11 @@ import { mockEvents } from '$lib/data/mockData.js';
 export const GET: RequestHandler = async ({ url }) => {
   const keyword = url.searchParams.get('q') || '';
   const category = url.searchParams.get('category') || '';
-  const city = url.searchParams.get('city') || 'Los Angeles';
+  // `city=any` opts out of the city filter — used by the Events page Following
+  // tab so an artist's events show up regardless of where they're touring.
+  const rawCity = url.searchParams.get('city');
+  const cityParam = rawCity ?? 'Los Angeles';
+  const cityFilter = cityParam === 'any' ? undefined : cityParam;
 
   // If no Ticketmaster API key, search mock data
   if (!serverConfig.ticketmaster.apiKey) {
@@ -29,7 +33,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const tmClient = new TicketmasterClient(serverConfig.ticketmaster.apiKey);
     const result = await tmClient.searchEvents({
       keyword: keyword || undefined,
-      city,
+      city: cityFilter,
       classificationName: category === 'music' ? 'Music' :
                           category === 'sports' ? 'Sports' :
                           category === 'comedy' ? 'Comedy' : undefined,

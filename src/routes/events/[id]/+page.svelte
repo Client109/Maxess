@@ -1,5 +1,5 @@
 <script>
-  import { ArrowLeft, Bell, BellRing, Bookmark, MapPin, Calendar, Clock, ExternalLink, ChevronDown, ChevronUp, Flame, Users } from 'lucide-svelte';
+  import { ArrowLeft, Bell, BellRing, MapPin, Calendar, Clock, ExternalLink, ChevronDown, ChevronUp, Flame, Users } from 'lucide-svelte';
   import { subscribedSet, toggleSubscription } from '$lib/stores/subscriptions.js';
 
   export let data;
@@ -9,7 +9,6 @@
   $: fansAttending = data.fansAttending;
   $: fansAttendingCount = data.fansAttendingCount;
 
-  let saved = false;
   let presaleOpen = false;
   let accessOpen = false;
   let ticketOpen = false;
@@ -55,11 +54,6 @@
       <a href="/events" class="back-btn">
         <ArrowLeft size={20} />
       </a>
-      <div class="hero-actions">
-        <button class="action-btn" on:click={() => saved = !saved} class:saved style:color={saved ? categoryAccent : undefined}>
-          <Bookmark size={20} fill={saved ? categoryAccent : 'none'} />
-        </button>
-      </div>
     </div>
 
     {#if event.genre_tag}
@@ -242,7 +236,13 @@
       <div class="rec-list">
         {#each recommended as rec}
           <a href="/events/{rec.event_id}" class="rec-card">
-            <div class="rec-color" style="background: {rec.image_color}">
+            <div
+              class="rec-color"
+              class:rec-color--has-image={rec.image_url}
+              style={rec.image_url
+                ? `background-color: ${rec.image_color}; background-image: linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.45) 100%), url('${rec.image_url}');`
+                : `background: ${rec.image_color};`}
+            >
               {#if rec.genre_tag}
                 <span class="rec-genre">{rec.genre_tag}</span>
               {/if}
@@ -300,26 +300,6 @@
     text-decoration: none;
     border: none;
   }
-
-  .hero-actions {
-    display: flex;
-    gap: 8px;
-  }
-
-  .action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
-    border: none;
-    color: #FFFFFF;
-    cursor: pointer;
-  }
-
-  .action-btn.saved { color: #FF5C00; }
 
   .genre-chip {
     display: inline-block;
@@ -701,6 +681,12 @@
     align-items: flex-end;
     padding: 6px;
     flex-shrink: 0;
+  }
+
+  .rec-color--has-image {
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat;
   }
 
   .rec-genre {

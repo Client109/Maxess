@@ -32,15 +32,17 @@
   $: catalog = data.progressThreads ?? [];
 
   // On first visit, auto-follow the catalog seeds so the section isn't empty.
-  // After the user has toggled anything, we respect their choices and never
-  // re-seed (the localStorage flag prevents reseeding on later visits).
+  // The version suffix (`.v2`) lets us force a one-time re-seed when the
+  // reward system's tier math changes (current: 10K / 100K / 250K / 1M bands).
+  // overwrite:true on hydrateProgress refreshes stale point values stored
+  // under the old reward system so all four tier colors render correctly.
   onMount(() => {
-    const SEEDED_KEY = 'maxess.followsSeeded';
+    const SEEDED_KEY = 'maxess.followsSeeded.v2';
     if (localStorage.getItem(SEEDED_KEY) === '1') return;
     if (catalog.length === 0) return;
     hydrateProgress(catalog.map(c => ({
       id: c.id, name: c.name, category: c.category, points: c.points,
-    })));
+    })), true);
     const ids = catalog.map(c => c.id);
     followedArtists.update(list => Array.from(new Set([...list, ...ids])));
     localStorage.setItem(SEEDED_KEY, '1');

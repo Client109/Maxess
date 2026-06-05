@@ -346,7 +346,7 @@ export const mockPasses: Pass[] = [
     date: 'Valid through June',
     status: 'active',
     pass_type: 'elite',
-    xp_tier_required: 5000,
+    xp_tier_required: 1_000_000,
     icon_color: '#FF5C00',
     metadata: 'Skip lines, priority seating'
   },
@@ -357,7 +357,7 @@ export const mockPasses: Pass[] = [
     date: 'Starts June 15',
     status: 'starts_soon',
     pass_type: 'diamond',
-    xp_tier_required: 10000,
+    xp_tier_required: 250_000,
     icon_color: '#FFD700',
     metadata: 'Premium seats, meet & greets'
   },
@@ -368,7 +368,7 @@ export const mockPasses: Pass[] = [
     date: 'Waiting list position #45',
     status: 'waiting',
     pass_type: 'general',
-    xp_tier_required: 2500,
+    xp_tier_required: 10_000,
     icon_color: '#8E8E93',
     metadata: 'Access to partner venues'
   },
@@ -379,7 +379,7 @@ export const mockPasses: Pass[] = [
     date: 'Claim by Jul 1',
     status: 'unclaimed',
     pass_type: 'elite',
-    xp_tier_required: 5000,
+    xp_tier_required: 1_000_000,
     icon_color: '#3B28CC',
     metadata: 'You earned this — tap to claim'
   }
@@ -420,7 +420,7 @@ export const mockNotifications: Notification[] = [
     icon: '🎟️',
     time: '2h ago',
     read: false,
-    action_url: '/events',
+    action_url: '/events/evt_001',
   },
   {
     id: 'notif_002',
@@ -445,11 +445,12 @@ export const mockNotifications: Notification[] = [
   {
     id: 'notif_004',
     type: 'tier',
-    title: 'Almost Elite+',
-    body: "You're only 3,250 points away from Elite+ tier. Keep going!",
+    title: 'Almost Elite',
+    body: "You're 250,000 points away from Elite tier. Keep going!",
     icon: '⭐',
     time: '2d ago',
     read: true,
+    action_url: '/profile',
   },
   {
     id: 'notif_005',
@@ -459,7 +460,7 @@ export const mockNotifications: Notification[] = [
     icon: '🔥',
     time: '3d ago',
     read: true,
-    action_url: '/events',
+    action_url: '/events/evt_002',
   },
 ];
 

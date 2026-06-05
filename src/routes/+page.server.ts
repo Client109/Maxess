@@ -68,11 +68,15 @@ export async function load({ url }) {
 
   // Progress threads — per-artist/team tier progression. Tiers (Elite, Superfan,
   // etc.) are scoped to each thread; the user has a *separate* tier per artist.
+  // Seed values intentionally span every tier band so the demo renders all five
+  // tier colors (Newcomer sky / Fan green / Loyal blue / Superfan indigo / Elite
+  // orange) under YOUR PROGRESS. Thresholds: 10K / 100K / 250K / 1M.
   const progressThreadsRaw = [
-    { id: 'weeknd', name: 'The Weeknd', category: 'music' as const, points: 5840 },
-    { id: 'ducks', name: 'Anaheim Ducks', category: 'sports' as const, points: 5120 },
-    { id: 'kaytranada', name: 'Kaytranada', category: 'music' as const, points: 2780 },
-    { id: 'lakers', name: 'LA Lakers', category: 'sports' as const, points: 1640 },
+    { id: 'weeknd', name: 'The Weeknd', category: 'music' as const, points: 1_250_000 },     // Elite — orange
+    { id: 'ducks', name: 'Anaheim Ducks', category: 'sports' as const, points: 410_000 },    // Superfan — indigo
+    { id: 'kaytranada', name: 'Kaytranada', category: 'music' as const, points: 165_000 },   // Loyal — blue
+    { id: 'lakers', name: 'LA Lakers', category: 'sports' as const, points: 42_000 },        // Fan — green
+    { id: 'odesza', name: 'ODESZA', category: 'music' as const, points: 4_500 },             // Newcomer — sky blue
   ];
   const progressThreads = progressThreadsRaw.map(t => {
     const tier = classifyArtistTier(t.points);

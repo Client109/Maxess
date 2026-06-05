@@ -57,21 +57,24 @@ export function recordFollow(seed: ProgressSeed) {
   });
 }
 
-// Seed multiple entries without overwriting any existing points.
-// Used to hydrate the catalog defaults on first run.
-export function hydrateProgress(seeds: ProgressSeed[]) {
+// Seed multiple entries. On first run (`overwrite=false`, the default), only
+// fills in missing entries — preserves user-earned points. On a reward-system
+// revision (`overwrite=true`), force-updates points/category/name from the
+// catalog so the demo reflects the new tier math; firstFollowedAt is preserved.
+export function hydrateProgress(seeds: ProgressSeed[], overwrite: boolean = false) {
   if (seeds.length === 0) return;
   const now = Date.now();
   progressByArtist.update((map) => {
     const next = { ...map };
     for (const s of seeds) {
-      if (next[s.id]) continue;
+      const existing = next[s.id];
+      if (existing && !overwrite) continue;
       next[s.id] = {
         id: s.id,
         name: s.name,
         category: s.category,
         points: s.points,
-        firstFollowedAt: now,
+        firstFollowedAt: existing?.firstFollowedAt ?? now,
         lastFollowedAt: now,
       };
     }

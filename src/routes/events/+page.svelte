@@ -66,10 +66,65 @@
   // title/subtitle. Followed IDs alone aren't enough — events from Ticketmaster
   // expose artists in the title (e.g. "The Weeknd: After Hours Tour") rather
   // than as a structured field.
-  $: followedNames = $followedArtists
+  $: followedDisplayNames = $followedArtists
     .map(id => $progressByArtist[id]?.name)
-    .filter(/** @returns {n is string} */ (n) => typeof n === 'string' && n.length > 0)
-    .map(n => n.toLowerCase());
+    .filter(/** @returns {n is string} */ (n) => typeof n === 'string' && n.length > 0);
+  $: followedNames = followedDisplayNames.map(n => n.toLowerCase());
+
+  // Following tab pulls upcoming events for each followed artist from /api/events
+  // (city=any) so an artist on tour outside LA still shows up. De-duped by
+  // event_id and merged into the filter pool. Refetches only when the followed
+  // list changes; activation of the chip lazily kicks the first fetch.
+  /** @type {import('$lib/domain/types.js').Event[]} */
+  let followedEvents = [];
+  /** @type {string | null} */
+  let followedFetchKey = null;
+  let followedFetchLoading = false;
+  /** @type {Promise<void> | null} */
+  let followedFetchInFlight = null;
+
+  async function fetchFollowedEvents() {
+    if (followedDisplayNames.length === 0) {
+      followedEvents = [];
+      followedFetchKey = '';
+      return;
+    }
+    const key = followedDisplayNames.slice().sort().join('|');
+    if (key === followedFetchKey) return;
+    if (followedFetchInFlight) return followedFetchInFlight;
+
+    followedFetchLoading = true;
+    followedFetchInFlight = (async () => {
+      try {
+        const results = await Promise.all(
+          followedDisplayNames.map(name =>
+            fetch(`/api/events?q=${encodeURIComponent(name)}&city=any`)
+              .then(r => r.ok ? r.json() : { events: [] })
+              .then(j => Array.isArray(j.events) ? j.events : [])
+              .catch(() => [])
+          )
+        );
+        /** @type {Map<string, import('$lib/domain/types.js').Event>} */
+        const merged = new Map();
+        for (const list of results) for (const e of list) {
+          if (!merged.has(e.event_id)) merged.set(e.event_id, e);
+        }
+        followedEvents = [...merged.values()];
+        followedFetchKey = key;
+      } finally {
+        followedFetchLoading = false;
+        followedFetchInFlight = null;
+      }
+    })();
+    return followedFetchInFlight;
+  }
+
+  // Kick a fetch whenever Following is active or the followed list changes
+  // while it's active. Guard in fetchFollowedEvents prevents redundant calls.
+  $: if (activeFilter === 'Following') {
+    const _ = followedDisplayNames.length; // dependency
+    fetchFollowedEvents();
+  }
 
   /** @param {{ title: string; subtitle?: string }} e */
   function matchesFollowed(e) {
@@ -96,10 +151,21 @@
     return out;
   }
 
+  // When Following is the active tab, union the LA-scoped server events with
+  // the followed-artist events fetched globally so an artist touring outside
+  // LA still appears. De-dupe by event_id; LA result wins on collision so any
+  // city-specific enrichment (heat_score, match_percentage) is preserved.
+  $: sourceEvents = (() => {
+    const base = data.events || [];
+    if (activeFilter !== 'Following' || followedEvents.length === 0) return base;
+    const seen = new Set(base.map(e => e.event_id));
+    return [...base, ...followedEvents.filter(e => !seen.has(e.event_id))];
+  })();
+
   // Filter events based on search and category. "Following" matches both
   // per-event notify subscriptions AND any event whose title/subtitle mentions
   // a followed artist/team.
-  $: allEvents = (data.events || []).filter(e => {
+  $: allEvents = sourceEvents.filter(e => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const match = e.title.toLowerCase().includes(q) ||
@@ -108,6 +174,12 @@
         e.city.toLowerCase().includes(q);
       if (!match) return false;
     }
+    // Shared Music/Sports preference is a hard gate: the opposite category is
+    // hidden across every chip view (For you, Following, This week). Switching
+    // the chip to Music or Sports flips the shared toggle via setFilter() so
+    // the two stay in sync.
+    if ($activeCategory === 'sports' && e.category === 'music') return false;
+    if ($activeCategory === 'music' && e.category === 'sports') return false;
     if (activeFilter === 'Following') {
       const subscribed = $subscribedSet.has(e.event_id);
       if (!subscribed && !matchesFollowed(e)) return false;

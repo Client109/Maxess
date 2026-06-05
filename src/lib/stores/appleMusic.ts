@@ -38,9 +38,9 @@ export const eventMatches = derived(
 
 export const topMatchedArtists = derived(
   appleMusicUser,
-  ($appleMusicUser): string[] => {
+  ($appleMusicUser): { id: string; name: string }[] => {
     if (!$appleMusicUser) return [];
-    return $appleMusicUser.top_artists.slice(0, 4).map(a => a.name);
+    return $appleMusicUser.top_artists.slice(0, 4).map(a => ({ id: a.id, name: a.name }));
   }
 );
 

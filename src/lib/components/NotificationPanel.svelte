@@ -10,6 +10,9 @@
   /** @param {import('$lib/domain/types.js').Notification} notif */
   function handleNotifClick(notif) {
     markRead(notif.id);
+    // Close the panel so the destination page is visible after navigation.
+    // Action-url-less rows still mark-as-read but stay put.
+    if (notif.action_url) $notifPanelOpen = false;
   }
 </script>
 
@@ -41,22 +44,37 @@
     {:else}
       <div class="notif-list">
         {#each $notifications as notif (notif.id)}
-          <a
-            href={notif.action_url || '#'}
-            class="notif-row"
-            class:unread={!notif.read}
-            on:click={() => handleNotifClick(notif)}
-          >
-            <span class="notif-icon">{notif.icon}</span>
-            <div class="notif-content">
-              <span class="notif-title">{notif.title}</span>
-              <p class="notif-body">{notif.body}</p>
-              <span class="notif-time">{notif.time}</span>
-            </div>
-            {#if notif.action_url}
+          {#if notif.action_url}
+            <a
+              href={notif.action_url}
+              class="notif-row notif-row--clickable"
+              class:unread={!notif.read}
+              on:click={() => handleNotifClick(notif)}
+            >
+              <span class="notif-icon">{notif.icon}</span>
+              <div class="notif-content">
+                <span class="notif-title">{notif.title}</span>
+                <p class="notif-body">{notif.body}</p>
+                <span class="notif-time">{notif.time}</span>
+              </div>
               <ChevronRight size={16} color="#C7C7CC" />
-            {/if}
-          </a>
+            </a>
+          {:else}
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div
+              class="notif-row"
+              class:unread={!notif.read}
+              on:click={() => handleNotifClick(notif)}
+            >
+              <span class="notif-icon">{notif.icon}</span>
+              <div class="notif-content">
+                <span class="notif-title">{notif.title}</span>
+                <p class="notif-body">{notif.body}</p>
+                <span class="notif-time">{notif.time}</span>
+              </div>
+            </div>
+          {/if}
         {/each}
       </div>
     {/if}
@@ -145,6 +163,10 @@
     text-decoration: none;
     color: inherit;
     transition: background 0.15s ease;
+  }
+
+  .notif-row--clickable {
+    cursor: pointer;
   }
 
   .notif-row:last-child {

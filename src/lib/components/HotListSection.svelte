@@ -59,7 +59,7 @@
     <div class="artist-scroll">
       {#each $hotListArtists as artist}
         {@const progress = getProgress(artist.artist_id)}
-        <div class="artist-card">
+        <a href="/artist/{artist.artist_id}" class="artist-card">
           {#if artist.is_featured}
             <div class="featured-chip">FEATURED 2x PTS</div>
           {/if}
@@ -75,7 +75,7 @@
             <span class="play-count">{progress.user_play_count} plays</span>
             <span class="xp-earned">+{progress.xp_earned} pts</span>
           </div>
-        </div>
+        </a>
       {/each}
     </div>
 
@@ -84,8 +84,8 @@
       <div class="matched-section">
         <span class="matched-label">Your top artists</span>
         <div class="matched-chips">
-          {#each $topMatchedArtists as name}
-            <span class="matched-chip">{name}</span>
+          {#each $topMatchedArtists as artist (artist.id)}
+            <a href="/artist/{artist.id}" class="matched-chip">{artist.name}</a>
           {/each}
         </div>
       </div>
@@ -204,7 +204,13 @@
     border-radius: 14px;
     padding: 14px;
     position: relative;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
   }
+
+  .artist-card:hover { background: var(--off-white, #FAFAFA); }
 
   .featured-chip {
     position: absolute;
@@ -309,5 +315,9 @@
     border: 1px solid var(--border-gray);
     padding: 5px 10px;
     border-radius: 99px;
+    text-decoration: none;
+    transition: background 0.15s;
   }
+
+  .matched-chip:hover { background: var(--border-gray); }
 </style>

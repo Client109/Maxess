@@ -5,7 +5,7 @@ import type { Tier } from './types.js';
 // "Newcomer" in src/lib/server/transforms.ts). See specs/app.yml
 // → tier_thresholds for the canonical contract.
 export const TIERS: Tier[] = [
-  { name: 'Newcomer', xp_threshold: 0, perks: ['Welcome to Maxess'], color_hex: '#8E8E93' },
+  { name: 'Newcomer', xp_threshold: 0, perks: ['Welcome to Maxess'], color_hex: '#5AC8FA' },
   { name: 'Fan', xp_threshold: 10_000, perks: ['Early event updates', 'Basic support'], color_hex: '#1A9E56' },
   { name: 'Loyal', xp_threshold: 100_000, perks: ['Priority notifications', 'Early access'], color_hex: '#2667FF' },
   { name: 'Superfan', xp_threshold: 250_000, perks: ['Presale access', 'Exclusive content'], color_hex: '#3B28CC' },
