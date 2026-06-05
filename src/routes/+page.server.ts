@@ -8,7 +8,18 @@ import { serverConfig } from '$lib/config/env.js';
 import { mockEvents } from '$lib/data/mockData.js';
 import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
 
-export async function load() {
+export async function load({ url }) {
+  // Optional location bias from the client-side location store (see
+  // src/lib/stores/location.ts). When present, Ticketmaster is queried with
+  // latlong+radius instead of a hardcoded city, and Near You skips its city filter.
+  const latParam = url.searchParams.get('lat');
+  const lonParam = url.searchParams.get('lon');
+  const lat = latParam ? Number(latParam) : null;
+  const lon = lonParam ? Number(lonParam) : null;
+  const usingLocation = lat !== null && lon !== null
+    && Number.isFinite(lat) && Number.isFinite(lon);
+  const latlong = usingLocation ? `${lat},${lon}` : undefined;
+
   // Load fan profile from DB (hardcoded demo user)
   const dbUser = await getUserByFanId('fan_001');
   const xpBreakdown = await getXpBreakdown('fan_001');
@@ -34,9 +45,12 @@ export async function load() {
   if (serverConfig.ticketmaster.apiKey) {
     try {
       const tmClient = new TicketmasterClient(serverConfig.ticketmaster.apiKey);
+      const baseQuery = usingLocation
+        ? { latlong, radius: '25', size: 6, sort: 'date,asc' as const }
+        : { city: 'Los Angeles', size: 6, sort: 'date,asc' as const };
       const [musicResult, sportsResult] = await Promise.all([
-        tmClient.searchEvents({ city: 'Los Angeles', classificationName: 'Music', size: 6, sort: 'date,asc' }),
-        tmClient.searchEvents({ city: 'Los Angeles', classificationName: 'Sports', size: 6, sort: 'date,asc' }),
+        tmClient.searchEvents({ ...baseQuery, classificationName: 'Music' }),
+        tmClient.searchEvents({ ...baseQuery, classificationName: 'Sports' }),
       ]);
 
       const tmEvents = [musicResult, sportsResult]
@@ -114,6 +128,7 @@ export async function load() {
     city: 'Los Angeles',
     category: 'music',
     now: new Date(),
+    skipCityFilter: usingLocation,
   });
 
   return {
@@ -125,5 +140,6 @@ export async function load() {
     rankComparison,
     improveRankSuggestions,
     nearYouThisWeek,
+    usingLocation,
   };
 }

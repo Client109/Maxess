@@ -42,7 +42,8 @@ model User {
   xp_transactions    XpTransaction[]
   friend_activities  FriendActivity[] @relation("UserFriendActivities")
   recent_activities  RecentActivity[]
-  
+  invitations_sent   Invitation[]     @relation("ReferrerInvites")
+
   @@map("users")
 }
 
@@ -121,6 +122,33 @@ model UserChallenge {
   
   @@unique([user_id, challenge_id])
   @@map("user_challenges")
+}
+
+// Invitations — referral program. SENT row is created when a user invites
+// a friend by email; transitions to ACCEPTED when the recipient completes
+// signup via /invite/[code], at which point xp_awarded is set and a Referral
+// row is appended to xp_transactions.
+model Invitation {
+  id               String        @id @default(cuid())
+  code             String        @unique
+  referrer_id      String
+  invitee_email    String
+  status           InviteStatus  @default(SENT)
+  sent_at          DateTime      @default(now())
+  accepted_at      DateTime?
+  accepted_user_id String?       @unique
+  xp_awarded       Int           @default(0)
+
+  referrer         User          @relation("ReferrerInvites", fields: [referrer_id], references: [id], onDelete: Cascade)
+
+  @@unique([referrer_id, invitee_email])
+  @@map("invitations")
+}
+
+enum InviteStatus {
+  SENT
+  ACCEPTED
+  REVOKED
 }
 
 // XP Transaction Log

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-06-04
+
+### Added
+- Invite / referral program — earn 250 XP for every friend who joins via your invite link.
+- `InviteCard.svelte` on Profile: themed button + popover with email input, "Send invite", pending-invites list with Copy/Revoke actions, and joined-count summary.
+- `/invite/[code]` public landing page with a themed signup form (name + email + optional city). Successful signup creates a `User` row, marks the invite `ACCEPTED`, and appends a `Referral` `xp_transactions` row for the referrer.
+- API endpoints: `POST /api/invites` (create), `GET /api/invites` (list mine), `DELETE /api/invites/[code]` (revoke), `POST /api/invites/[code]/accept` (signup + reward).
+- Prisma: new `Invitation` model + `InviteStatus` enum (`SENT | ACCEPTED | REVOKED`), `User.invitations_sent` relation, unique constraints on `(referrer_id, invitee_email)` and `accepted_user_id`.
+- Email dispatch: `src/lib/server/email.ts` sends via Resend when `RESEND_API_KEY` is configured; otherwise the UI falls back to copying the share link / mailto for manual sharing. New env keys: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`.
+- `src/lib/server/invites.ts` — pure helpers: `generateInviteCode()` (12-char base64url), `validateInviteRequest()` (email format, self-invite block, duplicate-pending check), `buildAcceptUrl()`. Plus `REFERRAL_XP_REWARD = 250` and `REFERRAL_XP_SOURCE = 'Referral'`.
+- `src/lib/server/invites.test.ts` — 8 vitest cases covering code shape/uniqueness, validation paths, and URL builder.
+- App spec: new `referral_program` section documenting lifecycle, schema additions, endpoints, email strategy, UI, and constraints. Profile screen spec updated to reference the Invite friends card.
+
 ## [0.6.1] - 2026-06-04
 
 ### Added

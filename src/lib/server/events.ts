@@ -87,13 +87,24 @@ function mapSaleStatus(code: string): string {
 // clock; date math uses ISO YYYY-MM-DD string compare to avoid timezone drift.
 export function filterNearYouThisWeek(
   events: Event[],
-  options: { city: string; category: 'music' | 'sports' | 'comedy' | 'festival'; now: Date; days?: number; limit?: number },
+  options: {
+    city: string;
+    category: 'music' | 'sports' | 'comedy' | 'festival';
+    now: Date;
+    days?: number;
+    limit?: number;
+    // When the upstream Ticketmaster query was a radius search (latlong),
+    // skip the city filter — events in the radius may sit in adjacent cities.
+    skipCityFilter?: boolean;
+  },
 ): Event[] {
-  const { city, category, now, days = 7, limit = 5 } = options;
+  const { city, category, now, days = 7, limit = 5, skipCityFilter = false } = options;
   const start = now.toISOString().slice(0, 10);
   const end = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   return events
-    .filter(e => e.category === category && e.city === city && e.date >= start && e.date <= end)
+    .filter(e => e.category === category
+      && (skipCityFilter || e.city === city)
+      && e.date >= start && e.date <= end)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, limit);
 }

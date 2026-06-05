@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { ChevronRight, ChevronDown, TrendingUp, Users, Sparkles, MapPin, Navigation } from 'lucide-svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { recMusic, recSports, activeCategory } from '$lib/stores/settings.js';
@@ -73,24 +75,47 @@
   // Near You: do we have a usable, recent coordinate? Drives the header label
   // and the inline "Use my location" chip. When the global mode is while_using
   // and the cache has gone stale, opening the page refreshes it transparently.
-  $: locationActive = $locationMode !== 'off' && isFreshEnough($lastLocation);
+  $: locationActive = data.usingLocation === true
+    || ($locationMode !== 'off' && isFreshEnough($lastLocation));
+
+  // Push the captured coords into the URL so the server load re-runs with
+  // latlong-biased Ticketmaster queries. Uses replaceState so the back button
+  // doesn't fill up with location toggles.
+  async function applyLocationToUrl(loc) {
+    if (!loc) return;
+    const next = new URL($page.url);
+    next.searchParams.set('lat', loc.lat.toFixed(4));
+    next.searchParams.set('lon', loc.lon.toFixed(4));
+    const current = `${$page.url.searchParams.get('lat')},${$page.url.searchParams.get('lon')}`;
+    const proposed = `${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}`;
+    if (current === proposed) return;
+    await goto(`${next.pathname}${next.search}`, {
+      replaceState: true,
+      keepFocus: true,
+      noScroll: true,
+      invalidateAll: true,
+    });
+  }
 
   let nearYouRequesting = false;
   async function useMyLocationInline() {
     if (nearYouRequesting) return;
     nearYouRequesting = true;
     try {
-      // forceOnce so the chip works even when global mode is 'off'.
+      // The reactive $: below pushes coords into the URL when lastLocation updates.
       await requestLocation({ forceOnce: true });
     } finally {
       nearYouRequesting = false;
     }
   }
 
+  // Whenever a fresh fix lands (initial mount with cached coords, while_using
+  // refresh, or a one-shot capture), sync coords into the URL so the server
+  // load re-runs with latlong-biased queries. The guard in applyLocationToUrl
+  // prevents the resulting navigation from looping.
+  $: if ($lastLocation && isFreshEnough($lastLocation)) applyLocationToUrl($lastLocation);
+
   onMount(() => {
-    // If user already opted into while_using in a prior session, refresh the
-    // cache once on page load (silent — no second prompt because permission
-    // was already granted). Pure UX nicety — won't prompt the user again.
     if ($locationMode === 'while_using' && !isFreshEnough($lastLocation)) {
       requestLocation();
     }

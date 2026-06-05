@@ -1,10 +1,46 @@
 <script>
-  import { Search, MapPin, Calendar, Flame, Bell, BellRing, ChevronRight, ExternalLink } from 'lucide-svelte';
+  import { Search, MapPin, Calendar, Flame, Bell, BellRing, ChevronRight, ExternalLink, Navigation } from 'lucide-svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { subscribedSet, toggleSubscription } from '$lib/stores/subscriptions.js';
   import { activeCategory } from '$lib/stores/settings.js';
+  import { lastLocation, requestLocation, isFreshEnough, isGeolocationAvailable } from '$lib/stores/location.js';
 
   export let data;
+
+  // "Events Near Me" CTA — triggers the native permission prompt (one-shot),
+  // then pushes coords into the URL so the server load re-runs with latlong.
+  let nearMeRequesting = false;
+  async function enableEventsNearMe() {
+    if (nearMeRequesting) return;
+    nearMeRequesting = true;
+    try {
+      await requestLocation({ forceOnce: true });
+    } finally {
+      nearMeRequesting = false;
+    }
+  }
+
+  async function applyLocationToUrl(loc) {
+    if (!loc) return;
+    const next = new URL($page.url);
+    const proposed = `${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}`;
+    const current = `${next.searchParams.get('lat')},${next.searchParams.get('lon')}`;
+    if (current === proposed) return;
+    next.searchParams.set('lat', loc.lat.toFixed(4));
+    next.searchParams.set('lon', loc.lon.toFixed(4));
+    await goto(`${next.pathname}${next.search}`, {
+      replaceState: true,
+      keepFocus: true,
+      noScroll: true,
+      invalidateAll: true,
+    });
+  }
+
+  // Reactively sync coords into the URL whenever a fresh fix exists.
+  // Covers initial mount (cached coords), inline opt-in, and while_using refresh.
+  $: if ($lastLocation && isFreshEnough($lastLocation)) applyLocationToUrl($lastLocation);
 
   let searchQuery = '';
   // Open on the chip that matches the shared Music/Sports preference, so a
@@ -89,9 +125,13 @@
 
   let selectedDay = 0;
 
-  // Any events in LA this week — gates whether the section appears at all
+  // Any events near you this week — gates whether the section appears at all.
+  // When using location, Ticketmaster already returned a radius-bounded set so
+  // the city filter is unnecessary (and counter-productive — radius results
+  // span neighboring cities).
   $: weekEventsNearYou = allEvents.filter(e =>
-    e.city === 'Los Angeles' && dayStrip.some(d => d.iso === e.date)
+    (data.usingLocation || e.city === 'Los Angeles')
+    && dayStrip.some(d => d.iso === e.date)
   );
 
   // Near you events for the currently selected day
@@ -112,7 +152,23 @@
       <h1 class="page-title">Events</h1>
       <p class="subtitle">Discover music + sports for you</p>
     </div>
-    <NotificationBell />
+    <div class="header-actions">
+      <NotificationBell />
+      {#if isGeolocationAvailable()}
+        <button
+          type="button"
+          class="events-near-me-btn"
+          class:events-near-me-btn--on={data.usingLocation}
+          aria-pressed={data.usingLocation === true}
+          aria-label={data.usingLocation ? 'Using your location for events' : 'Show events near me'}
+          disabled={nearMeRequesting}
+          on:click={enableEventsNearMe}
+        >
+          <Navigation size={13} />
+          <span>{nearMeRequesting ? 'Locating…' : data.usingLocation ? 'Near Me' : 'Events Near Me'}</span>
+        </button>
+      {/if}
+    </div>
   </header>
 
   <!-- Search Bar -->
@@ -329,6 +385,55 @@
     color: #8E8E93;
     font-size: 14px;
     margin: 4px 0 0;
+  }
+
+  /* Header actions — alerts + Events Near Me */
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .events-near-me-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: 99px;
+    border: 1px solid var(--border-gray, #E5E5EA);
+    background: var(--bg-card, #FFFFFF);
+    color: #1C1C1E;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+
+  .events-near-me-btn:hover:not(:disabled) {
+    background: var(--bg-input, #F2F2F7);
+    color: var(--action-orange, #FF5C00);
+    border-color: var(--action-orange, #FF5C00);
+  }
+
+  .events-near-me-btn--on {
+    background: var(--action-orange, #FF5C00);
+    color: #FFFFFF;
+    border-color: var(--action-orange, #FF5C00);
+  }
+
+  .events-near-me-btn--on:hover:not(:disabled) {
+    background: #E54F00;
+    color: #FFFFFF;
+    border-color: #E54F00;
+  }
+
+  .events-near-me-btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
   }
 
   /* Search */

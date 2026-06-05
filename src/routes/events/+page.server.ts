@@ -11,6 +11,16 @@ export async function load({ url }) {
   const category = url.searchParams.get('category') || 'all';
   const city = url.searchParams.get('city') || 'Los Angeles';
 
+  // Optional latlong bias from the client-side location store. When present,
+  // Ticketmaster is queried with latlong+radius instead of city.
+  const latParam = url.searchParams.get('lat');
+  const lonParam = url.searchParams.get('lon');
+  const lat = latParam ? Number(latParam) : null;
+  const lon = lonParam ? Number(lonParam) : null;
+  const usingLocation = lat !== null && lon !== null
+    && Number.isFinite(lat) && Number.isFinite(lon);
+  const latlong = usingLocation ? `${lat},${lon}` : undefined;
+
   let events: Event[] = mockEvents;
   let featuredEvent: Event | undefined = mockEvents.find(e => e.featured && e.trending);
 
@@ -19,7 +29,9 @@ export async function load({ url }) {
     try {
       const tmClient = new TicketmasterClient(serverConfig.ticketmaster.apiKey);
       const result = await tmClient.searchEvents({
-        city,
+        ...(usingLocation
+          ? { latlong, radius: '25' }
+          : { city }),
         classificationName: category === 'music' ? 'Music' :
                            category === 'sports' ? 'Sports' :
                            category === 'comedy' ? 'Comedy' : undefined,
@@ -52,5 +64,6 @@ export async function load({ url }) {
     fansAttending: mockFansAttending,
     fansAttendingCount,
     filters: { category, city },
+    usingLocation,
   };
 }

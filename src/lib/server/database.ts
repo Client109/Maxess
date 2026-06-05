@@ -490,6 +490,138 @@ export async function recordAttendanceVerification(opts: {
   return { attendance, xp_awarded: xp, duplicate: false as const };
 }
 
+// ── Invitations / referral program ─────────────────────────────────────────
+
+import { generateInviteCode, REFERRAL_XP_REWARD, REFERRAL_XP_SOURCE } from './invites.js';
+
+export async function listInvitationsByReferrer(fanId: string) {
+  const user = await db.user.findUnique({ where: { fan_id: fanId } });
+  if (!user) return [];
+  return await db.invitation.findMany({
+    where: { referrer_id: user.id },
+    orderBy: { sent_at: 'desc' },
+  });
+}
+
+export async function createInvitation(opts: { referrerFanId: string; inviteeEmail: string }) {
+  const referrer = await db.user.findUnique({ where: { fan_id: opts.referrerFanId } });
+  if (!referrer) throw new Error('referrer_not_found');
+
+  // Retry on unlikely code collision (column is unique).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const code = generateInviteCode();
+    try {
+      return await db.invitation.create({
+        data: {
+          code,
+          referrer_id: referrer.id,
+          invitee_email: opts.inviteeEmail.trim().toLowerCase(),
+          status: 'SENT',
+        },
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: string; meta?: { target?: string[] } };
+      // P2002 = unique constraint. If on `code`, retry; otherwise rethrow.
+      const target = e.meta?.target ?? [];
+      if (e.code === 'P2002' && target.includes('code')) continue;
+      throw err;
+    }
+  }
+  throw new Error('invite_code_collision');
+}
+
+export async function getInvitationByCode(code: string) {
+  return await db.invitation.findUnique({
+    where: { code },
+    include: { referrer: { select: { id: true, name: true, fan_id: true, email: true } } },
+  });
+}
+
+export async function revokeInvitation(code: string, referrerFanId: string) {
+  const invite = await db.invitation.findUnique({
+    where: { code },
+    include: { referrer: { select: { fan_id: true } } },
+  });
+  if (!invite) return { ok: false as const, reason: 'not_found' as const };
+  if (invite.referrer.fan_id !== referrerFanId) return { ok: false as const, reason: 'forbidden' as const };
+  if (invite.status !== 'SENT') return { ok: false as const, reason: 'not_pending' as const };
+  await db.invitation.update({ where: { code }, data: { status: 'REVOKED' } });
+  return { ok: true as const };
+}
+
+// Accept an invitation: create the new User, mark ACCEPTED, append a Referral
+// xp_transactions row for the referrer, all in one transaction so partial
+// failure can't leave dangling state.
+export async function acceptInvitation(opts: {
+  code: string;
+  newUserName: string;
+  newUserEmail: string;
+  newUserCity?: string;
+}) {
+  const code = opts.code;
+  const inputEmail = opts.newUserEmail.trim().toLowerCase();
+
+  const invite = await db.invitation.findUnique({
+    where: { code },
+    include: { referrer: true },
+  });
+  if (!invite) return { ok: false as const, reason: 'not_found' as const };
+  if (invite.status === 'ACCEPTED') return { ok: false as const, reason: 'already_accepted' as const };
+  if (invite.status === 'REVOKED') return { ok: false as const, reason: 'revoked' as const };
+
+  const existing = await db.user.findUnique({ where: { email: inputEmail } });
+  if (existing) return { ok: false as const, reason: 'email_in_use' as const };
+
+  // Transaction: create user → mark invite ACCEPTED → award referrer XP.
+  return await db.$transaction(async tx => {
+    const newFanId = `fan_${Math.random().toString(36).slice(2, 11)}`;
+    const newUser = await tx.user.create({
+      data: {
+        fan_id: newFanId,
+        email: inputEmail,
+        name: opts.newUserName.trim(),
+        city: opts.newUserCity?.trim() || invite.referrer.city,
+        avatar_initials: opts.newUserName.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+        xp_total: 0,
+        current_tier: 'GENERAL',
+        streak_days: 0,
+        events_attended: 0,
+      },
+    });
+
+    await tx.invitation.update({
+      where: { code },
+      data: {
+        status: 'ACCEPTED',
+        accepted_at: new Date(),
+        accepted_user_id: newUser.id,
+        xp_awarded: REFERRAL_XP_REWARD,
+      },
+    });
+
+    await tx.xpTransaction.create({
+      data: {
+        user_id: invite.referrer.id,
+        amount: REFERRAL_XP_REWARD,
+        source: REFERRAL_XP_SOURCE,
+        reference: code,
+        description: `Referred ${newUser.name}`,
+      },
+    });
+    const refreshedReferrer = await tx.user.update({
+      where: { id: invite.referrer.id },
+      data: { xp_total: { increment: REFERRAL_XP_REWARD } },
+    });
+    // Recompute tier outside the increment so we use the new total.
+    await tx.user.update({
+      where: { id: invite.referrer.id },
+      data: { current_tier: calculateTier(refreshedReferrer.xp_total) },
+    });
+
+    return { ok: true as const, newUser, xp_awarded: REFERRAL_XP_REWARD };
+  });
+}
+
 // Cleanup function
 export async function disconnect() {
   await db.$disconnect();

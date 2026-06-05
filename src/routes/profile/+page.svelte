@@ -4,6 +4,7 @@
   import { showPointsGraph, activeCategory } from '$lib/stores/settings.js';
   import { followedSet, toggleFollowArtist } from '$lib/stores/followedArtists.js';
   import { locationMode, requestLocation, isGeolocationAvailable } from '$lib/stores/location.js';
+  import InviteCard from '$lib/components/InviteCard.svelte';
 
   /** @type {{ value: 'off' | 'once' | 'while_using'; label: string; desc: string }[]} */
   const LOCATION_OPTIONS = [
@@ -81,6 +82,9 @@
       </div>
       <ChevronRight size={20} color="#8E8E93" />
     </div>
+
+    <!-- Invite friends — referral_program -->
+    <InviteCard />
 
     <!-- Music / Sports Toggle -->
     <div class="toggle-container">

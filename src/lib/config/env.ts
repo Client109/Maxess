@@ -39,6 +39,10 @@ export const serverConfig = {
     certP12Base64: env.APPLE_PASS_CERT_P12_BASE64 || '',
     certPassword: env.APPLE_PASS_CERT_PASSWORD || '',
     organizationName: env.APPLE_PASS_ORGANIZATION_NAME || 'Maxxes'
+  },
+  resend: {
+    apiKey: env.RESEND_API_KEY || '',
+    fromEmail: env.RESEND_FROM_EMAIL || 'Maxess <onboarding@resend.dev>'
   }
 };
 

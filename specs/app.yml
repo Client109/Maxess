@@ -1,6 +1,6 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
-  version: "0.6.1-MVP"
+  version: "0.7.0-MVP"
   status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel, Apple Wallet attendance verification (unsigned-mode demo)"
 
   product_direction:
@@ -16,7 +16,7 @@ app_spec:
       - "Which events should I attend for maximum fan engagement?"
 
   mvp_boundary:
-    version_target: "0.6.1 — currently shipping"
+    version_target: "0.7.0 — currently shipping"
     must_build:
       - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
       - "Events screen with filtering, search, and booking capabilities"
@@ -458,10 +458,12 @@ app_spec:
         - "Statistics overview with streak and totals"
         - "Settings toggles for notifications and preferences"
         - "Location sharing segmented control (Off | Once | While Using) — see location_sharing section"
+        - "Invite friends card — see referral_program section"
       required_interactions:
         - "Settings toggles persist state changes"
         - "Tier progression shows next milestone"
         - "Location sharing selection triggers the native browser permission prompt when changing from Off → Once or Off → While Using"
+        - "Invite button opens a popover with an email input and a Send button; on submit POSTs to /api/invites"
       after_data_layer: "Alex Chen's real XP breakdown — 3,600 Event Attendance, 2,840 Streaming, 960 Watch XP, 440 Spend XP, 910 Challenges. Events attended count from User.events_attended. Top artist/venue from User row."
 
   navigation:
@@ -563,6 +565,47 @@ app_spec:
       - { name: "Loyal", min_xp: 1000, color: "#2667FF" }
       - { name: "Superfan", min_xp: 2500, color: "#FFD700" }
       - { name: "Elite", min_xp: 5000, color: "#FF5C00" }
+
+  referral_program:
+    description: "Invite-a-friend flow. The current user sends an email-tagged referral link; when the recipient lands on the link and completes the invite-accept step, the referrer receives an XP award via addXpTransaction(source='Referral')."
+    xp_reward_per_accepted_invite: 250
+    invite_lifecycle:
+      - "SENT — invitation row created, link emailed (or surfaced for manual share if email service is unconfigured)"
+      - "ACCEPTED — recipient hit /invite/[code] and completed signup. xp_awarded is written and a Referral xp_transactions row is appended for the referrer."
+      - "REVOKED — referrer cancelled the pending invite. No XP awarded."
+    schema_additions:
+      model_invitation:
+        fields:
+          - "id (cuid)"
+          - "code (unique URL token)"
+          - "referrer_id (FK User)"
+          - "invitee_email"
+          - "status (InviteStatus enum: SENT | ACCEPTED | REVOKED)"
+          - "sent_at, accepted_at?"
+          - "accepted_user_id? (FK User — the new account)"
+          - "xp_awarded (int, default 0)"
+        constraints:
+          - "unique(referrer_id, invitee_email) — prevents double-invite to same address"
+          - "unique(accepted_user_id) — one referral credit per new account"
+      user_relation: "User gains invitations_sent Invitation[] @relation('ReferrerInvites')"
+    api_endpoints:
+      - "POST /api/invites — body { email } — creates Invitation, dispatches email if configured, returns { code, share_url, email_sent }"
+      - "GET /api/invites — lists current user's pending invites (for the Invite card)"
+      - "DELETE /api/invites/:code — revokes a pending invite"
+      - "GET /invite/[code] — public landing page; shows referrer name + Accept (signup) form"
+      - "POST /api/invites/[code]/accept — body { name, email } — creates the new User, marks invite ACCEPTED, awards referrer XP"
+    email_delivery:
+      strategy: "Hybrid. Server tries Resend if RESEND_API_KEY is set; otherwise falls back to returning a share_url so the UI shows 'Copy link' and (optionally) a mailto: shortcut. This keeps the flow demo-able without API keys."
+      template_fields: ["{referrer_name}", "{accept_url}", "{app_url}"]
+    ui_components:
+      - "InviteCard.svelte on Profile — button + popover with email input + 'Send invite'; lists pending invites with Revoke action; shows recently-accepted referrals + XP earned"
+      - "/invite/[code]/+page.svelte — landing page with referrer attribution + signup form (name + email)"
+      - "Toast on send: 'Invite sent to {email}' (or 'Invite link copied' fallback)"
+    constraints:
+      - "No native <input> styling — uses the project's themed input components"
+      - "Self-invite blocked: invitee_email must not equal current user's email"
+      - "Auth deferred: signup creates a User row without password; this matches the existing demo posture and does NOT change the auth roadmap status"
+      - "Server validates email format with zod (already a project dep)"
 
   state_management:
     global_state:
