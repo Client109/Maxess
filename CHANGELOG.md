@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2026-06-05
+
+### Added
+- `src/lib/data/artistProfiles.ts` — single source of truth for `/artist/[id]` page detail. Exports `ARTIST_PROFILES` (12 curated entries: weeknd, kaytranada, daniel-caesar, odesza, ariana-grande, ducks, lakers, rams, dodgers, kings, kendrick-lamar, sza) plus `getArtistProfile(id)` helper.
+- `getArtistProfile()` resolution order: curated registry → derived default from `seedFandoms.ts` → `null`. Derived defaults carry name/image from the canonical seed, tier color from `classifyArtistTier(points)`, superfan_score from `points / 1_000_000 × 100`, sport → genre for teams, and zeroed listening fields.
+- `src/lib/data/artistProfiles.test.ts` — 10 vitest cases: unknown id → null, every FOLLOWED_ARTISTS/TEAMS id resolves, bonus artists keep resolving, derived defaults zero listening fields, derived tier_color reflects band, team sport → genre carryover.
+- App spec: `screen_specifications.artist_detail.id_resolution` documents the new registry → seed fallback → 404 chain.
+
+### Changed
+- `src/routes/artist/[id]/+page.server.ts` — replaced the inline `mockArtists` map (~330 lines) with a single `getArtistProfile(params.id)` call. Adding a new fandom to `seedFandoms.ts` now makes `/artist/{newId}` render without editing the route. `ARTIST_POINTS` map (tier-math source of truth) is unchanged.
+
 ## [0.10.0] - 2026-06-04
 
 ### Added

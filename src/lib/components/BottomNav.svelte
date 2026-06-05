@@ -64,7 +64,7 @@
     align-items: center;
     gap: 2px;
     text-decoration: none;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     min-height: 44px;
     min-width: 44px;
     justify-content: center;
@@ -73,7 +73,7 @@
   }
 
   .nav-label {
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   /* Active tab is always orange in the mockup, not per-tab brand color. */

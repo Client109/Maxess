@@ -1,6 +1,6 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
-  version: "0.10.0-MVP"
+  version: "0.10.1-MVP"
   status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel, Apple Wallet attendance verification (unsigned-mode demo)"
 
   product_direction:
@@ -16,7 +16,7 @@ app_spec:
       - "Which events should I attend for maximum fan engagement?"
 
   mvp_boundary:
-    version_target: "0.10.0 — currently shipping"
+    version_target: "0.10.1 — currently shipping"
     must_build:
       - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
       - "Events screen with filtering, search, and booking capabilities"
@@ -501,7 +501,17 @@ app_spec:
     artist_detail:
       route: "/artist/[id]"
       load_function: "src/routes/artist/[id]/+page.server.ts"
-      data_sources: ["Per-artist tier progress + Spotify/Last.fm enrichment via getArtistData()", "isArtistFollowed(fan_001, artistName) → drives follow-button state"]
+      data_sources: ["Per-artist detail registry (src/lib/data/artistProfiles.ts) keyed by fandom id", "Per-artist tier progress + Spotify/Last.fm enrichment via getArtistData()", "isArtistFollowed(fan_001, artistName) → drives follow-button state"]
+      id_resolution: |
+        Page render lookup is `getArtistProfile(params.id)` from
+        src/lib/data/artistProfiles.ts. The registry is keyed by the same id
+        used in src/lib/data/seedFandoms.ts (FOLLOWED_ARTISTS / FOLLOWED_TEAMS)
+        plus a small set of "bonus" entries that exist only as artist-detail
+        pages (e.g. kendrick-lamar, sza). Adding a new fandom to
+        seedFandoms.ts WITHOUT a matching artistProfiles.ts entry still
+        renders — the registry returns a graceful default derived from the
+        canonical seed (name, image, sport, points → tier color). A throw
+        404 only happens when the id is absent from BOTH sources.
       primary_components:
         - "Hero image, artist name, genre"
         - "Follow / Unfollow button — POSTs /api/artists/follow or DELETEs /api/artists/follow/[id]"

@@ -1,7 +1,31 @@
 // Event normalizer — transforms Ticketmaster API responses into internal Event schema
 import type { TicketmasterEvent, Event } from '$lib/domain/types.js';
 
-export function normalizeTicketmasterEvent(tmEvent: TicketmasterEvent): Event {
+// Pick the earliest still-future presale start time from a TM event's
+// `sales.presales[]`. Exported so the unit test can pin "now" without
+// reaching through `Date.now()`.
+export function earliestFuturePresaleStart(
+  presales: Array<{ startDateTime?: string }> | undefined,
+  now: Date,
+): string | null {
+  if (!presales || presales.length === 0) return null;
+  const cutoff = now.getTime();
+  let best: number | null = null;
+  let bestIso: string | null = null;
+  for (const p of presales) {
+    if (!p.startDateTime) continue;
+    const t = Date.parse(p.startDateTime);
+    if (!Number.isFinite(t)) continue;
+    if (t <= cutoff) continue;             // already opened — skip
+    if (best === null || t < best) {
+      best = t;
+      bestIso = p.startDateTime;
+    }
+  }
+  return bestIso;
+}
+
+export function normalizeTicketmasterEvent(tmEvent: TicketmasterEvent, now: Date = new Date()): Event {
   const venue = tmEvent._embedded.venues[0];
   const attraction = tmEvent._embedded.attractions?.[0];
   const classification = tmEvent.classifications?.[0];
@@ -55,6 +79,7 @@ export function normalizeTicketmasterEvent(tmEvent: TicketmasterEvent): Event {
     heat_score: undefined,
     match_percentage: undefined,
     sale_status: mapSaleStatus(tmEvent.dates.status.code),
+    presale_starts_at: earliestFuturePresaleStart(tmEvent.sales?.presales, now),
     external_url: tmEvent.url,
     trending: false,
     near_you: true,

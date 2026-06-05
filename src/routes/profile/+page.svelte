@@ -151,7 +151,7 @@
           <div class="row-main">
             <div class="row-name">{m.label}</div>
           </div>
-          <ChevronRight size={18} color="#6E6E73" />
+          <span class="chevron-dim"><ChevronRight size={18} /></span>
         </a>
       {/each}
     </section>
@@ -162,11 +162,13 @@
 
 <style>
   .page-container {
-    background: #000000;
+    background: var(--bg-primary);
     min-height: 100vh;
     padding: 0 16px 120px;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
+
+  .chevron-dim { display: inline-flex; color: var(--icon-dim); }
 
   .page-header {
     display: flex;
@@ -179,7 +181,7 @@
     font-size: 36px;
     font-weight: 700;
     letter-spacing: -0.5px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     margin: 0;
   }
 
@@ -192,8 +194,8 @@
     height: 40px;
     border-radius: 50%;
     background: transparent;
-    border: 1px solid #2C2C2E;
-    color: #FFFFFF;
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
   }
   .bell-dot {
     position: absolute;
@@ -203,12 +205,12 @@
     height: 8px;
     border-radius: 50%;
     background: #FF5C00;
-    border: 2px solid #000000;
+    border: 2px solid var(--bg-primary);
   }
 
   .card {
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 16px;
   }
 
@@ -225,11 +227,11 @@
     height: 84px;
     border-radius: 50%;
     overflow: hidden;
-    background: #1F1F21;
+    background: var(--bg-pill);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-size: 28px;
     font-weight: 700;
     flex-shrink: 0;
@@ -247,12 +249,12 @@
     font-size: 26px;
     font-weight: 700;
     margin: 0;
-    color: #FFFFFF;
+    color: var(--text-primary);
     letter-spacing: -0.3px;
   }
   .identity-handle {
     font-size: 14px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     margin: 2px 0 10px;
   }
   .edit-profile-btn {
@@ -286,25 +288,25 @@
   .stat-value {
     font-size: 26px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1.1;
     letter-spacing: -0.3px;
   }
   .stat-label {
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     text-align: center;
   }
   .stat-divider {
     width: 1px;
-    background: #2C2C2E;
+    background: var(--border-strong);
     margin: 4px 0;
   }
 
   .section-heading {
     font-size: 17px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
     margin: 0 0 10px;
     padding: 0 2px;
   }
@@ -319,7 +321,7 @@
     align-items: center;
     gap: 14px;
     padding: 14px 16px;
-    border-bottom: 1px solid #1F1F21;
+    border-bottom: 1px solid var(--border-subtle);
     text-decoration: none;
     color: inherit;
   }
@@ -330,11 +332,11 @@
     height: 44px;
     border-radius: 8px;
     overflow: hidden;
-    background: #1F1F21;
+    background: var(--bg-pill);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -350,7 +352,7 @@
   .row-name {
     font-size: 16px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .row-points {
@@ -362,11 +364,11 @@
   .row-points-value {
     font-size: 16px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
   .row-points-unit {
     font-size: 13px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   .tier-chip {
@@ -397,7 +399,7 @@
 
   .legal-copy {
     text-align: center;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     font-size: 12px;
     line-height: 1.45;
     margin: 0 0 22px;
@@ -420,6 +422,6 @@
   .empty {
     text-align: center;
     padding: 60px 16px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 </style>

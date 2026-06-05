@@ -118,7 +118,7 @@
     position: relative;
     z-index: 2;
     padding: 20px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -151,7 +151,7 @@
     font-size: 72px;
     font-weight: 700;
     line-height: 0.9;
-    color: #FFFFFF;
+    color: var(--text-primary);
     letter-spacing: -2px;
   }
 
@@ -167,7 +167,7 @@
     align-items: center;
     gap: 6px;
     background: #000000;
-    color: #FFFFFF;
+    color: var(--text-primary);
     padding: 6px 12px;
     border-radius: 12px;
     font-size: 14px;
@@ -193,7 +193,7 @@
   .streak-number {
     font-size: 24px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1;
   }
 
@@ -215,7 +215,7 @@
   .percentage-main {
     font-size: 20px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1.2;
     margin-bottom: 2px;
   }
@@ -243,7 +243,7 @@
   .info-value {
     font-size: 17px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .info-divider {

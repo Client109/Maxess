@@ -44,8 +44,8 @@
 <style>
   .invite-section {
     margin: 0 16px 16px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 16px;
     padding: 16px;
   }
@@ -61,12 +61,12 @@
     margin: 0;
     font-size: 16px;
     font-weight: 700;
-    color: #1C1C1E;
+    color: var(--text-primary);
   }
 
   .invite-subtitle {
     margin: 2px 0 0;
-    color: #6E6E73;
+    color: var(--text-secondary);
     font-size: 13px;
   }
 

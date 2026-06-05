@@ -24,9 +24,13 @@ model User {
   updated_at      DateTime @updatedAt
 
   // Fan profile data (flatten into User for simplicity)
-  xp_total        Int      @default(0)
-  current_tier    Tier     @default(GENERAL)
-  streak_days     Int      @default(0)
+  xp_total        Int       @default(0)
+  current_tier    Tier      @default(GENERAL)
+  streak_days     Int       @default(0)
+  // Wall-clock timestamp of the user's most recent streak-touch (any app
+  // navigation triggers this — see touchUserStreak in src/lib/server/streak.ts).
+  // Null = never touched, treated as a brand-new streak on the next visit.
+  last_streak_at  DateTime?
   rank            Int?
   percentile      Int?
   top_artist      String?

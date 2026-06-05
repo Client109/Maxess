@@ -49,12 +49,36 @@
 
   let perksOpen = true;
 
-  const tierThresholds = [
-    { name: 'General', min: 0, color: '#8E8E93' },
-    { name: 'Loyal', min: 30, color: '#CD7F32' },
-    { name: 'Superfan', min: 60, color: '#3B28CC' },
-    { name: 'Elite', min: 85, color: '#FF5C00' },
+  // Canonical 5-tier scale (xp.ts → TIERS). Visual marker positions are
+  // equally spaced across the bar so Fan / Loyal / Superfan / Elite each get
+  // an equal slice — the underlying points thresholds (10K / 100K / 250K / 1M)
+  // are non-linear and would crunch the low tiers if laid out to scale.
+  const TIER_LIST = [
+    { name: 'Newcomer', position: 0,   color: '#8E8E93' },
+    { name: 'Fan',      position: 25,  color: '#1A9E56' },
+    { name: 'Loyal',    position: 50,  color: '#2667FF' },
+    { name: 'Superfan', position: 75,  color: '#3B28CC' },
+    { name: 'Elite',    position: 100, color: '#FF5C00' },
   ];
+
+  // Compute fill width from the user's current tier + progress within it.
+  // Each tier band is one 25% slice; tier_progress (0–1) interpolates inside.
+  $: tierIndex = Math.max(0, TIER_LIST.findIndex(t => t.name === artist.tier));
+  $: fillPercent = Math.min(100, Math.max(
+    0,
+    tierIndex * 25 + Math.min(1, Math.max(0, artist.tier_progress ?? 0)) * 25,
+  ));
+
+  // Compact points formatter for the hero ring. Full notation (e.g.
+   // "1,180,000") overflows the 96px circle, so >=1K rolls into K and >=1M
+   // into M with a single decimal when needed. The precise number sits on
+   // the bar below (its labels are tier ranges).
+  function fmtPoints(n) {
+    if (n == null || !Number.isFinite(n)) return '0';
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}K`;
+    return n.toLocaleString();
+  }
 
   // Perks & experiences mock
   const perks = [
@@ -93,12 +117,12 @@
         <svg viewBox="0 0 120 120" class="score-ring">
           <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" />
           <circle cx="60" cy="60" r="52" fill="none" stroke="{artist.tier_color}" stroke-width="8"
-            stroke-dasharray="{artist.superfan_score * 3.27} 327"
+            stroke-dasharray="{Math.max(0, Math.min(1, artist.tier_progress ?? 0)) * 327} 327"
             stroke-linecap="round" transform="rotate(-90 60 60)" />
         </svg>
         <div class="score-inner">
-          <span class="score-number">{artist.superfan_score}</span>
-          <span class="score-label">/ 100</span>
+          <span class="score-number">{fmtPoints(artist.points)}</span>
+          <span class="score-label">pts</span>
         </div>
       </div>
     </div>
@@ -127,21 +151,23 @@
       </button>
     </div>
 
-    <!-- Tier progress bar -->
+    <!-- Tier progress bar. Markers sit at evenly-spaced positions (0/25/50/
+         75/100); the fill interpolates inside the user's current tier band
+         using tier_progress so position + fill always agree visually. -->
     <div class="tier-progress">
       <div class="tier-bar">
-        <div class="tier-fill" style="width: {artist.tier_progress * 100}%; background: {artist.tier_color}"></div>
+        <div class="tier-fill" style="width: {fillPercent}%; background: {artist.tier_color}"></div>
       </div>
       <div class="tier-markers">
-        {#each tierThresholds as t}
-          <span class="tier-mark" class:active={artist.superfan_score >= t.min} style="left: {t.min}%">
-            <span class="mark-dot" style="background: {artist.superfan_score >= t.min ? t.color : '#555'}"></span>
+        {#each TIER_LIST as t, i}
+          <span class="tier-mark" class:active={i <= tierIndex} style="left: {t.position}%">
+            <span class="mark-dot" style="background: {i <= tierIndex ? t.color : '#555'}"></span>
           </span>
         {/each}
       </div>
       <div class="tier-labels">
-        {#each tierThresholds as t}
-          <span class="tier-label-sm">{t.name}</span>
+        {#each TIER_LIST as t}
+          <span class="tier-label-sm" style="left: {t.position}%">{t.name}</span>
         {/each}
       </div>
     </div>
@@ -287,11 +313,11 @@
 
 <style>
   .page {
-    background: #000000;
+    background: var(--bg-primary);
     min-height: 100vh;
     padding-bottom: 120px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   /* Header */
@@ -300,7 +326,7 @@
     align-items: center;
     padding: 12px 16px;
     gap: 12px;
-    background: #000000;
+    background: var(--bg-primary);
   }
 
   .back-btn {
@@ -310,10 +336,10 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: #1F1F21;
-    color: #FFFFFF;
+    background: var(--bg-pill);
+    color: var(--text-primary);
     text-decoration: none;
-    border: 1px solid #2C2C2E;
+    border: 1px solid var(--border-strong);
     flex-shrink: 0;
   }
 
@@ -323,7 +349,7 @@
     margin: 0;
     flex: 1;
     text-align: center;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .header-spacer {
@@ -334,10 +360,10 @@
   /* Score Card (hero, artist-color gradient) */
   .score-card {
     margin: 8px 16px 16px;
-    border: 1px solid #1F1F21;
+    border: 1px solid var(--border-card);
     border-radius: 20px;
     padding: 20px;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .score-top {
@@ -369,7 +395,7 @@
   .portrait span {
     font-size: 36px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .score-circle {
@@ -398,7 +424,7 @@
     font-size: 28px;
     font-weight: 700;
     line-height: 1;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .score-label {
@@ -435,7 +461,7 @@
     letter-spacing: 0.5px;
     padding: 4px 12px;
     border-radius: 6px;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .follow-btn {
@@ -456,7 +482,7 @@
 
   .follow-btn--on {
     background: transparent;
-    color: #FFFFFF;
+    color: var(--text-primary);
     border-color: rgba(255, 255, 255, 0.4);
   }
 
@@ -498,14 +524,17 @@
   }
 
   .tier-labels {
-    display: flex;
-    justify-content: space-between;
+    position: relative;
+    height: 14px;
     margin-top: 2px;
   }
 
   .tier-label-sm {
+    position: absolute;
+    transform: translateX(-50%);
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.55);
+    white-space: nowrap;
   }
 
   /* KPIs */
@@ -518,8 +547,8 @@
   }
 
   .kpi-card {
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     padding: 14px 12px;
     display: flex;
@@ -532,12 +561,12 @@
   .kpi-value {
     font-size: 18px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .kpi-label {
     font-size: 11px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   /* Section */
@@ -561,7 +590,7 @@
     font-size: 17px;
     font-weight: 700;
     margin: 0;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .section-title.pad {
@@ -574,8 +603,8 @@
     flex-direction: column;
     gap: 1px;
     margin: 0 16px;
-    background: #1F1F21;
-    border: 1px solid #1F1F21;
+    background: var(--bg-pill);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     overflow: hidden;
   }
@@ -585,7 +614,7 @@
     align-items: center;
     gap: 12px;
     padding: 14px;
-    background: #0E0E10;
+    background: var(--bg-card);
   }
 
   .perk-icon {
@@ -602,12 +631,12 @@
   .perk-title {
     font-size: 14px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .perk-desc {
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   /* Events list */
@@ -616,8 +645,8 @@
     flex-direction: column;
     gap: 1px;
     margin: 0 16px;
-    background: #1F1F21;
-    border: 1px solid #1F1F21;
+    background: var(--bg-pill);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     overflow: hidden;
   }
@@ -627,7 +656,7 @@
     align-items: center;
     gap: 12px;
     padding: 14px;
-    background: #0E0E10;
+    background: var(--bg-card);
     text-decoration: none;
     color: inherit;
   }
@@ -651,7 +680,7 @@
     display: block;
     font-size: 14px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -660,7 +689,7 @@
   .event-meta {
     display: block;
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   .event-badge {
@@ -679,8 +708,8 @@
   /* Leaderboard */
   .leaderboard-card {
     margin: 0 16px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     overflow: hidden;
   }
@@ -690,7 +719,7 @@
     align-items: center;
     gap: 10px;
     padding: 12px 14px;
-    border-bottom: 1px solid #1F1F21;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .lb-row:last-child { border-bottom: none; }
@@ -702,7 +731,7 @@
   .lb-rank {
     font-size: 13px;
     font-weight: 600;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     min-width: 28px;
   }
 
@@ -710,12 +739,12 @@
     flex: 1;
     font-size: 14px;
     font-weight: 500;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .lb-city {
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   .lb-score {
@@ -729,8 +758,8 @@
   /* Recap */
   .recap-card {
     margin: 0 16px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     padding: 16px;
     display: flex;
@@ -749,8 +778,8 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    background: #1A1A1C;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card-elevated);
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
     padding: 12px 8px;
   }
@@ -758,13 +787,13 @@
   .recap-stat-value {
     font-size: 20px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1.1;
   }
 
   .recap-stat-label {
     font-size: 11px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
@@ -781,7 +810,7 @@
     gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -800,7 +829,7 @@
     align-items: center;
     gap: 10px;
     padding: 8px 0;
-    border-bottom: 1px solid #1F1F21;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .recap-track:last-child { border-bottom: none; }
@@ -810,8 +839,8 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #1F1F21;
-    color: #FFFFFF;
+    background: var(--bg-pill);
+    color: var(--text-primary);
     font-size: 12px;
     font-weight: 700;
     display: inline-flex;
@@ -823,7 +852,7 @@
     flex: 1;
     font-size: 14px;
     font-weight: 500;
-    color: #FFFFFF;
+    color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -831,7 +860,7 @@
 
   .recap-track-plays {
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     flex-shrink: 0;
   }
 
@@ -840,7 +869,7 @@
     flex-direction: column;
     gap: 6px;
     padding-top: 12px;
-    border-top: 1px solid #1F1F21;
+    border-top: 1px solid var(--border-subtle);
   }
 
   .recap-footer-item {
@@ -848,11 +877,11 @@
     align-items: center;
     gap: 6px;
     font-size: 13px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   .recap-footer-item strong {
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-weight: 600;
   }
 </style>

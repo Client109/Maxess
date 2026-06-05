@@ -82,9 +82,9 @@
 
 <style>
   .page {
-    background: #000000;
+    background: var(--bg-primary);
     min-height: 100vh;
-    color: #FFFFFF;
+    color: var(--text-primary);
     padding: 0 16px 120px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   }
@@ -98,7 +98,7 @@
   }
   .back-btn {
     width: 36px; height: 36px; border-radius: 50%;
-    background: #1F1F21; color: #FFFFFF;
+    background: var(--bg-pill); color: var(--text-primary);
     display: inline-flex; align-items: center; justify-content: center;
     text-decoration: none;
   }
@@ -111,8 +111,8 @@
   /* Summary — count + lifetime spend, two-cell card. */
   .summary-card {
     display: flex; align-items: center; gap: 14px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 18px;
     padding: 16px;
     margin: 0 0 20px;
@@ -129,17 +129,17 @@
     flex: 1;
   }
   .summary-cell { display: flex; flex-direction: column; gap: 2px; }
-  .summary-value { font-size: 22px; font-weight: 700; color: #FFFFFF; line-height: 1; }
-  .summary-label { font-size: 12px; color: #8E8E93; }
+  .summary-value { font-size: 22px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+  .summary-label { font-size: 12px; color: var(--text-tertiary); }
   .summary-divider {
     width: 1px; height: 28px;
-    background: #1F1F21;
+    background: var(--bg-pill);
   }
 
   .section-title {
     font-size: 13px;
     font-weight: 700;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     letter-spacing: 1.2px;
     text-transform: uppercase;
     margin: 0 0 10px;
@@ -151,8 +151,8 @@
     list-style: none;
     margin: 0 0 18px;
     padding: 0;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 16px;
     overflow: hidden;
   }
@@ -161,7 +161,7 @@
     align-items: center;
     gap: 12px;
     padding: 14px 14px;
-    border-bottom: 1px solid #1F1F21;
+    border-bottom: 1px solid var(--border-subtle);
   }
   .redemption-row:last-child { border-bottom: none; }
 
@@ -170,7 +170,7 @@
     width: 52px; height: 52px;
     border-radius: 12px;
     overflow: hidden;
-    background: #1F1F21;
+    background: var(--bg-pill);
     flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
   }
@@ -181,9 +181,9 @@
     width: 18px; height: 18px;
     border-radius: 50%;
     background: #FF5C00;
-    color: #FFFFFF;
+    color: var(--text-primary);
     display: inline-flex; align-items: center; justify-content: center;
-    border: 1.5px solid #0E0E10;
+    border: 1.5px solid var(--bg-card);
   }
   .thumb-icon {
     display: inline-flex; align-items: center; justify-content: center;
@@ -196,7 +196,7 @@
   .row-fandom {
     font-size: 11px;
     font-weight: 600;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     letter-spacing: 0.4px;
     text-transform: uppercase;
     margin: 0;
@@ -204,7 +204,7 @@
   .row-name {
     font-size: 15px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -212,7 +212,7 @@
   }
   .row-meta {
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     margin: 0;
   }
 
@@ -230,7 +230,7 @@
   }
   .cost-unit {
     font-size: 11px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   .footer-cta {
@@ -246,7 +246,7 @@
   /* Empty-state — used when redemptions is empty (carried over from the
      placeholder version, restyled to match the new summary card). */
   .empty-card {
-    background: #0E0E10; border: 1px solid #1F1F21; border-radius: 16px;
+    background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 16px;
     padding: 32px 24px; text-align: center;
   }
   .empty-icon-wrap {
@@ -256,6 +256,6 @@
     margin-bottom: 16px;
   }
   .empty-card h2 { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
-  .empty-card p { color: #8E8E93; font-size: 14px; margin: 0 0 16px; line-height: 1.45; }
+  .empty-card p { color: var(--text-tertiary); font-size: 14px; margin: 0 0 16px; line-height: 1.45; }
   .cta { color: #FF5C00; font-weight: 600; text-decoration: none; }
 </style>

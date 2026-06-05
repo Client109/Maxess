@@ -164,10 +164,10 @@
 
 <style>
   .page-container {
-    background: #000000;
+    background: var(--bg-primary);
     min-height: 100vh;
     padding: 0 16px 120px;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .page-header {
@@ -181,7 +181,7 @@
     font-size: 36px;
     font-weight: 700;
     letter-spacing: -0.5px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     margin: 0;
   }
 
@@ -194,7 +194,7 @@
     height: 40px;
     border-radius: 50%;
     background: transparent;
-    border: 1px solid #2C2C2E;
+    border: 1px solid var(--border-strong);
   }
 
   .bell-dot {
@@ -205,13 +205,13 @@
     height: 8px;
     border-radius: 50%;
     background: #FF5C00;
-    border: 2px solid #000000;
+    border: 2px solid var(--bg-primary);
   }
 
   /* Generic card surface. */
   .card {
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 18px;
     padding: 18px 16px;
   }
@@ -219,7 +219,7 @@
   .section-heading {
     font-size: 18px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     margin: 22px 0 12px;
     padding: 0 2px;
   }
@@ -230,7 +230,7 @@
   }
   .balance-label {
     font-size: 14px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     display: block;
     margin-bottom: 4px;
   }
@@ -244,17 +244,17 @@
     font-size: 48px;
     font-weight: 700;
     letter-spacing: -1px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1;
   }
   .balance-unit {
     font-size: 20px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-weight: 500;
   }
   .balance-sub {
     font-size: 13px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     display: block;
     margin-bottom: 18px;
   }
@@ -273,7 +273,7 @@
     align-items: flex-start;
     gap: 10px;
     padding: 0 12px;
-    border-left: 1px solid #1F1F21;
+    border-left: 1px solid var(--border-subtle);
   }
   .fandom.fandom--first { border-left: none; padding-left: 0; }
 
@@ -282,11 +282,11 @@
     height: 44px;
     border-radius: 8px;
     overflow: hidden;
-    background: #1F1F21;
+    background: var(--bg-pill);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -296,7 +296,7 @@
   .fandom-name {
     font-size: 14px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -305,8 +305,8 @@
     -webkit-box-orient: vertical;
   }
   .fandom-pts { display: inline-flex; align-items: baseline; gap: 3px; }
-  .fandom-pts-val { font-size: 14px; font-weight: 700; color: #FFFFFF; }
-  .fandom-pts-unit { font-size: 11px; color: #8E8E93; }
+  .fandom-pts-val { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .fandom-pts-unit { font-size: 11px; color: var(--text-tertiary); }
 
   /* Tier chip — outlined by default; "filled" reserved for Elite per mockup. */
   .chip {
@@ -344,8 +344,8 @@
   }
 
   .source-tile {
-    background: #1A1A1C;
-    border: 1px solid #2C2C2E;
+    background: var(--bg-card-elevated);
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
     padding: 12px 12px;
     display: flex;
@@ -370,7 +370,7 @@
   .source-label {
     font-size: 13px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
     line-height: 1.2;
   }
   .source-rate {
@@ -388,7 +388,7 @@
     width: 90px;
     height: 90px;
     border-radius: 50%;
-    background: #000000;
+    background: var(--bg-primary);
     border: 2px solid #FF5C00;
     box-shadow:
       0 0 12px rgba(255, 92, 0, 0.5),
@@ -397,7 +397,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -408,7 +408,7 @@
   .engine-caption {
     margin: 18px 0 0;
     text-align: center;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     font-size: 12px;
     line-height: 1.4;
   }
@@ -424,7 +424,7 @@
     gap: 12px;
     align-items: center;
     padding: 12px 0;
-    border-bottom: 1px solid #1F1F21;
+    border-bottom: 1px solid var(--border-subtle);
     position: relative;
   }
   .tier-row:last-of-type { border-bottom: none; }
@@ -474,8 +474,8 @@
     width: 44px;
     height: 44px;
     border-radius: 10px;
-    background: #1A1A1C;
-    border: 1px solid #2C2C2E;
+    background: var(--bg-card-elevated);
+    border: 1px solid var(--border-strong);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -494,17 +494,17 @@
   .tier-name {
     font-size: 17px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: var(--text-primary);
     letter-spacing: -0.2px;
   }
   .tier-range {
     font-size: 13px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   .tier-perks {
     font-size: 12px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
     line-height: 1.35;
     max-width: 220px;
     text-align: right;
@@ -512,7 +512,7 @@
 
   .tier-caption {
     text-align: center;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     font-size: 12px;
     line-height: 1.4;
     margin: 14px 0 6px;
@@ -521,6 +521,6 @@
   .empty {
     text-align: center;
     padding: 60px 16px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 </style>

@@ -222,10 +222,10 @@
 
 <style>
   .page {
-    background: #000000;
+    background: var(--bg-primary);
     min-height: 100vh;
     padding: 12px 16px 120px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   }
 
@@ -241,15 +241,15 @@
     margin: 0;
   }
   .page-subtitle {
-    font-size: 15px; color: #8E8E93;
+    font-size: 15px; color: var(--text-tertiary);
     margin: 0;
   }
   .bell-btn {
     position: relative;
     display: inline-flex; align-items: center; justify-content: center;
     width: 44px; height: 44px; border-radius: 50%;
-    background: transparent; border: 1px solid #2C2C2E;
-    color: #FFFFFF;
+    background: transparent; border: 1px solid var(--border-strong);
+    color: var(--text-primary);
     margin-top: 4px;
   }
   .bell-dot {
@@ -257,7 +257,7 @@
     top: 9px; right: 11px;
     width: 8px; height: 8px; border-radius: 50%;
     background: #FF5C00;
-    border: 2px solid #000000;
+    border: 2px solid var(--bg-primary);
   }
 
   /* Selected fandom card */
@@ -266,8 +266,8 @@
     gap: 14px;
     align-items: center;
     width: 100%;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 18px;
     padding: 14px;
     margin: 8px 0 16px;
@@ -280,19 +280,19 @@
     width: 88px; height: 88px;
     border-radius: 12px;
     overflow: hidden;
-    background: #1F1F21;
+    background: var(--bg-pill);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
   .fandom-portrait img { width: 100%; height: 100%; object-fit: cover; }
-  .fandom-portrait span { font-size: 28px; font-weight: 600; color: #FFFFFF; }
+  .fandom-portrait span { font-size: 28px; font-weight: 600; color: var(--text-primary); }
   .fandom-info { flex: 1; min-width: 0; }
   .fandom-label {
     font-size: 14px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
     margin: 0 0 10px;
   }
-  .fandom-label strong { color: #FFFFFF; font-weight: 600; }
+  .fandom-label strong { color: var(--text-primary); font-weight: 600; }
   .fandom-row {
     display: flex; align-items: center; gap: 12px;
   }
@@ -309,20 +309,20 @@
   .fandom-divider {
     width: 1px;
     height: 28px;
-    background: #2C2C2E;
+    background: var(--border-strong);
   }
   .points-block {
     display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1;
   }
   .points-line { display: flex; align-items: baseline; gap: 3px; }
-  .points-value { font-size: 22px; font-weight: 700; color: #FFFFFF; }
-  .points-unit { font-size: 13px; color: #8E8E93; }
-  .points-state { font-size: 11px; color: #8E8E93; margin-top: 2px; }
+  .points-value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+  .points-unit { font-size: 13px; color: var(--text-tertiary); }
+  .points-state { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
 
   .explainer {
     text-align: center;
     font-size: 13px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     line-height: 1.4;
     margin: 8px 16px 18px;
   }
@@ -331,7 +331,7 @@
   .segmented {
     display: flex;
     background: transparent;
-    border: 1px solid #2C2C2E;
+    border: 1px solid var(--border-strong);
     border-radius: 10px;
     padding: 4px;
     gap: 4px;
@@ -341,7 +341,7 @@
     flex: 1;
     min-height: 44px;
     background: transparent;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     border: 1px solid transparent;
     border-radius: 8px;
     font-size: 15px;
@@ -349,8 +349,8 @@
     cursor: pointer;
   }
   .seg-btn--active {
-    background: #1A1A1C;
-    color: #FFFFFF;
+    background: var(--bg-card-elevated);
+    color: var(--text-primary);
     border-color: #FF5C00;
   }
 
@@ -362,7 +362,7 @@
   }
   .section-empty {
     font-size: 13px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     margin: 0 0 18px;
   }
 
@@ -379,8 +379,8 @@
   .reward-grid::-webkit-scrollbar { display: none; }
   .reward-card {
     flex: 0 0 158px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     overflow: hidden;
     display: flex; flex-direction: column;
@@ -389,7 +389,7 @@
     position: relative;
     width: 100%;
     aspect-ratio: 1;
-    background: #1F1F21;
+    background: var(--bg-pill);
     display: flex; align-items: center; justify-content: center;
   }
   .reward-image img { width: 100%; height: 100%; object-fit: cover; }
@@ -426,7 +426,7 @@
   }
   .reward-cost {
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     margin: auto 0 0;
   }
 
@@ -434,8 +434,8 @@
   .included-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
   .included-row {
     display: flex; align-items: center; gap: 12px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 12px;
     padding: 14px 16px;
     min-height: 56px;
@@ -445,7 +445,7 @@
   .included-footnote {
     text-align: center;
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     margin: 14px 0 18px;
   }
 
@@ -454,15 +454,15 @@
     display: flex;
     gap: 8px;
     align-items: flex-start;
-    border-top: 1px solid #1F1F21;
+    border-top: 1px solid var(--border-subtle);
     padding: 16px 4px 4px;
     margin-top: 10px;
   }
-  .tier-footnote p { font-size: 12px; color: #8E8E93; line-height: 1.5; margin: 0; }
+  .tier-footnote p { font-size: 12px; color: var(--text-tertiary); line-height: 1.5; margin: 0; }
 
   /* Passes tab fallback list */
   .pass-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-  .pass-row { background: #0E0E10; border: 1px solid #1F1F21; border-radius: 12px; }
+  .pass-row { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; }
   .pass-link {
     display: flex; align-items: center; gap: 12px;
     padding: 14px 16px;
@@ -471,7 +471,7 @@
   }
   .pass-info { flex: 1; display: flex; flex-direction: column; }
   .pass-name { font-size: 14px; font-weight: 500; }
-  .pass-venue { font-size: 12px; color: #8E8E93; }
+  .pass-venue { font-size: 12px; color: var(--text-tertiary); }
   .pass-status { font-size: 11px; color: #FF5C00; text-transform: uppercase; letter-spacing: 0.5px; }
 
   /* Fandom picker sheet */
@@ -484,8 +484,8 @@
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 201;
-    background: #0E0E10;
-    border-top: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-subtle);
     border-radius: 18px 18px 0 0;
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0));
     max-height: 70vh;
@@ -496,9 +496,9 @@
   .sheet-close {
     width: 32px; height: 32px;
     border-radius: 50%;
-    background: #1F1F21; border: none;
+    background: var(--bg-pill); border: none;
     display: inline-flex; align-items: center; justify-content: center;
-    color: #FFFFFF;
+    color: var(--text-primary);
     cursor: pointer;
   }
   .sheet-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -506,7 +506,7 @@
     width: 100%;
     display: flex; align-items: center; gap: 12px;
     background: transparent;
-    border: 1px solid #1F1F21;
+    border: 1px solid var(--border-card);
     border-radius: 12px;
     padding: 10px 12px;
     min-height: 56px;
@@ -519,7 +519,7 @@
   .sheet-portrait {
     width: 36px; height: 36px;
     border-radius: 10px;
-    background: #1F1F21;
+    background: var(--bg-pill);
     overflow: hidden;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
@@ -536,5 +536,5 @@
     font-size: 11px; font-weight: 600;
   }
 
-  .empty { padding: 24px 0; color: #8E8E93; text-align: center; font-size: 14px; }
+  .empty { padding: 24px 0; color: var(--text-tertiary); text-align: center; font-size: 14px; }
 </style>

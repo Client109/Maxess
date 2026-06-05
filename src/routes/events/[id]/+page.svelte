@@ -1,5 +1,6 @@
 <script>
   import { ArrowLeft, Bell, BellRing, MapPin, Calendar, Clock, ExternalLink, ChevronDown, ChevronUp, Flame, Users } from 'lucide-svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { subscribedSet, toggleSubscription } from '$lib/stores/subscriptions.js';
 
   export let data;
@@ -14,9 +15,29 @@
   let ticketOpen = false;
   let fansOpen = false;
 
-  // Presale countdown (mock: 18h from now)
-  let presaleHours = 18;
-  let presaleMinutes = 0;
+  // Live presale countdown. Anchored to `now`, which ticks once a minute so
+  // the displayed "Xh Ym" stays current without re-rendering the whole tree.
+  // event.presale_starts_at is an ISO datetime from Ticketmaster's
+  // sales.presales[0].startDateTime (see src/lib/server/events.ts).
+  let now = Date.now();
+  let nowTimer;
+  onMount(() => { nowTimer = setInterval(() => { now = Date.now(); }, 60_000); });
+  onDestroy(() => { if (nowTimer) clearInterval(nowTimer); });
+
+  $: presaleMs = event.presale_starts_at ? Date.parse(event.presale_starts_at) - now : null;
+  $: presaleOpenNow = presaleMs !== null && presaleMs <= 0;
+  $: presaleUpcoming = presaleMs !== null && presaleMs > 0;
+  $: presaleHours = presaleUpcoming ? Math.floor(presaleMs / (60 * 60 * 1000)) : 0;
+  $: presaleMinutes = presaleUpcoming ? Math.floor((presaleMs % (60 * 60 * 1000)) / 60_000) : 0;
+  $: presaleDays = presaleUpcoming ? Math.floor(presaleHours / 24) : 0;
+  // Past 48h, switch from "Xh Ym" to "Xd Yh" to stay readable.
+  $: presaleLabel = !event.presale_starts_at
+    ? null
+    : presaleOpenNow
+      ? 'Presale is open now'
+      : presaleHours >= 48
+        ? `Presale opens in ${presaleDays}d ${presaleHours - presaleDays * 24}h`
+        : `Presale opens in ${presaleHours}h ${presaleMinutes}m`;
 
   const tierBenefits = [
     { tier: 'Elite', color: '#FF5C00', perks: ['First access to presale', 'Skip the line', 'Meet & greet entry', 'Exclusive merch'] },
@@ -83,11 +104,14 @@
       </div>
     {/if}
 
-    <!-- Presale countdown -->
-    <div class="presale-countdown">
-      <Bell size={14} />
-      <span>Presale opens in {presaleHours}h {presaleMinutes}m</span>
-    </div>
+    <!-- Presale countdown. Only renders when the event actually has a
+         configured presale window (Ticketmaster sales.presales[0]). -->
+    {#if presaleLabel}
+      <div class="presale-countdown">
+        <Bell size={14} />
+        <span>{presaleLabel}</span>
+      </div>
+    {/if}
   </div>
 
   <!-- Action buttons -->
@@ -260,17 +284,17 @@
 
 <style>
   .page {
-    background: #000000;
+    background: var(--bg-primary);
     min-height: 100vh;
     padding-bottom: 120px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   /* Hero */
   .hero {
     padding: 16px 16px 24px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     position: relative;
   }
 
@@ -296,7 +320,7 @@
     height: 36px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.15);
-    color: #FFFFFF;
+    color: var(--text-primary);
     text-decoration: none;
     border: none;
   }
@@ -386,7 +410,7 @@
     gap: 8px;
     padding: 14px;
     background: #FF5C00;
-    color: #FFFFFF;
+    color: var(--text-primary);
     border: 1.5px solid #FF5C00;
     border-radius: 99px;
     font-size: 15px;
@@ -397,9 +421,9 @@
   }
 
   .btn-primary--on {
-    background: #1F1F21;
+    background: var(--bg-pill);
     color: #FF5C00;
-    border-color: #2C2C2E;
+    border-color: var(--border-strong);
   }
 
   .btn-outline {
@@ -408,9 +432,9 @@
     justify-content: center;
     gap: 6px;
     padding: 14px 20px;
-    background: #0E0E10;
-    color: #FFFFFF;
-    border: 1px solid #2C2C2E;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
     border-radius: 99px;
     font-size: 15px;
     font-weight: 600;
@@ -454,8 +478,8 @@
     justify-content: center;
     font-size: 10px;
     font-weight: 700;
-    color: #FFFFFF;
-    border: 2px solid #000000;
+    color: var(--text-primary);
+    border: 2px solid var(--bg-primary);
     margin-left: -8px;
   }
 
@@ -470,15 +494,15 @@
 
   .fans-label {
     font-size: 13px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   .fans-list {
     list-style: none;
     margin: 0 16px 16px;
     padding: 8px 0;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 12px;
   }
 
@@ -492,7 +516,7 @@
   .fans-list-name {
     font-size: 14px;
     font-weight: 500;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   /* Status row */
@@ -506,7 +530,7 @@
   .status-badge {
     font-size: 12px;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--text-primary);
     padding: 4px 12px;
     border-radius: 8px;
   }
@@ -514,9 +538,9 @@
   .sale-chip {
     font-size: 12px;
     font-weight: 500;
-    color: #C7C7CC;
-    background: #1F1F21;
-    border: 1px solid #2C2C2E;
+    color: var(--text-secondary);
+    background: var(--bg-pill);
+    border: 1px solid var(--border-strong);
     padding: 4px 10px;
     border-radius: 8px;
   }
@@ -524,8 +548,8 @@
   /* Expandable sections */
   .expand-sections {
     margin: 0 16px 24px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 16px;
     overflow: hidden;
   }
@@ -538,10 +562,10 @@
     padding: 16px;
     background: none;
     border: none;
-    border-bottom: 1px solid #1F1F21;
+    border-bottom: 1px solid var(--border-subtle);
     cursor: pointer;
     font-family: inherit;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .expand-header:last-of-type { border-bottom: none; }
@@ -555,12 +579,12 @@
     padding: 0 16px 16px;
     font-size: 14px;
     line-height: 1.5;
-    color: #C7C7CC;
+    color: var(--text-secondary);
   }
 
   .expand-body p { margin: 0 0 8px; }
   .expand-body p:last-child { margin: 0; }
-  .expand-body strong { color: #FFFFFF; }
+  .expand-body strong { color: var(--text-primary); }
 
   /* Access timeline */
   .access-timeline {
@@ -580,7 +604,7 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #2C2C2E;
+    background: var(--border-strong);
     flex-shrink: 0;
   }
 
@@ -591,13 +615,13 @@
 
   .timeline-item strong {
     font-size: 14px;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .timeline-time {
     display: block;
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
   }
 
   /* Section */
@@ -626,8 +650,8 @@
 
   .tier-card {
     min-width: 140px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     overflow: hidden;
     flex-shrink: 0;
@@ -635,7 +659,7 @@
 
   .tier-header {
     padding: 10px 12px;
-    color: #FFFFFF;
+    color: var(--text-primary);
   }
 
   .tier-name {
@@ -654,7 +678,7 @@
 
   .tier-perks li {
     font-size: 12px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
     line-height: 1.3;
   }
 
@@ -669,8 +693,8 @@
   .rec-card {
     display: flex;
     gap: 12px;
-    background: #0E0E10;
-    border: 1px solid #1F1F21;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 14px;
     overflow: hidden;
     text-decoration: none;
@@ -696,7 +720,7 @@
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.5px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     background: rgba(0, 0, 0, 0.3);
     padding: 2px 6px;
     border-radius: 4px;
@@ -721,7 +745,7 @@
 
   .rec-meta {
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -1,221 +1,33 @@
 import { error } from '@sveltejs/kit';
 import { mockEvents, mockFanProfile } from '$lib/data/mockData.js';
 import { isArtistFollowed } from '$lib/server/listens.js';
+import { getArtistImage } from '$lib/server/music.js';
+import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
+import { getArtistProfile } from '$lib/data/artistProfiles.js';
 
-// Mock artist data keyed by slug
-type MockArtist = {
-  id: string;
-  name: string;
-  genre: string;
-  image_color: string;
-  image?: string;
-  superfan_score: number;
-  tier: string;
-  tier_color: string;
-  tier_progress: number;
-  shows_attended: number;
-  hours_listened: number;
-  listener_rank: number;
-  listener_rank_total: number;
-  monthly_plays: number;
-  monthly_hours: number;
-  top_track: string;
-  // Richer listening data surfaced in the Monthly recap card.
-  // For sports artists (no listening), top_tracks is empty and discovery_count is 0.
-  top_tracks: Array<{ title: string; plays: number }>;
-  longest_session_min: number;
-  peak_day: string;
-  peak_day_hours: number;
-  discovery_count: number;
-};
-
-const weekndData: MockArtist = {
-  id: 'weeknd',
-  name: 'The Weeknd',
-  genre: 'R&B / Pop',
-  image_color: '#1a0a2e',
-  superfan_score: 87,
-  tier: 'Elite',
-  tier_color: '#FF5C00',
-  tier_progress: 0.83,
-  shows_attended: 4,
-  hours_listened: 312,
-  listener_rank: 847,
-  listener_rank_total: 125000,
-  monthly_plays: 186,
-  monthly_hours: 28,
-  top_track: 'Blinding Lights',
-  top_tracks: [
-    { title: 'Blinding Lights', plays: 47 },
-    { title: 'Save Your Tears', plays: 38 },
-    { title: 'After Hours', plays: 29 },
-  ],
-  longest_session_min: 107,
-  peak_day: 'Wed, May 14',
-  peak_day_hours: 4.2,
-  discovery_count: 12,
-};
-
-const mockArtists: Record<string, MockArtist> = {
-  // IDs used by profile and access pages
-  'weeknd': weekndData,
-  'the-weeknd': weekndData,
-  'kaytranada': {
-    id: 'kaytranada',
-    name: 'Kaytranada',
-    genre: 'Electronic / R&B',
-    image_color: '#0d1a30',
-    superfan_score: 78,
-    tier: 'Superfan',
-    tier_color: '#3B28CC',
-    tier_progress: 0.93,
-    shows_attended: 3,
-    hours_listened: 245,
-    listener_rank: 1200,
-    listener_rank_total: 90000,
-    monthly_plays: 142,
-    monthly_hours: 21,
-    top_track: 'BUBBA',
-    top_tracks: [
-      { title: '10%', plays: 36 },
-      { title: 'You’re The One', plays: 31 },
-      { title: 'Lite Spots', plays: 24 },
-    ],
-    longest_session_min: 84,
-    peak_day: 'Fri, May 9',
-    peak_day_hours: 3.1,
-    discovery_count: 9,
-  },
-  'daniel-caesar': {
-    id: 'daniel-caesar',
-    name: 'Daniel Caesar',
-    genre: 'R&B / Soul',
-    image_color: '#1a1a2e',
-    superfan_score: 64,
-    tier: 'Superfan',
-    tier_color: '#3B28CC',
-    tier_progress: 0.64,
-    shows_attended: 2,
-    hours_listened: 168,
-    listener_rank: 2800,
-    listener_rank_total: 110000,
-    monthly_plays: 88,
-    monthly_hours: 13,
-    top_track: 'Best Part',
-    top_tracks: [
-      { title: 'Best Part', plays: 22 },
-      { title: 'Get You', plays: 18 },
-      { title: 'Japanese Denim', plays: 14 },
-    ],
-    longest_session_min: 62,
-    peak_day: 'Sun, May 11',
-    peak_day_hours: 2.4,
-    discovery_count: 6,
-  },
-  'odesza': {
-    id: 'odesza',
-    name: 'ODESZA',
-    genre: 'Electronic',
-    image_color: '#0a1e33',
-    superfan_score: 55,
-    tier: 'Loyal',
-    tier_color: '#1A9E56',
-    tier_progress: 0.73,
-    shows_attended: 2,
-    hours_listened: 134,
-    listener_rank: 3500,
-    listener_rank_total: 85000,
-    monthly_plays: 72,
-    monthly_hours: 11,
-    top_track: 'A Moment Apart',
-    top_tracks: [
-      { title: 'A Moment Apart', plays: 19 },
-      { title: 'Bloom', plays: 15 },
-      { title: 'Say My Name', plays: 12 },
-    ],
-    longest_session_min: 73,
-    peak_day: 'Sat, May 17',
-    peak_day_hours: 2.7,
-    discovery_count: 5,
-  },
-  'ducks': {
-    id: 'ducks',
-    name: 'Anaheim Ducks',
-    genre: 'NHL Hockey',
-    image_color: '#000000',
-    superfan_score: 82,
-    tier: 'Elite',
-    tier_color: '#FF5C00',
-    tier_progress: 0.85,
-    shows_attended: 12,
-    hours_listened: 0,
-    listener_rank: 340,
-    listener_rank_total: 45000,
-    monthly_plays: 0,
-    monthly_hours: 0,
-    top_track: 'N/A',
-    top_tracks: [],
-    longest_session_min: 0,
-    peak_day: '',
-    peak_day_hours: 0,
-    discovery_count: 0,
-  },
-  'kendrick-lamar': {
-    id: 'kendrick-lamar',
-    name: 'Kendrick Lamar',
-    genre: 'Hip-Hop',
-    image_color: '#1a0a2e',
-    superfan_score: 72,
-    tier: 'Loyal',
-    tier_color: '#CD7F32',
-    tier_progress: 0.58,
-    shows_attended: 2,
-    hours_listened: 198,
-    listener_rank: 2340,
-    listener_rank_total: 200000,
-    monthly_plays: 124,
-    monthly_hours: 18,
-    top_track: 'HUMBLE.',
-    top_tracks: [
-      { title: 'HUMBLE.', plays: 32 },
-      { title: 'DNA.', plays: 27 },
-      { title: 'Money Trees', plays: 21 },
-    ],
-    longest_session_min: 91,
-    peak_day: 'Thu, May 15',
-    peak_day_hours: 3.4,
-    discovery_count: 8,
-  },
-  'sza': {
-    id: 'sza',
-    name: 'SZA',
-    genre: 'R&B',
-    image_color: '#1a0d2e',
-    superfan_score: 64,
-    tier: 'Loyal',
-    tier_color: '#CD7F32',
-    tier_progress: 0.42,
-    shows_attended: 1,
-    hours_listened: 156,
-    listener_rank: 3100,
-    listener_rank_total: 180000,
-    monthly_plays: 98,
-    monthly_hours: 14,
-    top_track: 'Kill Bill',
-    top_tracks: [
-      { title: 'Kill Bill', plays: 26 },
-      { title: 'Snooze', plays: 22 },
-      { title: 'Good Days', plays: 17 },
-    ],
-    longest_session_min: 68,
-    peak_day: 'Tue, May 13',
-    peak_day_hours: 2.9,
-    discovery_count: 7,
-  },
+// Per-artist points the demo user has earned. Each artist's points map to
+// a real tier (Newcomer 0–9.9K, Fan 10K–99.9K, Loyal 100K–249.9K,
+// Superfan 250K–999.9K, Elite 1M+) via classifyArtistTier() so the hero
+// card can display the precise points value the user has *with* that artist
+// instead of a 0–100 normalized score.
+const ARTIST_POINTS: Record<string, number> = {
+  'weeknd':         1_180_000,  // Elite
+  'the-weeknd':     1_180_000,
+  'kaytranada':       280_000,  // Superfan
+  'daniel-caesar':    165_000,  // Loyal
+  'odesza':            42_000,  // Fan
+  'arctic-monkeys':     4_500,  // Newcomer
+  'kendrick-lamar':   320_000,  // Superfan
+  'sza':              180_000,  // Loyal
+  'ducks':            240_000,  // Superfan (sports)
+  'lakers':           185_000,  // Loyal
+  'rams':              55_000,  // Fan
+  'dodgers':           28_000,  // Fan
+  'kings':              7_500,  // Newcomer
 };
 
 export async function load({ params }) {
-  const artist = mockArtists[params.id];
+  const artist = getArtistProfile(params.id);
 
   if (!artist) {
     throw error(404, 'Artist not found');
@@ -238,8 +50,39 @@ export async function load({ params }) {
   // Server-side follow state from FollowedArtist table (authoritative across reloads)
   const followState = await isArtistFollowed('fan_001', artist.name);
 
+  // Hero portrait. Music artists get a Spotify/Last.fm fetched image; sports
+  // teams skip the lookup (it would return a wrong artist with the same name)
+  // and fall back to the first upcoming event's image when one exists. Always
+  // resolves to `null` on miss so the template can render the initial-letter
+  // placeholder.
+  const isSportsGenre = /hockey|basketball|baseball|football|nfl|nba|mlb|nhl|soccer/i.test(artist.genre);
+  let heroImage: string | null = null;
+  if (isSportsGenre) {
+    heroImage = upcomingEvents.find(e => e.image_url)?.image_url ?? null;
+  } else {
+    heroImage = await getArtistImage(artist.name).catch(() => null);
+  }
+
+  // Resolve precise points + canonical tier for this artist. Fall back to
+  // deriving points from the mock superfan_score if no explicit entry exists
+  // (kept so unmapped slugs still render coherently).
+  const points = ARTIST_POINTS[params.id] ?? Math.round((artist.superfan_score ?? 0) * 12_000);
+  const tier = classifyArtistTier(points);
+  const next = pointsToNextArtistTier(points);
+
+  const artistWithImage = {
+    ...artist,
+    image: heroImage,
+    points,
+    tier: tier.name,
+    tier_color: tier.color_hex,
+    tier_progress: next.progress,           // 0–1 within the current tier band
+    points_to_next: next.pointsNeeded,
+    next_tier_name: next.nextTier?.name ?? null,
+  };
+
   return {
-    artist,
+    artist: artistWithImage,
     upcomingEvents,
     leaderboard,
     serverFollow: followState,

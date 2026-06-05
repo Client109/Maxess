@@ -213,6 +213,22 @@ export const TicketmasterEventSchema = z.object({
       code: z.string()
     })
   }),
+  // Ticketmaster Discovery API exposes both a `public` sale window (general
+  // on-sale start/end) and a list of `presales` (Citi, Verified Fan, Artist,
+  // etc.). We normalize the earliest future presale into Event.presale_starts_at
+  // so the event detail page can render an accurate countdown.
+  sales: z.object({
+    public: z.object({
+      startDateTime: z.string().optional(),
+      endDateTime: z.string().optional(),
+      startTBD: z.boolean().optional(),
+    }).optional(),
+    presales: z.array(z.object({
+      name: z.string().optional(),
+      startDateTime: z.string().optional(),
+      endDateTime: z.string().optional(),
+    })).optional(),
+  }).optional(),
   classifications: z.array(z.object({
     primary: z.boolean(),
     segment: z.object({
@@ -454,6 +470,10 @@ export const EventSchema = z.object({
   metadata: z.string().optional(),
   // Display helpers
   presale_info: z.string().optional(),       // e.g. "Presale opens in 18h"
+  // ISO datetime (UTC) when the earliest still-future presale opens. Source
+  // of truth for the event detail page's live countdown. `null` / undefined
+  // means either no presale is configured or the presale window has passed.
+  presale_starts_at: z.string().nullable().optional(),
   location_display: z.string().optional(),   // e.g. "Inglewood, CA"
   date_display: z.string().optional(),       // e.g. "Sat, Jun 8"
   status_label: z.string().optional(),       // exact badge text: "Starts in 18h", "You're in"

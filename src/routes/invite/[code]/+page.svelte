@@ -125,7 +125,7 @@
 <style>
   .invite-page {
     min-height: 100vh;
-    background: var(--bg-primary, #F8F8FA);
+    background: var(--bg-primary);
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -135,8 +135,8 @@
   .invite-card {
     width: 100%;
     max-width: 440px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
     border-radius: 20px;
     padding: 28px 24px;
     display: flex;
@@ -164,13 +164,13 @@
     margin: 0;
     font-size: 22px;
     line-height: 1.2;
-    color: #1C1C1E;
+    color: var(--text-primary);
     font-weight: 700;
   }
 
   .invite-subtitle {
     margin: 0 0 8px;
-    color: #6E6E73;
+    color: var(--text-secondary);
     font-size: 14px;
     line-height: 1.5;
   }
@@ -186,31 +186,31 @@
   .field-label {
     font-size: 12px;
     font-weight: 600;
-    color: #6E6E73;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
   .field-optional {
     text-transform: none;
     letter-spacing: 0;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     font-weight: 500;
   }
 
   .field-input {
-    background: #F2F2F7;
-    border: 1px solid #E5E5EA;
+    background: var(--bg-input);
+    border: 1px solid var(--border-card);
     border-radius: 12px;
     padding: 12px 14px;
     font-size: 15px;
-    color: #1C1C1E;
+    color: var(--text-primary);
     font-family: inherit;
     outline: none;
     transition: border-color 0.15s ease, background 0.15s ease;
   }
   .field-input:focus {
     border-color: #FF5C00;
-    background: #FFFFFF;
+    background: var(--bg-card);
   }
 
   .invite-btn {
@@ -252,7 +252,7 @@
   .invite-fineprint {
     margin: 0;
     font-size: 12px;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     text-align: center;
   }
 </style>

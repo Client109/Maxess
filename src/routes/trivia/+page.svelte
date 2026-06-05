@@ -30,8 +30,8 @@
 <style>
   .page {
     min-height: 100vh;
-    background: #000000;
-    color: #FFFFFF;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     padding: 8px 20px 96px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   }
@@ -45,11 +45,11 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    border: 1px solid #2A2A2E;
+    border: 1px solid var(--border-strong);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
+    color: var(--text-primary);
     text-decoration: none;
   }
   .title {
@@ -83,13 +83,13 @@
   .hero-body {
     margin: 0;
     max-width: 320px;
-    color: #C7C7CC;
+    color: var(--text-secondary);
     font-size: 15px;
     line-height: 1.5;
   }
   .hero-note {
     margin: 12px 0 0;
-    color: #8E8E93;
+    color: var(--text-tertiary);
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 1.5px;

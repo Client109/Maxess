@@ -126,7 +126,7 @@
     position: relative;
     width: 100%;
     max-width: 360px;
-    background: var(--bg-card, #FFFFFF);
+    background: var(--bg-card);
     border-radius: 20px;
     padding: 28px 24px 20px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
@@ -145,14 +145,14 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: var(--bg-input, #F2F2F7);
-    color: #8E8E93;
+    background: var(--bg-input);
+    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background 0.15s, color 0.15s;
   }
-  .modal-close:hover { background: #E5E5EA; color: #1C1C1E; }
+  .modal-close:hover { background: var(--border-card); color: var(--text-primary); }
 
   .modal-icon {
     width: 56px;
@@ -168,7 +168,7 @@
   .modal-title {
     font-size: 22px;
     font-weight: 700;
-    color: #1C1C1E;
+    color: var(--text-primary);
     margin: 0 0 8px;
     letter-spacing: -0.3px;
   }
@@ -176,7 +176,7 @@
   .modal-body {
     font-size: 14px;
     line-height: 1.45;
-    color: #3C3C43;
+    color: var(--text-secondary);
     margin: 0 0 16px;
   }
 
@@ -192,7 +192,7 @@
   .modal-bullets li {
     font-size: 13px;
     line-height: 1.4;
-    color: #3C3C43;
+    color: var(--text-secondary);
     padding-left: 18px;
     position: relative;
   }
@@ -205,7 +205,7 @@
     font-weight: 700;
   }
 
-  .modal-bullets strong { color: #1C1C1E; font-weight: 600; }
+  .modal-bullets strong { color: var(--text-primary); font-weight: 600; }
 
   .modal-actions {
     display: flex;
@@ -227,10 +227,10 @@
   .modal-btn:disabled { opacity: 0.6; cursor: progress; }
 
   .modal-btn--secondary {
-    background: var(--bg-input, #F2F2F7);
-    color: #1C1C1E;
+    background: var(--bg-input);
+    color: var(--text-primary);
   }
-  .modal-btn--secondary:hover:not(:disabled) { background: #E5E5EA; }
+  .modal-btn--secondary:hover:not(:disabled) { background: var(--border-card); }
 
   .modal-btn--primary {
     background: var(--action-orange, #FF5C00);

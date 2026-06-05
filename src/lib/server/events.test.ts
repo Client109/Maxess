@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterNearYouThisWeek } from './events.js';
+import { filterNearYouThisWeek, earliestFuturePresaleStart } from './events.js';
 import type { Event } from '$lib/domain/types.js';
 
 function ev(over: Partial<Event>): Event {
@@ -83,5 +83,41 @@ describe('filterNearYouThisWeek', () => {
 
   it('returns empty when no events match', () => {
     expect(filterNearYouThisWeek([], { city: 'Los Angeles', category: 'music', now: NOW })).toEqual([]);
+  });
+});
+
+describe('earliestFuturePresaleStart', () => {
+  const NOW = new Date('2026-06-05T12:00:00Z');
+
+  it('returns null when there are no presales', () => {
+    expect(earliestFuturePresaleStart(undefined, NOW)).toBeNull();
+    expect(earliestFuturePresaleStart([], NOW)).toBeNull();
+  });
+
+  it('picks the earliest future presale and ignores past ones', () => {
+    const result = earliestFuturePresaleStart([
+      { startDateTime: '2026-06-04T08:00:00Z' }, // past
+      { startDateTime: '2026-06-10T09:00:00Z' },
+      { startDateTime: '2026-06-06T12:00:00Z' }, // earliest future
+      { startDateTime: '2026-06-20T20:00:00Z' },
+    ], NOW);
+    expect(result).toBe('2026-06-06T12:00:00Z');
+  });
+
+  it('returns null when every presale is already past', () => {
+    const result = earliestFuturePresaleStart([
+      { startDateTime: '2026-06-01T08:00:00Z' },
+      { startDateTime: '2026-06-04T08:00:00Z' },
+    ], NOW);
+    expect(result).toBeNull();
+  });
+
+  it('skips entries with missing or malformed startDateTime', () => {
+    const result = earliestFuturePresaleStart([
+      {},
+      { startDateTime: 'not-a-date' },
+      { startDateTime: '2026-06-09T00:00:00Z' },
+    ], NOW);
+    expect(result).toBe('2026-06-09T00:00:00Z');
   });
 });
