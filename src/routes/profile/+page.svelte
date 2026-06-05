@@ -1,68 +1,26 @@
 <script>
-  import { ChevronUp, Search, Plus, Check } from 'lucide-svelte';
-  import NotificationBell from '$lib/components/NotificationBell.svelte';
-  import { showPointsGraph, activeCategory } from '$lib/stores/settings.js';
-  import { followedSet, toggleFollowArtist } from '$lib/stores/followedArtists.js';
-  import { locationMode, requestLocation, isGeolocationAvailable, acceptLocationPrompt, declineLocationPrompt, locationPromptStatus } from '$lib/stores/location.js';
-  import InviteCard from '$lib/components/InviteCard.svelte';
-  import FollowingCard from '$lib/components/FollowingCard.svelte';
-  import RecentListensCard from '$lib/components/RecentListensCard.svelte';
-
-  /** @type {{ value: 'off' | 'once' | 'while_using'; label: string; desc: string }[]} */
-  const LOCATION_OPTIONS = [
-    { value: 'off', label: 'Off', desc: 'Never asks' },
-    { value: 'once', label: 'Once', desc: 'Uses now, then forgets' },
-    { value: 'while_using', label: 'While Using', desc: 'Refreshes in foreground' },
-  ];
-
-  /** @param {'off' | 'once' | 'while_using'} next */
-  async function selectLocationMode(next) {
-    const prev = $locationMode;
-    locationMode.set(next);
-    if (prev === 'off' && (next === 'once' || next === 'while_using')) {
-      // Opting in from Profile counts as accepting the consent gate, even if
-      // the user previously declined the first-run modal. Hides the modal
-      // forever and re-enables "near me" content app-wide.
-      acceptLocationPrompt();
-      await requestLocation();
-    } else if (next === 'off' && $locationPromptStatus === 'accepted') {
-      // Turning Off from an accepted state is a soft pause — we don't flip
-      // status back to 'declined' (that would hide all "near me" sections
-      // including the user's setting toggle context). Mode 'off' is enough.
-    }
-  }
+  import { Bell, Pencil, Diamond, Shield, Heart, Check, HelpCircle, Flame, Gift, Calendar, Settings, ChevronRight } from 'lucide-svelte';
 
   export let data;
 
   $: fan = data.fan;
-  $: artists = data.artists || [];
-  $: teams = data.teams || [];
-  $: topConnection = data.topConnection;
-  $: topTeamConnection = data.topTeamConnection;
+  $: handle = fan?.handle || (fan?.name ? fan.name.toLowerCase().replace(/\s+/g, '') : 'me');
+  $: avatarUrl = fan?.avatar_url || null;
+  $: avatarInitials = fan?.avatar_initials || fan?.name?.slice(0, 1) || '?';
+  $: universalPoints = fan?.xp_total ?? 0;
+  $: activeFandoms = data.activeFandomsCount ?? 0;
+  $: rewardsRedeemed = fan?.rewards_redeemed ?? 0;
+  $: fandomBreakdown = data.fandomBreakdown ?? [];
+  $: pointSources = data.pointSources ?? [];
 
-  let howPointsOpen = true;
-  let teamsQuery = '';
+  // Tier name → chip icon (glyph from the mockup).
+  const tierIcons = { Elite: Diamond, Superfan: Diamond, Loyal: Shield, Fan: Heart, Newcomer: Heart };
 
-  $: isMusic = $activeCategory === 'music';
-  $: categoryColor = isMusic ? 'var(--color-music)' : 'var(--color-sports)';
-  $: filteredTeams = (() => {
-    const q = teamsQuery.trim().toLowerCase();
-    if (!q) return teams;
-    return teams.filter(t =>
-      (t.sport ?? '').toLowerCase().includes(q) ||
-      t.name.toLowerCase().includes(q)
-    );
-  })();
-  $: rows = isMusic ? artists : filteredTeams;
-  $: connection = isMusic ? topConnection : topTeamConnection;
-  $: rowsLabel = isMusic ? 'All Artists' : 'All Teams';
-  $: rowHref = (id) => isMusic ? `/artist/${id}` : `/score`;
-
-  const tiers = [
-    { name: 'Fan', range: '10K – 99K', color: '#1A9E56', icon: '✓' },
-    { name: 'Loyal', range: '100K – 249K', color: '#2667FF', icon: '✓' },
-    { name: 'Superfan', range: '250K – 999K', color: '#3B28CC', icon: '★' },
-    { name: 'Elite', range: '1M+', color: '#FF5C00', icon: '◆' },
+  const menu = [
+    { id: 'rewards',     label: 'My Rewards',     icon: Gift,        href: '/profile/rewards' },
+    { id: 'saved',       label: 'Saved Events',   icon: Calendar,    href: '/profile/saved-events' },
+    { id: 'preferences', label: 'Preferences',    icon: Settings,    href: '/profile/preferences' },
+    { id: 'help',        label: 'Help & Support', icon: HelpCircle,  href: '/profile/help' },
   ];
 </script>
 
@@ -71,444 +29,203 @@
 </svelte:head>
 
 <div class="page-container">
-  <!-- Header -->
   <header class="page-header">
-    <div>
-      <h1 class="page-title">Profile</h1>
-      <p class="subtitle">Your fan identity</p>
-    </div>
-    <NotificationBell />
+    <h1 class="page-title">Profile</h1>
+    <a href="/profile/notifications" class="bell-btn" aria-label="Notifications">
+      <Bell size={22} color="#FFFFFF" />
+      <span class="bell-dot"></span>
+    </a>
   </header>
 
   {#if fan}
-    <!-- User Card -->
-    <div class="user-card">
-      <div class="user-avatar">
-        <span>{fan.avatar_initials || fan.name.split(' ').map(n => n[0]).join('')}</span>
-      </div>
-      <div class="user-info">
-        <h2 class="user-name">{fan.name}</h2>
-        <p class="user-points">{fan.xp_total.toLocaleString()} total points</p>
-      </div>
-    </div>
-
-    <!-- Invite friends — referral_program -->
-    <InviteCard />
-
-    <!-- Following + sync — listens_capture -->
-    <FollowingCard followedArtists={data.followedArtists ?? []} />
-
-    <!-- Recent listens — listens_capture -->
-    <RecentListensCard recentListens={data.recentListens ?? []} />
-
-    <!-- Music / Sports Toggle -->
-    <div class="toggle-container">
-      <div class="toggle-pill" role="tablist" aria-label="Category">
-        <button
-          type="button"
-          role="tab"
-          class="toggle-option"
-          class:active={isMusic}
-          aria-selected={isMusic}
-          on:click={() => activeCategory.set('music')}
-        >Music</button>
-        <button
-          type="button"
-          role="tab"
-          class="toggle-option"
-          class:active={!isMusic}
-          aria-selected={!isMusic}
-          on:click={() => activeCategory.set('sports')}
-        >Sports</button>
-        <div class="toggle-slider" class:right={!isMusic} style:background={categoryColor} aria-hidden="true"></div>
-      </div>
-    </div>
-
-    <!-- Your Top Connection -->
-    {#if connection}
-      <section class="section">
-        <a href={rowHref(connection.id)} class="top-connection-card">
-          <span class="connection-label" style:color={categoryColor}>YOUR TOP CONNECTION</span>
-          <div class="connection-content">
-            <div
-              class="connection-avatar"
-              style={connection.image ? `background-image: url('${connection.image}'); background-size: cover; background-position: center` : ''}
-            >
-              {#if !connection.image}
-                <span>{connection.name[0]}</span>
-              {/if}
-            </div>
-            <div class="connection-info">
-              <div class="connection-name-row">
-                <h3 class="connection-name">{connection.name}</h3>
-                <span class="connection-tier" style="background: {connection.tier_color}">
-                  ★ {connection.tier}
-                </span>
-              </div>
-              <div class="connection-stats">
-                <div class="conn-stat">
-                  <span class="conn-stat-label">{isMusic ? 'Listener Percentile' : 'Fan Percentile'}</span>
-                  <span class="conn-stat-value" style:color={categoryColor}>Top {connection.listener_percentile}%</span>
-                </div>
-                <div class="conn-divider"></div>
-                <div class="conn-stat conn-stat--end">
-                  <span class="conn-stat-label">Total points</span>
-                  <span class="conn-stat-value" style:color={categoryColor}>{connection.points.toLocaleString()} pts</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </a>
-      </section>
-    {/if}
-
-    <!-- All Artists / Teams -->
-    <section class="section">
-      <h2 class="section-title">{rowsLabel}</h2>
-
-      {#if !isMusic}
-        <div class="teams-search-wrap">
-          <div class="teams-search-bar">
-            <Search size={16} color="#8E8E93" />
-            <input
-              type="text"
-              class="teams-search-input"
-              placeholder="Filter by sport (e.g. Basketball, Hockey)"
-              bind:value={teamsQuery}
-              aria-label="Filter teams by sport"
-            />
-            {#if teamsQuery}
-              <button type="button" class="teams-search-clear" on:click={() => teamsQuery = ''} aria-label="Clear search">×</button>
-            {/if}
-          </div>
-        </div>
-      {/if}
-
-      <div class="artists-list">
-        {#if rows.length === 0}
-          <div class="empty-row">
-            {#if !isMusic && teamsQuery}
-              No teams match "{teamsQuery}".
-            {:else}
-              No {isMusic ? 'artists' : 'teams'} yet.
-            {/if}
-          </div>
+    <!-- Identity card -->
+    <section class="card identity-card">
+      <div class="identity-avatar">
+        {#if avatarUrl}
+          <img src={avatarUrl} alt={fan.name} />
         {:else}
-          {#each rows as row, i (row.id)}
-            <div class="artist-row-wrap">
-              <a href={rowHref(row.id)} class="artist-row">
-                <span class="artist-rank">{i + 1}</span>
-                <div
-                  class="artist-avatar-small"
-                  style={row.image ? `background-image: url('${row.image}'); background-size: cover; background-position: center` : ''}
-                >
-                  {#if !row.image}
-                    <span>{row.name[0]}</span>
-                  {/if}
-                </div>
-                <div class="artist-info">
-                  <span class="artist-name">{row.name}</span>
-                  {#if !isMusic && row.sport}
-                    <span class="artist-sport">{row.sport}</span>
-                  {/if}
-                  <div class="artist-progress-bar">
-                    <div class="artist-progress-fill" style="width: {row.progress * 100}%; background: {row.tier_color}"></div>
-                  </div>
-                </div>
-                <div class="artist-points-col">
-                  <span class="artist-pts" style="color: {row.tier_color}">{row.points.toLocaleString()} pts</span>
-                  <span class="artist-to-next">{row.pts_to_next.toLocaleString()} pts to {row.next_tier}</span>
-                </div>
-                <span class="artist-tier-chip" style="background: {row.tier_color}">
-                  {row.tier}
-                </span>
-              </a>
-              <button
-                type="button"
-                class="row-follow-btn"
-                class:row-follow-btn--on={$followedSet.has(row.id)}
-                aria-pressed={$followedSet.has(row.id)}
-                aria-label={$followedSet.has(row.id) ? `Unfollow ${row.name}` : `Follow ${row.name}`}
-                on:click|preventDefault|stopPropagation={() =>
-                  toggleFollowArtist(row.id, row.name, { category: isMusic ? 'music' : 'sports', points: row.points })
-                }
-              >
-                {#if $followedSet.has(row.id)}
-                  <Check size={12} /> Following
-                {:else}
-                  <Plus size={12} /> Follow
-                {/if}
-              </button>
-            </div>
-          {/each}
+          <span>{avatarInitials}</span>
         {/if}
       </div>
-    </section>
-
-    <!-- How Points Work -->
-    <section class="section">
-      <button class="how-points-header" on:click={() => howPointsOpen = !howPointsOpen}>
-        <h2 class="section-title no-pad">How Points Work</h2>
-        <div class="chevron-wrap" class:open={howPointsOpen}>
-          <ChevronUp size={18} color="#8E8E93" />
-        </div>
-      </button>
-
-      {#if howPointsOpen}
-        <div class="points-grid">
-          <div class="points-item">
-            <span class="points-icon">🎟️</span>
-            <span class="points-desc">Attend a show</span>
-            <span class="points-val orange">+500 pts</span>
-          </div>
-          <div class="points-item">
-            <span class="points-icon">🎧</span>
-            <span class="points-desc">Listening time</span>
-            <span class="points-val orange">+10 pts/hr</span>
-          </div>
-          <div class="points-item">
-            <span class="points-icon">❓</span>
-            <span class="points-desc">Trivia correct answer</span>
-            <span class="points-val orange">+50 pts</span>
-          </div>
-          <div class="points-item">
-            <span class="points-icon">🔥</span>
-            <span class="points-desc">Streak bonus</span>
-            <span class="points-val orange">+200 pts</span>
-          </div>
-        </div>
-
-        <!-- Tier Legend -->
-        <div class="tier-legend">
-          {#each tiers as tier}
-            <div class="tier-item">
-              <div class="tier-dot" style="background: {tier.color}">
-                <span>{tier.icon}</span>
-              </div>
-              <span class="tier-name">{tier.name}</span>
-              <span class="tier-range">{tier.range}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
-
-    <!-- Settings -->
-    <section class="section">
-      <h2 class="section-title">Settings</h2>
-      <div class="settings-card">
-        <div class="setting-row">
-          <div class="setting-text">
-            <span class="setting-label">Show points graph</span>
-            <span class="setting-desc">Display a 14-day points trend on the Score page.</span>
-          </div>
-          <button
-            class="switch"
-            class:on={$showPointsGraph}
-            role="switch"
-            aria-checked={$showPointsGraph}
-            aria-label="Show points graph"
-            on:click={() => showPointsGraph.update(v => !v)}
-          >
-            <span class="switch-thumb"></span>
-          </button>
-        </div>
-
-        <div class="setting-row setting-row--stack">
-          <div class="setting-text">
-            <span class="setting-label">Location sharing</span>
-            <span class="setting-desc">Off — never asks. Once — uses your location now, then forgets. While Using — refreshes when you open Near You.</span>
-          </div>
-          {#if isGeolocationAvailable()}
-            <div class="loc-segmented" role="group" aria-label="Location sharing mode">
-              {#each LOCATION_OPTIONS as opt}
-                <button
-                  type="button"
-                  class="loc-segmented-btn"
-                  class:loc-segmented-btn--active={$locationMode === opt.value}
-                  aria-pressed={$locationMode === opt.value}
-                  on:click={() => selectLocationMode(opt.value)}
-                >{opt.label}</button>
-              {/each}
-            </div>
-          {:else}
-            <div class="loc-segmented" aria-disabled="true">
-              <span class="loc-unavailable">Not supported on this device</span>
-            </div>
-          {/if}
-        </div>
+      <div class="identity-info">
+        <h2 class="identity-name">{fan.name}</h2>
+        <p class="identity-handle">@{handle}</p>
+        <a href="/profile/edit" class="edit-profile-btn">
+          <Pencil size={13} />
+          Edit Profile
+        </a>
       </div>
     </section>
 
+    <!-- Stats row -->
+    <section class="card stats-card">
+      <div class="stat-cell">
+        <div class="stat-value">{universalPoints.toLocaleString()}</div>
+        <div class="stat-label">Universal Points</div>
+      </div>
+      <div class="stat-divider" aria-hidden="true"></div>
+      <div class="stat-cell">
+        <div class="stat-value">{activeFandoms}</div>
+        <div class="stat-label">Active Fandoms</div>
+      </div>
+      <div class="stat-divider" aria-hidden="true"></div>
+      <div class="stat-cell">
+        <div class="stat-value">{rewardsRedeemed}</div>
+        <div class="stat-label">Rewards Redeemed</div>
+      </div>
+    </section>
+
+    <!-- Fandom breakdown -->
+    <h3 class="section-heading">Fandom breakdown</h3>
+    <section class="card list-card">
+      {#each fandomBreakdown as f, i (f.id)}
+        <a
+          href={f.kind === 'artist' ? `/artist/${f.id}` : '/score'}
+          class="list-row"
+          class:no-divider={i === fandomBreakdown.length - 1}
+        >
+          <div class="row-thumb">
+            {#if f.image}
+              <img src={f.image} alt={f.name} />
+            {:else}
+              <span>{f.name.slice(0, 1)}</span>
+            {/if}
+          </div>
+          <div class="row-main">
+            <div class="row-name">{f.name}</div>
+          </div>
+          <div class="row-points">
+            <span class="row-points-value">{f.points.toLocaleString()}</span>
+            <span class="row-points-unit">pts</span>
+          </div>
+          <span class="tier-chip" style:--chip-color={f.tier_color}>
+            <svelte:component this={tierIcons[f.tier] ?? Heart} size={12} />
+            {f.tier}
+          </span>
+        </a>
+      {/each}
+    </section>
+
+    <!-- Point sources -->
+    <h3 class="section-heading">Point sources</h3>
+    <section class="card list-card">
+      {#each pointSources as s, i (s.id)}
+        <div class="list-row source-row" class:no-divider={i === pointSources.length - 1}>
+          <div class="source-icon" class:source-icon--spotify={s.icon === 'spotify'}>
+            {#if s.icon === 'check'}
+              <Check size={18} color="#FF5C00" />
+            {:else if s.icon === 'spotify'}
+              <svg viewBox="0 0 168 168" width="22" height="22" aria-hidden="true">
+                <circle cx="84" cy="84" r="84" fill="#1DB954" />
+                <path fill="#000" d="M122.7 119.6c-1.7 2.8-5.3 3.6-8.1 1.9-22.2-13.6-50.2-16.6-83.2-9.1-3.2.7-6.4-1.3-7.1-4.5-.7-3.2 1.3-6.4 4.5-7.1 35.9-8.2 66.7-4.7 91.4 10.6 2.7 1.7 3.6 5.4 1.9 8.1zm10.2-22.7c-2.2 3.5-6.7 4.5-10.2 2.4-25.4-15.6-64.1-20.1-94.1-10.9-3.9 1.2-8.1-1-9.3-4.9-1.2-3.9 1-8.1 4.9-9.3 34.4-10.4 76.9-5.4 105.9 12.5 3.4 2.2 4.5 6.7 2.3 10.2zm.9-23.7C103.2 55.3 53.7 53 25.1 61.7c-4.7 1.4-9.6-1.2-11.1-5.9-1.4-4.7 1.2-9.6 5.9-11.1 32.7-9.9 87.5-7.5 122.1 13 4.2 2.5 5.6 8 3.1 12.2-2.5 4.2-8 5.6-12.2 3.1z"/>
+              </svg>
+            {:else if s.icon === 'trivia'}
+              <HelpCircle size={18} color="#FF5C00" />
+            {:else}
+              <Flame size={18} color="#FF5C00" />
+            {/if}
+          </div>
+          <div class="row-main">
+            <div class="row-name">{s.label}</div>
+          </div>
+          <div class="row-points">
+            <span class="row-points-value">{s.points.toLocaleString()}</span>
+            <span class="row-points-unit">pts</span>
+          </div>
+        </div>
+      {/each}
+    </section>
+
+    <p class="legal-copy">
+      Points never expire. Tiers are independent by artist or team.<br/>
+      Points unlock tiers and are also spent on rewards.
+    </p>
+
+    <!-- Menu -->
+    <section class="card list-card menu-card">
+      {#each menu as m, i (m.id)}
+        <a href={m.href} class="list-row menu-row" class:no-divider={i === menu.length - 1}>
+          <div class="menu-icon">
+            <svelte:component this={m.icon} size={18} color="#FF5C00" />
+          </div>
+          <div class="row-main">
+            <div class="row-name">{m.label}</div>
+          </div>
+          <ChevronRight size={18} color="#6E6E73" />
+        </a>
+      {/each}
+    </section>
   {:else}
-    <div class="empty">
-      <p>Unable to load profile. Please try again later.</p>
-    </div>
+    <div class="empty"><p>Unable to load profile. Please try again later.</p></div>
   {/if}
 </div>
 
 <style>
   .page-container {
-    background: var(--bg-primary, #FAFAFA);
+    background: #000000;
     min-height: 100vh;
-    padding-bottom: 100px;
+    padding: 0 16px 120px;
+    color: #FFFFFF;
   }
 
   .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 16px 16px 12px;
+    align-items: center;
+    padding: 20px 0 16px;
   }
 
   .page-title {
-    font-size: 34px;
+    font-size: 36px;
     font-weight: 700;
-    margin: 0;
-    color: #1C1C1E;
-  }
-
-  .subtitle {
-    color: #8E8E93;
-    font-size: 14px;
-    margin: 4px 0 0;
-  }
-
-  /* User Card */
-  .user-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 0 16px 16px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 16px;
-    padding: 16px;
-  }
-
-  .user-avatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: #3B28CC;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    letter-spacing: -0.5px;
     color: #FFFFFF;
-    font-size: 18px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-
-  .user-info { flex: 1; }
-
-  .user-name {
-    font-size: 18px;
-    font-weight: 700;
     margin: 0;
-    color: #1C1C1E;
   }
 
-  .user-points {
-    font-size: 13px;
-    color: #8E8E93;
-    margin: 2px 0 0;
-  }
-
-  /* Toggle */
-  .toggle-container { padding: 0 16px 20px; }
-
-  .toggle-pill {
+  .bell-btn {
     position: relative;
-    display: flex;
-    background: #E5E5EA;
-    border-radius: 99px;
-    padding: 4px;
-    width: 100%;
-    height: 44px;
-    font-family: inherit;
-  }
-
-  .toggle-option {
-    flex: 1;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 15px;
-    font-weight: 600;
-    color: #8E8E93;
-    z-index: 2;
-    position: relative;
-    cursor: pointer;
-    transition: color 0.2s;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
     background: transparent;
-    border: none;
-    font-family: inherit;
-    padding: 0;
+    border: 1px solid #2C2C2E;
+    color: #FFFFFF;
   }
-
-  .toggle-option.active { color: #FFFFFF; }
-
-  .toggle-slider {
+  .bell-dot {
     position: absolute;
-    top: 4px;
-    left: 4px;
-    width: calc(50% - 4px);
-    height: 36px;
-    border-radius: 99px;
-    transition: transform 0.2s, background 0.2s;
-    z-index: 1;
+    top: 8px;
+    right: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #FF5C00;
+    border: 2px solid #000000;
   }
 
-  .toggle-slider.right { transform: translateX(100%); }
-
-  /* Sections */
-  .section { margin-bottom: 24px; }
-
-  .section-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: #1C1C1E;
-    margin: 0;
-    padding: 0 16px;
-  }
-
-  .section-title.no-pad { padding: 0; }
-
-  /* Top Connection */
-  .top-connection-card {
-    display: block;
-    margin: 0 16px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+  .card {
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 16px;
-    padding: 16px;
-    text-decoration: none;
-    color: inherit;
-    transition: background 0.15s;
   }
 
-  .top-connection-card:hover { background: #FAFAFA; }
-
-  .connection-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: #3B28CC;
-    display: block;
-    margin-bottom: 12px;
-  }
-
-  .connection-content {
+  .identity-card {
     display: flex;
-    gap: 14px;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
   }
 
-  .connection-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
+  .identity-avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #1F1F21;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -517,470 +234,187 @@
     font-weight: 700;
     flex-shrink: 0;
   }
-
-  .connection-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+  .identity-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
 
-  .connection-name-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
+  .identity-info { flex: 1; min-width: 0; }
 
-  .connection-name {
-    font-size: 20px;
+  .identity-name {
+    font-size: 26px;
     font-weight: 700;
     margin: 0;
-    color: #1C1C1E;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: #FFFFFF;
+    letter-spacing: -0.3px;
   }
-
-  .connection-stats {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .conn-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .conn-stat--end {
-    align-items: flex-end;
-    text-align: right;
-  }
-
-  .conn-stat-label {
-    font-size: 10px;
-    color: #8E8E93;
-  }
-
-  .conn-stat-value {
+  .identity-handle {
     font-size: 14px;
-    font-weight: 700;
+    color: #8E8E93;
+    margin: 2px 0 10px;
   }
-
-  .conn-divider {
-    width: 1px;
-    height: 28px;
-    background: #E5E5EA;
-  }
-
-  .connection-tier {
+  .edit-profile-btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    color: #FFFFFF;
-    padding: 4px 12px;
+    gap: 6px;
+    padding: 7px 14px;
     border-radius: 99px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  /* Teams search */
-  .teams-search-wrap {
-    padding: 12px 16px 0;
-  }
-
-  .teams-search-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #F2F2F7;
-    border: 1px solid #E5E5EA;
-    border-radius: 12px;
-    padding: 10px 12px;
-  }
-
-  .teams-search-input {
-    flex: 1;
-    font-size: 14px;
-    color: #1C1C1E;
+    border: 1.5px solid #FF5C00;
     background: transparent;
-    border: none;
-    outline: none;
-    font-family: inherit;
-    min-width: 0;
-  }
-
-  .teams-search-input::placeholder { color: #8E8E93; }
-
-  .teams-search-clear {
-    background: none;
-    border: none;
-    color: #8E8E93;
-    font-size: 20px;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0 2px;
-    font-family: inherit;
-  }
-
-  .artist-sport {
-    display: inline-block;
-    font-size: 11px;
+    color: #FF5C00;
+    font-size: 13px;
     font-weight: 600;
-    color: #8E8E93;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    text-decoration: none;
   }
 
-  /* All Artists */
-  .artists-list {
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 16px;
-    margin: 12px 16px 0;
+  .stats-card {
+    display: flex;
+    align-items: stretch;
+    padding: 16px 8px;
+    margin-bottom: 22px;
+  }
+  .stat-cell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0 8px;
+  }
+  .stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.1;
+    letter-spacing: -0.3px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: #8E8E93;
+    text-align: center;
+  }
+  .stat-divider {
+    width: 1px;
+    background: #2C2C2E;
+    margin: 4px 0;
+  }
+
+  .section-heading {
+    font-size: 17px;
+    font-weight: 600;
+    color: #FFFFFF;
+    margin: 0 0 10px;
+    padding: 0 2px;
+  }
+
+  .list-card {
+    margin-bottom: 22px;
     overflow: hidden;
   }
 
-  .artist-row {
+  .list-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 14px;
-    border-bottom: 1px solid #F2F2F7;
+    gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #1F1F21;
     text-decoration: none;
     color: inherit;
   }
+  .list-row.no-divider { border-bottom: none; }
 
-  .artist-row:last-child { border-bottom: none; }
-
-  .artist-rank {
-    font-size: 14px;
-    font-weight: 600;
-    color: #8E8E93;
-    min-width: 20px;
-    text-align: center;
-  }
-
-  .artist-avatar-small {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
+  .row-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1F1F21;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #FFFFFF;
-    font-size: 14px;
     font-weight: 700;
     flex-shrink: 0;
   }
-
-  .artist-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .artist-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #1C1C1E;
-    display: block;
-    margin-bottom: 6px;
-  }
-
-  .artist-progress-bar {
-    height: 4px;
-    background: #E5E5EA;
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .artist-progress-fill {
+  .row-thumb img {
+    width: 100%;
     height: 100%;
-    border-radius: 2px;
-    transition: width 0.6s;
+    object-fit: cover;
+    display: block;
   }
 
-  .artist-points-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
+  .row-main { flex: 1; min-width: 0; }
+
+  .row-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFFFFF;
+  }
+
+  .row-points {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
     flex-shrink: 0;
   }
-
-  .artist-pts {
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  .artist-to-next {
-    font-size: 10px;
-    color: #8E8E93;
-  }
-
-  .empty-row {
-    padding: 24px 16px;
-    text-align: center;
-    color: #8E8E93;
-    font-size: 13px;
-  }
-
-  .artist-tier-chip {
-    font-size: 10px;
+  .row-points-value {
+    font-size: 16px;
     font-weight: 700;
     color: #FFFFFF;
-    padding: 3px 8px;
-    border-radius: 6px;
-    flex-shrink: 0;
+  }
+  .row-points-unit {
+    font-size: 13px;
+    color: #8E8E93;
   }
 
-  /* Row wrapper: lets the per-row follow chip sit alongside the link. */
-  .artist-row-wrap {
-    position: relative;
-    border-bottom: 1px solid #F2F2F7;
-  }
-  .artist-row-wrap:last-child { border-bottom: none; }
-  .artist-row-wrap .artist-row {
-    padding-right: 116px;
-    border-bottom: none;
-  }
-
-  .row-follow-btn {
-    position: absolute;
-    top: 50%;
-    right: 12px;
-    transform: translateY(-50%);
+  .tier-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     padding: 5px 10px;
     border-radius: 99px;
-    border: 1px solid #E5E5EA;
-    background: #FFFFFF;
-    color: #1C1C1E;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
-
-  .row-follow-btn:hover { background: #F2F2F7; }
-
-  .row-follow-btn--on {
-    background: #1C1C1E;
-    color: #FFFFFF;
-    border-color: #1C1C1E;
-  }
-  .row-follow-btn--on:hover { background: #2C2C2E; }
-
-  /* How Points Work */
-  .how-points-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 0 16px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    margin-bottom: 12px;
-  }
-
-  .chevron-wrap { transition: transform 0.2s; }
-  .chevron-wrap:not(.open) { transform: rotate(180deg); }
-
-  .points-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 0 16px;
-    margin-bottom: 16px;
-  }
-
-  .points-item {
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 12px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .points-icon { font-size: 18px; margin-bottom: 2px; }
-
-  .points-desc {
+    border: 1.5px solid var(--chip-color, #8E8E93);
+    color: var(--chip-color, #8E8E93);
+    background: transparent;
     font-size: 12px;
-    color: #1C1C1E;
-    font-weight: 500;
+    font-weight: 600;
+    flex-shrink: 0;
   }
 
-  .points-val {
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  .points-val.orange { color: #FF5C00; }
-
-  /* Tier Legend */
-  .tier-legend {
-    display: flex;
-    justify-content: space-between;
-    padding: 0 16px;
-    gap: 8px;
-  }
-
-  .tier-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    flex: 1;
-  }
-
-  .tier-dot {
-    width: 28px;
-    height: 28px;
+  .source-icon {
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
-    font-size: 12px;
-  }
-
-  .tier-name {
-    font-size: 11px;
-    font-weight: 600;
-    color: #1C1C1E;
-  }
-
-  .tier-range {
-    font-size: 9px;
-    color: #8E8E93;
-    text-align: center;
-  }
-
-  /* Settings */
-  .settings-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
-    border-radius: 16px;
-    margin: 12px 16px 0;
-    overflow: hidden;
-  }
-
-  .setting-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-  }
-
-  .setting-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .setting-label {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1C1C1E;
-  }
-
-  .setting-desc {
-    font-size: 12px;
-    color: #8E8E93;
-  }
-
-  .switch {
-    width: 44px;
-    height: 26px;
-    border-radius: 99px;
-    border: none;
-    background: #E5E5EA;
-    position: relative;
-    cursor: pointer;
-    padding: 0;
-    transition: background 0.2s;
+    background: rgba(255, 92, 0, 0.12);
     flex-shrink: 0;
   }
+  .source-icon--spotify { background: transparent; padding: 0; }
 
-  .switch.on { background: #FF5C00; }
-
-  .switch-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #FFFFFF;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s;
-  }
-
-  .switch.on .switch-thumb { transform: translateX(18px); }
-
-  /* Location segmented control */
-  .setting-row--stack {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    border-top: 1px solid #F0F0F0;
-  }
-
-  .loc-segmented {
-    display: flex;
-    gap: 0;
-    background: #F2F2F7;
-    border-radius: 10px;
-    padding: 3px;
-    width: 100%;
-  }
-
-  .loc-segmented-btn {
-    flex: 1;
-    min-height: 44px;
-    border: none;
-    background: transparent;
-    color: #1C1C1E;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
-  }
-
-  .loc-segmented-btn:hover { color: #FF5C00; }
-
-  .loc-segmented-btn--active {
-    background: #FFFFFF;
-    color: #FF5C00;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  }
-
-  .loc-unavailable {
-    font-size: 13px;
-    color: #8E8E93;
-    padding: 12px;
+  .legal-copy {
     text-align: center;
-    flex: 1;
+    color: #8E8E93;
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0 0 22px;
+  }
+
+  .menu-card { margin-bottom: 32px; }
+  .menu-row { padding: 16px; }
+
+  .menu-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 92, 0, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .empty {

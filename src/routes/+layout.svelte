@@ -2,14 +2,20 @@
   import '$lib/styles/tokens.css';
   import '$lib/styles/app.css';
   import { afterNavigate } from '$app/navigation';
+  import { browser } from '$app/environment';
   import BottomNav from '$lib/components/BottomNav.svelte';
   import NotificationPanel from '$lib/components/NotificationPanel.svelte';
   import ToastHost from '$lib/components/ToastHost.svelte';
   import LocationPromptModal from '$lib/components/LocationPromptModal.svelte';
+  import { theme } from '$lib/stores/settings.js';
 
   afterNavigate(() => {
     window.scrollTo(0, 0);
   });
+
+  // Reflect the active theme on the document root so :root[data-theme="light"]
+  // overrides in tokens.css take effect across every component using tokens.
+  $: if (browser) document.documentElement.dataset.theme = $theme;
 </script>
 
 <div class="app-container">

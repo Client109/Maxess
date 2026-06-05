@@ -49,23 +49,18 @@ describe('Navigation links', () => {
   });
 });
 
-describe('Light theme', () => {
-  it('tokens.css defines light theme bg-primary', () => {
+describe('Dark theme', () => {
+  it('tokens.css defines dark theme bg-primary', () => {
     const tokens = readFileSync(resolve('src/lib/styles/tokens.css'), 'utf-8');
-    expect(tokens).toContain('--bg-primary: #F8F8FA');
-    expect(tokens).toContain('--text-primary: #000000');
-    expect(tokens).toContain('--bg-card: #FFFFFF');
+    expect(tokens).toContain('--bg-primary: #000000');
+    expect(tokens).toContain('--text-primary: #FFFFFF');
+    expect(tokens).toContain('--bg-card: #1A1A1C');
   });
 
   it('layout.svelte uses theme CSS variables', () => {
     const layout = readFileSync(resolve('src/routes/+layout.svelte'), 'utf-8');
     expect(layout).toContain('var(--bg-primary)');
     expect(layout).toContain('var(--text-primary)');
-  });
-
-  it('BottomNav uses light background', () => {
-    const nav = readFileSync(resolve('src/lib/components/BottomNav.svelte'), 'utf-8');
-    expect(nav).toContain('#FFFFFF');
   });
 });
 

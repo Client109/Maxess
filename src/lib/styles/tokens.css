@@ -1,48 +1,78 @@
-/* Maxxes Color System - Light Theme */
+/* Maxxes Color System — Dark theme is the default; the `theme` store in
+   src/lib/stores/settings.ts toggles <html data-theme="light"> to apply the
+   light overrides further down. Brand / category / status colors are the
+   same in both themes (they're chosen to read on either surface). */
 :root {
-  /* Action Color */
+  /* === Action / brand === */
   --action-orange: #FF5C00;
-
-  /* Brand Blues */
   --deep-navy: #2667FF;
   --deeper-indigo: #3B28CC;
   --light-blue: #ADD7F6;
-
-  /* Category Colors — music = blue, sports = orange */
   --color-music: #2667FF;
   --color-sports: #FF5C00;
 
-  /* Light Theme Surfaces */
-  --bg-primary: #F8F8FA;
-  --bg-card: #FFFFFF;
-  --bg-card-elevated: #F5F5F7;
-  --bg-input: #F2F2F7;
+  /* === Fixed reference colors === */
   --off-white: #F8F8FA;
   --pure-white: #FFFFFF;
   --true-black: #000000;
 
-  /* Text */
-  --text-primary: #000000;
-  --text-secondary: #8E8E93;
-  --text-tertiary: #C7C7CC;
+  /* === Surfaces — dark === */
+  --bg-primary: #000000;          /* page background */
+  --bg-card: #0B0B0D;             /* card surface */
+  --bg-card-elevated: #1A1A1D;    /* heavier surface (hero / overlay) */
+  --bg-input: #0F0F11;            /* input + search bg */
+  --bg-pill: #1F1F21;             /* segmented control / inline pill */
+
+  /* === Text — dark === */
+  --text-primary: #FFFFFF;        /* primary text */
+  --text-secondary: #C7C7CC;      /* subtitles / body */
+  --text-tertiary: #8E8E93;       /* labels / captions */
+  --text-muted: #6E6E73;          /* dimmest text / footer notes */
   --system-gray: #8E8E93;
 
-  /* Borders */
-  --border-gray: #E5E5EA;
-  --border-subtle: #F0F0F0;
+  /* === Borders — dark === */
+  --border-card: #1A1A1D;         /* card outlines */
+  --border-gray: #1A1A1D;         /* legacy alias of --border-card */
+  --border-strong: #2A2A2E;       /* button outlines */
+  --border-subtle: #1F1F21;       /* hairlines */
 
-  /* Status Colors */
+  /* === Icons === */
+  --icon-dim: #5A5A60;            /* chevrons / off-state */
+
+  /* === Status === */
   --success-green: #34D399;
   --warning-orange-light: rgba(255, 92, 0, 0.15);
   --error-red: #EF4444;
 
-  /* Hero Gradient (blue) */
+  /* === Hero gradient (used on a couple legacy hero cards) === */
   --dark-card-start: #2667FF;
   --dark-card-end: #3B28CC;
 
-  /* Gold Tier */
+  /* === Gold tier === */
   --gold: #FFD700;
   --gold-muted: rgba(255, 215, 0, 0.15);
+}
+
+/* Light theme overrides */
+:root[data-theme="light"] {
+  --bg-primary: #F8F8FA;
+  --bg-card: #FFFFFF;
+  --bg-card-elevated: #FFFFFF;
+  --bg-input: #F2F2F7;
+  --bg-pill: #F2F2F7;
+
+  --text-primary: #000000;
+  --text-secondary: #3C3C43;
+  --text-tertiary: #6E6E73;
+  --text-muted: #A0A0A5;
+  --system-gray: #8E8E93;
+
+  --border-card: #E5E5EA;
+  --border-gray: #E5E5EA;
+  --border-strong: #D1D1D6;
+  --border-subtle: #F0F0F0;
+
+  --icon-dim: #C7C7CC;
 }
 
 /* Typography System */

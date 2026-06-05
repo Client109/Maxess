@@ -1,12 +1,20 @@
 // Home page server load — fan profile, upcoming events, leaderboard preview
-import { getUserByFanId, getLeaderboard, getFriendActivity, getXpBreakdown } from '$lib/server/database.js';
+import { db, getUserByFanId, getLeaderboard, getFriendActivity, getXpBreakdown, getXpHistory } from '$lib/server/database.js';
 import { transformUserToFan, transformLeaderboardEntry, transformFriendActivity } from '$lib/server/transforms.js';
 import { TicketmasterClient } from '$lib/api/ticketmaster.js';
 import { normalizeTicketmasterEvent, filterNearYouThisWeek } from '$lib/server/events.js';
 import { enrichEventsWithMusicData, getUserTopArtists } from '$lib/server/music.js';
 import { serverConfig } from '$lib/config/env.js';
 import { mockEvents } from '$lib/data/mockData.js';
+import { FOLLOWED_ARTISTS, FOLLOWED_TEAMS, type FollowedFandom } from '$lib/data/seedFandoms.js';
 import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
+import { universalBalance, topByBalance } from '$lib/server/home.js';
+import {
+  XP_PER_CHECKIN,
+  XP_PER_LISTENING_HOUR,
+  XP_PER_TRIVIA_CORRECT,
+  XP_PER_STREAK_BONUS,
+} from '$lib/domain/xp-rules.js';
 
 export async function load({ url }) {
   // Optional location bias from the client-side location store (see
@@ -66,18 +74,16 @@ export async function load({ url }) {
     }
   }
 
-  // Progress threads — per-artist/team tier progression. Tiers (Elite, Superfan,
-  // etc.) are scoped to each thread; the user has a *separate* tier per artist.
-  // Seed values intentionally span every tier band so the demo renders all five
-  // tier colors (Newcomer sky / Fan green / Loyal blue / Superfan indigo / Elite
-  // orange) under YOUR PROGRESS. Thresholds: 10K / 100K / 250K / 1M.
-  const progressThreadsRaw = [
-    { id: 'weeknd', name: 'The Weeknd', category: 'music' as const, points: 1_250_000 },     // Elite — orange
-    { id: 'ducks', name: 'Anaheim Ducks', category: 'sports' as const, points: 410_000 },    // Superfan — indigo
-    { id: 'kaytranada', name: 'Kaytranada', category: 'music' as const, points: 165_000 },   // Loyal — blue
-    { id: 'lakers', name: 'LA Lakers', category: 'sports' as const, points: 42_000 },        // Fan — green
-    { id: 'odesza', name: 'ODESZA', category: 'music' as const, points: 4_500 },             // Newcomer — sky blue
-  ];
+  // Progress threads — per-artist/team tier progression sourced from the
+  // canonical follow seed (src/lib/data/seedFandoms.ts). Same values feed the
+  // Profile page so the points the user sees here match per-row totals there.
+  // The user's xp_total = Σ FOLLOWED_ARTISTS + Σ FOLLOWED_TEAMS + REWARDS_XP_TOTAL.
+  const progressThreadsRaw = [...FOLLOWED_ARTISTS, ...FOLLOWED_TEAMS].map(f => ({
+    id: f.id,
+    name: f.name,
+    category: f.category,
+    points: f.points,
+  }));
   const progressThreads = progressThreadsRaw.map(t => {
     const tier = classifyArtistTier(t.points);
     const next = pointsToNextArtistTier(t.points);
@@ -135,6 +141,92 @@ export async function load({ url }) {
     skipCityFilter: usingLocation,
   });
 
+  // Top fandom (highest-points followed artist/team) drives the Universal
+  // Balance hero pill ("[Tier] for [Fandom name]") + current-fandom line.
+  const topFandom = [...progressThreads]
+    .sort((a, b) => b.points - a.points)[0] ?? null;
+
+  // 14-day XP history for the sparkline on the Universal Balance card.
+  // The DB helper returns rows shaped either {date, amount} or {date, total}
+  // depending on which path it took; coerce defensively.
+  const xpHistoryRaw = await getXpHistory('fan_001', 14).catch(() => [] as Array<Record<string, unknown>>);
+  const xpHistory = xpHistoryRaw.map((d: any) => Number(d.total ?? d.amount ?? 0));
+
+  // ── Home-mockup data: Universal Balance + top-3 fandoms by balance ────
+  // Universal Balance = sum of FanTier.points_balance across all of Alex's
+  // fandoms (the spendable, post-redemption number — distinct from xp_total).
+  // Top 3 by balance drives the "Your fandoms" preview list.
+  const allFandomMeta: FollowedFandom[] = [...FOLLOWED_ARTISTS, ...FOLLOWED_TEAMS];
+  let universalBalanceTotal = 0;
+  let topFandomsByBalance: Array<{
+    fan_tier_id: string;
+    fandom_id: string;
+    name: string;
+    image: string | null;
+    points_balance: number;
+    lifetime_points: number;
+    tier: string;
+    tier_color: string;
+  }> = [];
+  let selectedFandomTier: { name: string; color_hex: string; fandom_name: string } | null = null;
+
+  if (dbUser) {
+    const fanTiers = await db.fanTier.findMany({
+      where: { user_id: dbUser.id },
+    });
+    universalBalanceTotal = universalBalance(fanTiers);
+
+    const top3 = topByBalance(fanTiers, 3);
+    topFandomsByBalance = top3.map(t => {
+      const meta = allFandomMeta.find(m => m.id === t.fandom_id);
+      const tier = classifyArtistTier(t.lifetime_points);
+      return {
+        fan_tier_id: t.id,
+        fandom_id: t.fandom_id,
+        name: meta?.name ?? t.fandom_id,
+        image: meta?.image ?? null,
+        points_balance: t.points_balance,
+        lifetime_points: t.lifetime_points,
+        tier: tier.name,
+        tier_color: tier.color_hex,
+      };
+    });
+
+    // Hero pill: tier for the user's selected fandom (or top-points fallback).
+    const selectedId = dbUser.selected_fandom_id ?? topFandomsByBalance[0]?.fandom_id;
+    if (selectedId) {
+      const selected = fanTiers.find(f => f.fandom_id === selectedId);
+      const meta = allFandomMeta.find(m => m.id === selectedId);
+      if (selected && meta) {
+        const tier = classifyArtistTier(selected.lifetime_points);
+        selectedFandomTier = {
+          name: tier.name,
+          color_hex: tier.color_hex,
+          fandom_name: meta.name,
+        };
+      }
+    }
+  }
+
+  // Featured upcoming event for the home "Upcoming" preview — first event whose
+  // artist matches the user's selected fandom, otherwise the first upcoming
+  // event in the loaded list.
+  const upcomingPreview = (() => {
+    const selName = selectedFandomTier?.fandom_name?.toLowerCase();
+    const match = selName
+      ? upcomingEvents.find(e => e.title.toLowerCase().includes(selName.split(' ')[0]))
+      : null;
+    return match ?? upcomingEvents[0] ?? null;
+  })();
+
+  // Canonical earn-rate constants for the "Earn more points" card row.
+  const earnRates = [
+    { id: 'checkin', label: 'Verified check-in', amount: `+${XP_PER_CHECKIN}`,            icon: 'check'   },
+    { id: 'spotify', label: 'Spotify',           amount: `+${XP_PER_LISTENING_HOUR}/hr`,  icon: 'spotify' },
+    { id: 'trivia',  label: 'Trivia',            amount: `+${XP_PER_TRIVIA_CORRECT}`,     icon: 'trivia'  },
+    { id: 'streak',  label: 'Streak',            amount: `+${XP_PER_STREAK_BONUS}`,       icon: 'streak'  },
+  ];
+
   return {
     fan,
     upcomingEvents,
@@ -145,5 +237,12 @@ export async function load({ url }) {
     improveRankSuggestions,
     nearYouThisWeek,
     usingLocation,
+    topFandom,
+    xpHistory,
+    universalBalance: universalBalanceTotal,
+    topFandomsByBalance,
+    selectedFandomTier,
+    upcomingPreview,
+    earnRates,
   };
 }

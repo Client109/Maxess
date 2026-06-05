@@ -19,6 +19,9 @@ export const FanSchema = z.object({
   city: z.string(),
   member_since: z.string(),
   avatar_initials: z.string(),
+  avatar_url: z.string().nullable().optional(),
+  handle: z.string().nullable().optional(),
+  rewards_redeemed: z.number().optional(),
   // New API integration fields
   spotify_id: z.string().optional(),
   apple_music_id: z.string().optional(),
@@ -464,7 +467,10 @@ export const EventSchema = z.object({
   // Section flags
   trending: z.boolean().optional(),
   near_you: z.boolean().optional(),
-  upcoming_for_you: z.boolean().optional()
+  upcoming_for_you: z.boolean().optional(),
+  // Tier badge displayed on event cards — the tier a fan needs to reach to
+  // claim the event's perks. Independent of the user's own tier.
+  required_tier: z.enum(['Newcomer', 'Fan', 'Loyal', 'Superfan', 'Elite']).optional(),
 });
 
 export type Event = z.infer<typeof EventSchema>;

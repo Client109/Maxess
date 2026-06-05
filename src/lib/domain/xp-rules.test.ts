@@ -4,6 +4,9 @@ import {
   XP_PER_LISTENING_HOUR,
   DAILY_LISTENING_XP_CAP,
   XP_PER_CONCERT_ATTENDANCE,
+  XP_PER_CHECKIN,
+  XP_PER_TRIVIA_CORRECT,
+  XP_PER_STREAK_BONUS,
   computeDailyListeningXp,
   concertAttendanceXp,
 } from './xp-rules.js';
@@ -14,6 +17,9 @@ describe('XP rule constants', () => {
     expect(XP_PER_LISTENING_HOUR).toBe(10);
     expect(DAILY_LISTENING_XP_CAP).toBe(100);
     expect(XP_PER_CONCERT_ATTENDANCE).toBe(10_000);
+    expect(XP_PER_CHECKIN).toBe(500);
+    expect(XP_PER_TRIVIA_CORRECT).toBe(50);
+    expect(XP_PER_STREAK_BONUS).toBe(200);
   });
 });
 

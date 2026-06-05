@@ -6,6 +6,18 @@ export const XP_PER_TRACK_LISTEN = 1;
 export const XP_PER_LISTENING_HOUR = 10;
 export const DAILY_LISTENING_XP_CAP = 100;
 export const XP_PER_CONCERT_ATTENDANCE = 10_000;
+// Soft pre-event "I'm going" / on-arrival check-in. Distinct from a verified
+// attendance scan — this is the tap-from-your-phone signal we surface on event
+// cards as "Check in to earn +500". Verified attendance (WALLET_SCAN /
+// TICKETMASTER_WEBHOOK) still pays the full 10,000.
+export const XP_PER_CHECKIN = 500;
+// Live trivia: per correct answer during a live-event trivia round.
+export const XP_PER_TRIVIA_CORRECT = 50;
+// Consecutive-event streak bonus: paid when the user attends N events in a row
+// within the streak window. Demo-fixed value; in production this would scale
+// with streak length, but the Score-page "Universal Point System" card commits
+// to a flat +200 reward chip so we mirror that constant here.
+export const XP_PER_STREAK_BONUS = 200;
 
 // Minimum playback duration before a track counts as a "listen" — matches the
 // 30-second threshold Last.fm/Spotify use for scrobbles.

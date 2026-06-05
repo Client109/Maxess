@@ -4,6 +4,7 @@ import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { totalSeededXp, REWARDS_XP_TOTAL, FOLLOWED_ARTISTS, FOLLOWED_TEAMS } from '../src/lib/data/seedFandoms.js';
+import { XP_PER_CHECKIN, XP_PER_LISTENING_HOUR, XP_PER_TRIVIA_CORRECT, XP_PER_STREAK_BONUS } from '../src/lib/domain/xp-rules.js';
 
 // pg.Pool only speaks raw postgres. If DATABASE_URL is a `prisma+postgres://`
 // proxy URL (from `prisma dev`), fall back to the embedded raw-postgres port.
@@ -337,16 +338,21 @@ async function main() {
   });
 
   // ── XP Transactions (rewards audit log for Alex Chen) ────────────────
-  // Must sum to REWARDS_XP_TOTAL (currently 90,000). These are the points
-  // earned outside per-fandom follow depth (challenges, attendance scans,
-  // streaming, watch, spend) — the "rewards" leg of the xp_total identity
-  // documented in src/lib/data/seedFandoms.ts.
+  // Must sum to REWARDS_XP_TOTAL (currently 90,000). Each amount is derived
+  // from the canonical rate constants in src/lib/domain/xp-rules.js so the
+  // "Universal Point System" card on /score (which displays the same per-unit
+  // rates) is internally consistent with the ledger.
+  //   60 × +500   = 30,000  Verified check-ins
+  //   3000 × +10  = 30,000  Spotify listening hours
+  //   400 × +50   = 20,000  Live trivia correct answers
+  //   50 × +200   = 10,000  Consecutive event streak bonus
+  //                ─────
+  //                90,000  = REWARDS_XP_TOTAL
   const xpTransactions = [
-    { amount: 50_000, source: 'Event Attendance', description: '5 verified concerts × 10,000' },
-    { amount: 22_000, source: 'Streaming', description: 'Music streaming XP (capped daily)' },
-    { amount: 8_000,  source: 'Challenges', description: 'Challenge completion rewards' },
-    { amount: 6_000,  source: 'Watch XP', description: 'Watching live streams and replays' },
-    { amount: 4_000,  source: 'Spend XP', description: 'Merchandise and ticket purchases' },
+    { amount: 60 * XP_PER_CHECKIN,             source: 'Verified Check-ins',       description: '60 verified event check-ins × 500' },
+    { amount: 3000 * XP_PER_LISTENING_HOUR,    source: 'Spotify Listening',        description: '3000 listening hours × 10/hr' },
+    { amount: 400 * XP_PER_TRIVIA_CORRECT,     source: 'Live Trivia',              description: '400 trivia correct answers × 50' },
+    { amount: 50 * XP_PER_STREAK_BONUS,        source: 'Streak Bonus',             description: '50 consecutive-event streak bonuses × 200' },
   ];
 
   // Sanity-check at seed time: a refactor to the per-source amounts above must
@@ -718,24 +724,88 @@ async function main() {
   ];
   await prisma.reward.createMany({ data: rewardData });
 
-  // ── Reward redemptions (drop Alex's Weeknd balance to 5,480 to match the
-  // mockup hero card: lifetime 280,000 minus 274,520 spent = 5,480 available).
-  const weekndReward = await prisma.reward.findFirst({
-    where: { fandom_id: 'weeknd', name: 'Backstage Experience' },
-  });
-  if (weekndReward) {
+  // ── Reward redemptions (Alex Chen) ────────────────────────────────────
+  // A chronological log of what Alex has redeemed across his followed fandoms.
+  // Each entry resolves a real Reward row, writes a RewardRedemption with a
+  // spaced-out redeemed_at, decrements that fandom's points_balance, and
+  // sets User.rewards_redeemed (the denormalized profile counter).
+  // points_spent matches the catalog cost for that reward.
+  type RedemptionSeed = {
+    fandom_id: string;
+    reward_name: string;
+    days_ago: number;
+  };
+  const redemptionSeeds: RedemptionSeed[] = [
+    { fandom_id: 'weeknd',        reward_name: 'Backstage Experience',  days_ago: 7   },
+    { fandom_id: 'weeknd',        reward_name: 'Meet and Greet',        days_ago: 24  },
+    { fandom_id: 'weeknd',        reward_name: 'Soundcheck Access',     days_ago: 52  },
+    { fandom_id: 'weeknd',        reward_name: '48hr Early Presale',    days_ago: 88  },
+    { fandom_id: 'kaytranada',    reward_name: 'Soundcheck Access',     days_ago: 14  },
+    { fandom_id: 'kaytranada',    reward_name: '48hr Early Presale',    days_ago: 41  },
+    { fandom_id: 'daniel-caesar', reward_name: '48hr Early Presale',    days_ago: 33  },
+    { fandom_id: 'lakers',        reward_name: 'Courtside Upgrade',     days_ago: 12  },
+    { fandom_id: 'lakers',        reward_name: 'Season Ticket Presale', days_ago: 65  },
+    { fandom_id: 'lakers',        reward_name: 'Pre-Game Warmups Pass', days_ago: 110 },
+    { fandom_id: 'ducks',         reward_name: 'Season Ticket Presale', days_ago: 19  },
+    { fandom_id: 'rams',          reward_name: 'Season Ticket Presale', days_ago: 28  },
+  ];
+
+  // Tally per-fandom spend to apply a single points_balance decrement per
+  // FanTier row at the end — keeps the math obvious if a redemption is added
+  // and avoids N round-trips through .update() inside the loop.
+  const spentByFandom = new Map<string, number>();
+  for (const r of redemptionSeeds) {
+    const reward = await prisma.reward.findFirst({
+      where: { fandom_id: r.fandom_id, name: r.reward_name },
+    });
+    if (!reward) {
+      throw new Error(`Reward not found for redemption seed: ${r.fandom_id} / ${r.reward_name}`);
+    }
     await prisma.rewardRedemption.create({
       data: {
         user_id: mainUser.id,
-        reward_id: weekndReward.id,
-        points_spent: 274_520,
+        reward_id: reward.id,
+        points_spent: reward.point_cost,
+        redeemed_at: new Date(now - r.days_ago * 24 * 60 * minuteMs),
       },
     });
+    spentByFandom.set(r.fandom_id, (spentByFandom.get(r.fandom_id) ?? 0) + reward.point_cost);
+  }
+
+  for (const [fandom_id, spent] of spentByFandom) {
     await prisma.fanTier.update({
-      where: { user_id_fandom_id: { user_id: mainUser.id, fandom_id: 'weeknd' } },
-      data: { points_balance: 280_000 - 274_520 },
+      where: { user_id_fandom_id: { user_id: mainUser.id, fandom_id } },
+      data: { points_balance: { decrement: spent } },
     });
   }
+
+  // ── Override balances to match the Home mockup precisely ─────────────
+  // Hero Universal Balance must read 8,750 = sum of the three rows below.
+  // Everything else is zeroed so the top-3-by-balance list also matches.
+  // lifetime_points are untouched so tier chips still resolve correctly
+  // (Weeknd Elite, Ducks Loyal, Ariana Fan).
+  const MOCKUP_BALANCES: Record<string, number> = {
+    'weeknd': 5_480,
+    'ducks': 2_340,
+    'ariana-grande': 930,
+  };
+  const allFanTiers = await prisma.fanTier.findMany({
+    where: { user_id: mainUser.id },
+    select: { fandom_id: true },
+  });
+  for (const { fandom_id } of allFanTiers) {
+    const target = MOCKUP_BALANCES[fandom_id] ?? 0;
+    await prisma.fanTier.update({
+      where: { user_id_fandom_id: { user_id: mainUser.id, fandom_id } },
+      data: { points_balance: target },
+    });
+  }
+
+  // Sync the denormalized counter so the Profile stats card matches the table.
+  await prisma.user.update({
+    where: { id: mainUser.id },
+    data: { rewards_redeemed: redemptionSeeds.length },
+  });
 
   const totalUsers = await prisma.user.count();
   const totalLeaderboard = await prisma.leaderboardEntry.count();

@@ -80,8 +80,15 @@
   </header>
 
   <!-- Superfan Score Card -->
-  <div class="score-card" style="background: linear-gradient(160deg, #0f1923 0%, {artist.image_color} 100%)">
+  <div class="score-card" style="background: linear-gradient(160deg, {artist.image_color} 0%, #0E0E10 100%)">
     <div class="score-top">
+      <div class="portrait">
+        {#if artist.image}
+          <img src={artist.image} alt={artist.name} />
+        {:else}
+          <span>{artist.name.slice(0, 1)}</span>
+        {/if}
+      </div>
       <div class="score-circle">
         <svg viewBox="0 0 120 120" class="score-ring">
           <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" />
@@ -94,28 +101,30 @@
           <span class="score-label">/ 100</span>
         </div>
       </div>
-      <div class="score-meta">
+    </div>
+    <div class="score-meta">
+      <div class="score-meta-info">
         <span class="score-genre">{artist.genre}</span>
         <span class="tier-badge" style="background: {artist.tier_color}">{artist.tier}</span>
-        <button
-          type="button"
-          class="follow-btn"
-          class:follow-btn--on={isFollowing}
-          aria-pressed={isFollowing}
-          on:click={() => {
-            toggleFollowArtist(artist.id, artist.name, { category: followCategory, points: followPointsSeed });
-            persistFollowToggle();
-          }}
-        >
-          {#if isFollowing}
-            <Check size={14} />
-            Following
-          {:else}
-            <Plus size={14} />
-            Follow
-          {/if}
-        </button>
       </div>
+      <button
+        type="button"
+        class="follow-btn"
+        class:follow-btn--on={isFollowing}
+        aria-pressed={isFollowing}
+        on:click={() => {
+          toggleFollowArtist(artist.id, artist.name, { category: followCategory, points: followPointsSeed });
+          persistFollowToggle();
+        }}
+      >
+        {#if isFollowing}
+          <Check size={14} />
+          Following
+        {:else}
+          <Plus size={14} />
+          Follow
+        {/if}
+      </button>
     </div>
 
     <!-- Tier progress bar -->
@@ -278,11 +287,11 @@
 
 <style>
   .page {
-    background: #F2F2F7;
+    background: #000000;
     min-height: 100vh;
-    padding-bottom: 180px;
+    padding-bottom: 120px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-    color: #1C1C1E;
+    color: #FFFFFF;
   }
 
   /* Header */
@@ -291,8 +300,7 @@
     align-items: center;
     padding: 12px 16px;
     gap: 12px;
-    background: #FFFFFF;
-    border-bottom: 1px solid #E5E5EA;
+    background: #000000;
   }
 
   .back-btn {
@@ -302,10 +310,10 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: #F2F2F7;
-    color: #1C1C1E;
+    background: #1F1F21;
+    color: #FFFFFF;
     text-decoration: none;
-    border: none;
+    border: 1px solid #2C2C2E;
     flex-shrink: 0;
   }
 
@@ -315,6 +323,7 @@
     margin: 0;
     flex: 1;
     text-align: center;
+    color: #FFFFFF;
   }
 
   .header-spacer {
@@ -322,26 +331,53 @@
     flex-shrink: 0;
   }
 
-  /* Score Card */
+  /* Score Card (hero, artist-color gradient) */
   .score-card {
-    margin: 16px;
+    margin: 8px 16px 16px;
+    border: 1px solid #1F1F21;
     border-radius: 20px;
-    padding: 24px 20px 20px;
+    padding: 20px;
     color: #FFFFFF;
   }
 
   .score-top {
     display: flex;
     align-items: center;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .portrait {
+    width: 96px;
+    height: 96px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .portrait span {
+    font-size: 36px;
+    font-weight: 700;
+    color: #FFFFFF;
   }
 
   .score-circle {
     position: relative;
-    width: 100px;
-    height: 100px;
+    width: 96px;
+    height: 96px;
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   .score-ring {
@@ -362,21 +398,32 @@
     font-size: 28px;
     font-weight: 700;
     line-height: 1;
+    color: #FFFFFF;
   }
 
   .score-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
   }
 
   .score-meta {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .score-meta-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   .score-genre {
-    font-size: 14px;
+    font-size: 13px;
     color: rgba(255, 255, 255, 0.7);
   }
 
@@ -389,20 +436,17 @@
     padding: 4px 12px;
     border-radius: 6px;
     color: #FFFFFF;
-    align-self: flex-start;
   }
 
   .follow-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    align-self: flex-start;
-    margin-top: 4px;
     padding: 7px 14px;
     border-radius: 99px;
     border: 1.5px solid #FFFFFF;
     background: #FFFFFF;
-    color: #0f1923;
+    color: #000000;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -413,7 +457,7 @@
   .follow-btn--on {
     background: transparent;
     color: #FFFFFF;
-    border-color: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.4);
   }
 
   /* Tier progress */
@@ -423,7 +467,7 @@
 
   .tier-bar {
     height: 6px;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
     border-radius: 3px;
     overflow: hidden;
   }
@@ -450,6 +494,7 @@
     height: 8px;
     border-radius: 50%;
     display: block;
+    border: 1px solid rgba(0, 0, 0, 0.3);
   }
 
   .tier-labels {
@@ -460,7 +505,7 @@
 
   .tier-label-sm {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.45);
   }
 
   /* KPIs */
@@ -473,8 +518,8 @@
   }
 
   .kpi-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 14px;
     padding: 14px 12px;
     display: flex;
@@ -487,7 +532,7 @@
   .kpi-value {
     font-size: 18px;
     font-weight: 700;
-    color: #1C1C1E;
+    color: #FFFFFF;
   }
 
   .kpi-label {
@@ -514,9 +559,9 @@
 
   .section-title {
     font-size: 17px;
-    font-weight: 600;
+    font-weight: 700;
     margin: 0;
-    color: #1C1C1E;
+    color: #FFFFFF;
   }
 
   .section-title.pad {
@@ -529,7 +574,8 @@
     flex-direction: column;
     gap: 1px;
     margin: 0 16px;
-    background: #E5E5EA;
+    background: #1F1F21;
+    border: 1px solid #1F1F21;
     border-radius: 14px;
     overflow: hidden;
   }
@@ -539,7 +585,7 @@
     align-items: center;
     gap: 12px;
     padding: 14px;
-    background: #FFFFFF;
+    background: #0E0E10;
   }
 
   .perk-icon {
@@ -556,6 +602,7 @@
   .perk-title {
     font-size: 14px;
     font-weight: 600;
+    color: #FFFFFF;
   }
 
   .perk-desc {
@@ -569,7 +616,8 @@
     flex-direction: column;
     gap: 1px;
     margin: 0 16px;
-    background: #E5E5EA;
+    background: #1F1F21;
+    border: 1px solid #1F1F21;
     border-radius: 14px;
     overflow: hidden;
   }
@@ -579,7 +627,7 @@
     align-items: center;
     gap: 12px;
     padding: 14px;
-    background: #FFFFFF;
+    background: #0E0E10;
     text-decoration: none;
     color: inherit;
   }
@@ -603,6 +651,7 @@
     display: block;
     font-size: 14px;
     font-weight: 600;
+    color: #FFFFFF;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -622,7 +671,7 @@
     font-size: 10px;
     font-weight: 600;
     color: #FF5C00;
-    background: #FF5C0015;
+    background: rgba(255, 92, 0, 0.15);
     padding: 4px 8px;
     border-radius: 6px;
   }
@@ -630,8 +679,8 @@
   /* Leaderboard */
   .leaderboard-card {
     margin: 0 16px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 14px;
     overflow: hidden;
   }
@@ -641,13 +690,13 @@
     align-items: center;
     gap: 10px;
     padding: 12px 14px;
-    border-bottom: 1px solid #F2F2F7;
+    border-bottom: 1px solid #1F1F21;
   }
 
   .lb-row:last-child { border-bottom: none; }
 
   .lb-row.is-me {
-    background: #FF5C0008;
+    background: rgba(255, 92, 0, 0.08);
   }
 
   .lb-rank {
@@ -661,6 +710,7 @@
     flex: 1;
     font-size: 14px;
     font-weight: 500;
+    color: #FFFFFF;
   }
 
   .lb-city {
@@ -679,8 +729,8 @@
   /* Recap */
   .recap-card {
     margin: 0 16px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 14px;
     padding: 16px;
     display: flex;
@@ -699,7 +749,8 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    background: #F8F8FA;
+    background: #1A1A1C;
+    border: 1px solid #1F1F21;
     border-radius: 12px;
     padding: 12px 8px;
   }
@@ -707,13 +758,13 @@
   .recap-stat-value {
     font-size: 20px;
     font-weight: 700;
-    color: #1C1C1E;
+    color: #FFFFFF;
     line-height: 1.1;
   }
 
   .recap-stat-label {
     font-size: 11px;
-    color: #6E6E73;
+    color: #8E8E93;
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
@@ -730,7 +781,7 @@
     gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    color: #6E6E73;
+    color: #8E8E93;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -749,7 +800,7 @@
     align-items: center;
     gap: 10px;
     padding: 8px 0;
-    border-bottom: 1px solid #F2F2F7;
+    border-bottom: 1px solid #1F1F21;
   }
 
   .recap-track:last-child { border-bottom: none; }
@@ -759,8 +810,8 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #F2F2F7;
-    color: #6E6E73;
+    background: #1F1F21;
+    color: #FFFFFF;
     font-size: 12px;
     font-weight: 700;
     display: inline-flex;
@@ -772,7 +823,7 @@
     flex: 1;
     font-size: 14px;
     font-weight: 500;
-    color: #1C1C1E;
+    color: #FFFFFF;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -789,7 +840,7 @@
     flex-direction: column;
     gap: 6px;
     padding-top: 12px;
-    border-top: 1px solid #F2F2F7;
+    border-top: 1px solid #1F1F21;
   }
 
   .recap-footer-item {
@@ -797,11 +848,11 @@
     align-items: center;
     gap: 6px;
     font-size: 13px;
-    color: #6E6E73;
+    color: #8E8E93;
   }
 
   .recap-footer-item strong {
-    color: #1C1C1E;
+    color: #FFFFFF;
     font-weight: 600;
   }
 </style>

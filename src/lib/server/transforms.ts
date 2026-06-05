@@ -30,6 +30,9 @@ export function transformUserToFan(user: any): Fan {
     city: user.city,
     member_since: user.member_since?.toISOString?.() ?? user.created_at?.toISOString?.() ?? '',
     avatar_initials: user.avatar_initials,
+    avatar_url: user.avatar_url ?? null,
+    handle: user.handle ?? null,
+    rewards_redeemed: user.rewards_redeemed ?? 0,
     spotify_id: user.spotify_id ?? undefined,
     lastfm_username: user.lastfm_username ?? undefined,
     connected_accounts: [

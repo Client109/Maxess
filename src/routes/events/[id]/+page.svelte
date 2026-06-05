@@ -260,11 +260,11 @@
 
 <style>
   .page {
-    background: #F2F2F7;
+    background: #000000;
     min-height: 100vh;
     padding-bottom: 120px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-    color: #1C1C1E;
+    color: #FFFFFF;
   }
 
   /* Hero */
@@ -397,8 +397,9 @@
   }
 
   .btn-primary--on {
-    background: #FFFFFF;
+    background: #1F1F21;
     color: #FF5C00;
+    border-color: #2C2C2E;
   }
 
   .btn-outline {
@@ -407,9 +408,9 @@
     justify-content: center;
     gap: 6px;
     padding: 14px 20px;
-    background: #FFFFFF;
-    color: #1C1C1E;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    color: #FFFFFF;
+    border: 1px solid #2C2C2E;
     border-radius: 99px;
     font-size: 15px;
     font-weight: 600;
@@ -437,7 +438,7 @@
 
   .fans-section:hover,
   .fans-section[aria-expanded="true"] {
-    background: rgba(0, 0, 0, 0.04);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .fans-avatars {
@@ -454,7 +455,7 @@
     font-size: 10px;
     font-weight: 700;
     color: #FFFFFF;
-    border: 2px solid #F2F2F7;
+    border: 2px solid #000000;
     margin-left: -8px;
   }
 
@@ -476,8 +477,8 @@
     list-style: none;
     margin: 0 16px 16px;
     padding: 8px 0;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 12px;
   }
 
@@ -491,7 +492,7 @@
   .fans-list-name {
     font-size: 14px;
     font-weight: 500;
-    color: #1C1C1E;
+    color: #FFFFFF;
   }
 
   /* Status row */
@@ -513,9 +514,9 @@
   .sale-chip {
     font-size: 12px;
     font-weight: 500;
-    color: #8E8E93;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    color: #C7C7CC;
+    background: #1F1F21;
+    border: 1px solid #2C2C2E;
     padding: 4px 10px;
     border-radius: 8px;
   }
@@ -523,8 +524,8 @@
   /* Expandable sections */
   .expand-sections {
     margin: 0 16px 24px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 16px;
     overflow: hidden;
   }
@@ -537,10 +538,10 @@
     padding: 16px;
     background: none;
     border: none;
-    border-bottom: 1px solid #F2F2F7;
+    border-bottom: 1px solid #1F1F21;
     cursor: pointer;
     font-family: inherit;
-    color: #1C1C1E;
+    color: #FFFFFF;
   }
 
   .expand-header:last-of-type { border-bottom: none; }
@@ -554,11 +555,12 @@
     padding: 0 16px 16px;
     font-size: 14px;
     line-height: 1.5;
-    color: #6E6E73;
+    color: #C7C7CC;
   }
 
   .expand-body p { margin: 0 0 8px; }
   .expand-body p:last-child { margin: 0; }
+  .expand-body strong { color: #FFFFFF; }
 
   /* Access timeline */
   .access-timeline {
@@ -578,17 +580,18 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #E5E5EA;
+    background: #2C2C2E;
     flex-shrink: 0;
   }
 
   .timeline-item.active .timeline-dot {
     background: #FF5C00;
+    box-shadow: 0 0 0 4px rgba(255, 92, 0, 0.15);
   }
 
   .timeline-item strong {
     font-size: 14px;
-    color: #1C1C1E;
+    color: #FFFFFF;
   }
 
   .timeline-time {
@@ -623,8 +626,8 @@
 
   .tier-card {
     min-width: 140px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 14px;
     overflow: hidden;
     flex-shrink: 0;
@@ -651,7 +654,7 @@
 
   .tier-perks li {
     font-size: 12px;
-    color: #6E6E73;
+    color: #C7C7CC;
     line-height: 1.3;
   }
 
@@ -666,8 +669,8 @@
   .rec-card {
     display: flex;
     gap: 12px;
-    background: #FFFFFF;
-    border: 1px solid #E5E5EA;
+    background: #0E0E10;
+    border: 1px solid #1F1F21;
     border-radius: 14px;
     overflow: hidden;
     text-decoration: none;

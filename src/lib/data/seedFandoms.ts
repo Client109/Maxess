@@ -22,16 +22,20 @@ export type FollowedFandom = {
 };
 
 export const FOLLOWED_ARTISTS: FollowedFandom[] = [
-  { id: 'weeknd',         name: 'The Weeknd',     category: 'music', points: 280_000, listener_percentile: 2,  image: '/images/weeknd.jpg' },
-  { id: 'kaytranada',     name: 'Kaytranada',     category: 'music', points: 45_000,  listener_percentile: 10, image: '/images/kaytranada.jpg' },
-  { id: 'daniel-caesar',  name: 'Daniel Caesar',  category: 'music', points: 15_000,  listener_percentile: 18, image: '/images/daniel-caesar.jpg' },
-  { id: 'odesza',         name: 'ODESZA',         category: 'music', points: 8_000,   listener_percentile: 28, image: '/images/odesza.jpg' },
-  { id: 'arctic-monkeys', name: 'Arctic Monkeys', category: 'music', points: 2_000,   listener_percentile: 40, image: null },
+  // The Weeknd lifted to Elite floor (1M) so the Home mockup hero pill reads
+  // "Elite for The Weeknd" and the fandom row shows the Elite chip.
+  { id: 'weeknd',         name: 'The Weeknd',     category: 'music', points: 1_000_000, listener_percentile: 2,  image: null },
+  { id: 'kaytranada',     name: 'Kaytranada',     category: 'music', points: 45_000,    listener_percentile: 10, image: null },
+  { id: 'daniel-caesar',  name: 'Daniel Caesar',  category: 'music', points: 15_000,    listener_percentile: 18, image: null },
+  { id: 'odesza',         name: 'ODESZA',         category: 'music', points: 8_000,     listener_percentile: 28, image: null },
+  // Ariana lifted to Fan floor (10K) so the Home mockup row shows the Fan chip.
+  { id: 'ariana-grande',  name: 'Ariana Grande',  category: 'music', points: 10_500,    listener_percentile: 30, image: null },
 ];
 
 export const FOLLOWED_TEAMS: FollowedFandom[] = [
   { id: 'lakers',  name: 'Los Angeles Lakers',  category: 'sports', sport: 'Basketball', points: 240_000, listener_percentile: 3,  image: null },
-  { id: 'ducks',   name: 'Anaheim Ducks',       category: 'sports', sport: 'Hockey',     points: 55_000,  listener_percentile: 14, image: null },
+  // Ducks lifted to Loyal floor (100K) so the Home mockup row shows the Loyal chip.
+  { id: 'ducks',   name: 'Anaheim Ducks',       category: 'sports', sport: 'Hockey',     points: 105_000, listener_percentile: 14, image: null },
   { id: 'rams',    name: 'LA Rams',             category: 'sports', sport: 'Football',   points: 10_000,  listener_percentile: 28, image: null },
   { id: 'dodgers', name: 'Los Angeles Dodgers', category: 'sports', sport: 'Baseball',   points: 3_500,   listener_percentile: 42, image: null },
   { id: 'kings',   name: 'LA Kings',            category: 'sports', sport: 'Hockey',     points: 1_500,   listener_percentile: 58, image: null },

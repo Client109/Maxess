@@ -8,6 +8,7 @@ type MockArtist = {
   name: string;
   genre: string;
   image_color: string;
+  image?: string;
   superfan_score: number;
   tier: string;
   tier_color: string;

@@ -5,27 +5,23 @@ import { transformUserToFan } from '$lib/server/transforms.js';
 import { TicketmasterClient } from '$lib/api/ticketmaster.js';
 import { getArtistImage } from '$lib/server/music.js';
 import { serverConfig } from '$lib/config/env.js';
+import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
+import { FOLLOWED_ARTISTS, getSeededTeamByName } from '$lib/data/seedFandoms.js';
 
 type ProfileTeam = {
   id: string;
   name: string;
   sport: string;
   points: number;
-  tier: 'Fan' | 'Loyal' | 'Superfan' | 'Elite';
+  tier: string;
   tier_color: string;
   pts_to_next: number;
   next_tier: string;
   progress: number;
   listener_percentile: number;
   image: string | null;
+  is_followed_seed: boolean;
 };
-
-const TIERS = [
-  { name: 'Fan',      min: 0,    color: '#1A9E56' },
-  { name: 'Loyal',    min: 1000, color: '#1A9E56' },
-  { name: 'Superfan', min: 3000, color: '#3B28CC' },
-  { name: 'Elite',    min: 5000, color: '#FF5C00' },
-] as const;
 
 // Deterministic pseudo-random in [0,1) from a string — stable per team across reloads
 function seeded(str: string): number {
@@ -37,24 +33,18 @@ function seeded(str: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 
-function deriveTier(points: number) {
-  let current = TIERS[0];
-  let next: typeof TIERS[number] | null = null;
-  for (let i = 0; i < TIERS.length; i++) {
-    if (points >= TIERS[i].min) {
-      current = TIERS[i];
-      next = TIERS[i + 1] ?? null;
-    }
-  }
-  const ceiling = next?.min ?? current.min + 2000;
-  const floor = current.min;
-  const progress = Math.min(1, Math.max(0, (points - floor) / Math.max(1, ceiling - floor)));
+// Derive tier display fields from raw points using the canonical xp.ts tiers
+// (Newcomer 0–9.9K · Fan 10K–99.9K · Loyal 100K–249.9K · Superfan 250K–999.9K
+// · Elite 1M+). Returned shape matches what the row UI expects.
+function deriveTierDisplay(points: number) {
+  const tier = classifyArtistTier(points);
+  const next = pointsToNextArtistTier(points);
   return {
-    tier: current.name,
-    tier_color: current.color,
-    next_tier: (next?.name ?? current.name),
-    pts_to_next: Math.max(0, ceiling - points),
-    progress,
+    tier: tier.name,
+    tier_color: tier.color_hex,
+    next_tier: next.nextTier?.name ?? tier.name,
+    pts_to_next: next.pointsNeeded,
+    progress: next.progress,
   };
 }
 
@@ -66,20 +56,43 @@ const FALLBACK_TEAMS: { name: string; sport: string }[] = [
   { name: 'LA Kings', sport: 'Hockey' },
 ];
 
+// Build a team row for the Profile "All Teams" list. If the team's name matches
+// a canonical FOLLOWED_TEAMS entry, we overlay seeded points + canonical id (so
+// follow state and the user's xp_total math stay consistent across the app).
+// Non-followed teams get small deterministic points (browse-only).
 function buildTeam(id: string, name: string, image: string | null, sport: string): ProfileTeam {
+  const seed = getSeededTeamByName(name);
+  if (seed) {
+    const t = deriveTierDisplay(seed.points);
+    return {
+      id: seed.id,
+      name,
+      image,
+      sport: seed.sport ?? sport,
+      points: seed.points,
+      listener_percentile: seed.listener_percentile,
+      tier: t.tier,
+      tier_color: t.tier_color,
+      next_tier: t.next_tier,
+      pts_to_next: t.pts_to_next,
+      progress: t.progress,
+      is_followed_seed: true,
+    };
+  }
   const r = seeded(id || name);
-  const points = Math.round(500 + r * 5500); // 500–6000
-  const percentile = Math.max(1, Math.round((1 - r) * 30)); // 1–30
-  const t = deriveTier(points);
+  const points = Math.round(500 + r * 5500); // 500–6000 (browse-only)
+  const percentile = Math.max(20, Math.round(40 + (1 - r) * 50)); // 20–90 (lower-fan than followed teams)
+  const t = deriveTierDisplay(points);
   return {
     id, name, image, sport,
     points,
     listener_percentile: percentile,
-    tier: t.tier as ProfileTeam['tier'],
+    tier: t.tier,
     tier_color: t.tier_color,
     next_tier: t.next_tier,
     pts_to_next: t.pts_to_next,
     progress: t.progress,
+    is_followed_seed: false,
   };
 }
 
@@ -156,71 +169,13 @@ export async function load() {
   ]);
   const fan = { ...transformUserToFan(dbUser), xp_breakdown: xpBreakdown };
 
-  // Per-artist mock data. Points + tier_color span every tier band so the
-  // "All Artists" list demonstrates all four rank colors plus the Newcomer
-  // sky-blue. Thresholds (xp.ts → TIERS): 10K / 100K / 250K / 1M.
-  const artists = [
-    {
-      id: 'weeknd',
-      name: 'The Weeknd',
-      points: 1_250_000,
-      tier: 'Elite',
-      tier_color: '#FF5C00',
-      pts_to_next: 0,
-      next_tier: 'Elite',
-      progress: 1,
-      listener_percentile: 2,
-      image: '/images/weeknd.jpg',
-    },
-    {
-      id: 'kaytranada',
-      name: 'Kaytranada',
-      points: 410_000,
-      tier: 'Superfan',
-      tier_color: '#3B28CC',
-      pts_to_next: 590_000,
-      next_tier: 'Elite',
-      progress: 0.21,
-      listener_percentile: 8,
-      image: '/images/kaytranada.jpg',
-    },
-    {
-      id: 'daniel-caesar',
-      name: 'Daniel Caesar',
-      points: 165_000,
-      tier: 'Loyal',
-      tier_color: '#2667FF',
-      pts_to_next: 85_000,
-      next_tier: 'Superfan',
-      progress: 0.43,
-      listener_percentile: 12,
-      image: '/images/daniel-caesar.jpg',
-    },
-    {
-      id: 'odesza',
-      name: 'ODESZA',
-      points: 42_000,
-      tier: 'Fan',
-      tier_color: '#1A9E56',
-      pts_to_next: 58_000,
-      next_tier: 'Loyal',
-      progress: 0.36,
-      listener_percentile: 15,
-      image: '/images/odesza.jpg',
-    },
-    {
-      id: 'arctic-monkeys',
-      name: 'Arctic Monkeys',
-      points: 4_500,
-      tier: 'Newcomer',
-      tier_color: '#5AC8FA',
-      pts_to_next: 5_500,
-      next_tier: 'Fan',
-      progress: 0.45,
-      listener_percentile: 22,
-      image: null,
-    },
-  ];
+  // Followed artists — canonical seed (src/lib/data/seedFandoms.ts). Tier color
+  // and progress are derived from xp.ts so the bands stay in lockstep with the
+  // home page YOUR PROGRESS section.
+  const artists = FOLLOWED_ARTISTS.map(a => {
+    const t = deriveTierDisplay(a.points);
+    return { ...a, ...t };
+  });
 
   // Pull real portrait images from Spotify (falls back to Last.fm, then null).
   // Done in parallel so the four lookups don't serialize the page load.
@@ -234,7 +189,59 @@ export async function load() {
   }));
 
   const topConnection = artistsWithImages[0];
-  const topTeamConnection = teams[0] ?? null;
+  // YOUR TOP CONNECTION (sports) should be the highest-points team the user
+  // actually follows, not the first row in the Ticketmaster browse catalog.
+  const topTeamConnection = teams.find(t => t.is_followed_seed) ?? teams[0] ?? null;
+
+  // ── Mockup-driven derived values ──────────────────────────────────────────
+  // "Fandom breakdown" on the redesigned Profile shows the user's top 3
+  // fandoms across BOTH music and sports, ranked by points. Each row is
+  // (image / name / points / tier chip).
+  const followedTeamsOnly = teams.filter(t => t.is_followed_seed);
+  const fandomBreakdown = [
+    ...artistsWithImages.map(a => ({
+      id: a.id,
+      kind: 'artist' as const,
+      name: a.name,
+      points: a.points,
+      tier: a.tier,
+      tier_color: a.tier_color,
+      image: a.image,
+    })),
+    ...followedTeamsOnly.map(t => ({
+      id: t.id,
+      kind: 'team' as const,
+      name: t.name,
+      points: t.points,
+      tier: t.tier,
+      tier_color: t.tier_color,
+      image: t.image,
+    })),
+  ]
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 3);
+
+  // "Active Fandoms" stat = followed artists + followed teams.
+  const activeFandomsCount = artists.length + followedTeamsOnly.length;
+
+  // "Point sources" on the redesigned Profile. Map our existing xp_breakdown
+  // categories onto the four labels in the mockup (verified check-ins,
+  // Spotify listening, live trivia, streak bonuses). Anything not classified
+  // falls back into "Streak bonuses" so the totals reconcile to xp_total.
+  const pickXp = (...keys: string[]) =>
+    keys.reduce((sum, k) => sum + (xpBreakdown[k] ?? 0), 0);
+  const sourceCheckIns = pickXp('Event Attendance', 'Venue Check-ins', 'Attendance', 'Check-ins');
+  const sourceStreaming = pickXp('Streaming', 'Spotify', 'Listening', 'Spotify Listening');
+  const sourceTrivia = pickXp('Trivia', 'Live Trivia', 'Challenges');
+  const allClassified = sourceCheckIns + sourceStreaming + sourceTrivia;
+  const sourceStreak = Math.max(0, fan.xp_total - allClassified);
+
+  const pointSources = [
+    { id: 'checkins',  label: 'Verified check-ins', points: sourceCheckIns,  icon: 'check'   },
+    { id: 'spotify',   label: 'Spotify listening',  points: sourceStreaming, icon: 'spotify' },
+    { id: 'trivia',    label: 'Live trivia',        points: sourceTrivia,    icon: 'trivia'  },
+    { id: 'streak',    label: 'Streak bonuses',     points: sourceStreak,    icon: 'flame'   },
+  ];
 
   return {
     fan,
@@ -242,6 +249,9 @@ export async function load() {
     teams,
     topConnection,
     topTeamConnection,
+    fandomBreakdown,
+    activeFandomsCount,
+    pointSources,
     followedArtists: followedArtists.map(a => ({
       id: a.id,
       display_name: a.display_name,

@@ -37,3 +37,17 @@ export const recSports = persistedBool('maxess.recSports', true);
 // only — matches the spec rule "persists during session, resets on reload".
 export type Category = 'music' | 'sports';
 export const activeCategory = writable<Category>('music');
+
+// Color theme. Persisted in localStorage so the user's choice survives reloads.
+// The layout subscribes to this store and writes the value to
+// `document.documentElement.dataset.theme`; tokens.css defines both
+// :root and :root[data-theme="light"] palettes against that hook.
+export type Theme = 'dark' | 'light';
+const THEME_KEY = 'maxess.theme';
+const initialTheme: Theme = browser
+  ? (localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark')
+  : 'dark';
+export const theme = writable<Theme>(initialTheme);
+if (browser) {
+  theme.subscribe(v => localStorage.setItem(THEME_KEY, v));
+}

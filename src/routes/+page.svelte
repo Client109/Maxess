@@ -1,48 +1,31 @@
 <script>
+  import { Bell, ChevronRight, Diamond, Shield, Heart, Check, Flame, MessageCircleQuestion } from 'lucide-svelte';
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
-  import { ChevronRight, ChevronDown, TrendingUp, Users, Sparkles, MapPin, Navigation } from 'lucide-svelte';
-  import NotificationBell from '$lib/components/NotificationBell.svelte';
-  import { recMusic, recSports, activeCategory } from '$lib/stores/settings.js';
-  import { followedArtists, toggleFollowArtist } from '$lib/stores/followedArtists.js';
+  import { unreadCount, notifPanelOpen } from '$lib/stores/notifications.js';
+  import { followedArtists } from '$lib/stores/followedArtists.js';
   import { progressByArtist, hydrateProgress } from '$lib/stores/progressByArtist.js';
-  import { locationMode, lastLocation, locationPromptStatus, requestLocation, isFreshEnough, isGeolocationAvailable } from '$lib/stores/location.js';
   import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
+  import {
+    XP_PER_CHECKIN,
+    XP_PER_LISTENING_HOUR,
+    XP_PER_TRIVIA_CORRECT,
+    XP_PER_STREAK_BONUS,
+  } from '$lib/domain/xp-rules.js';
 
   export let data;
 
-  $: filteredEvents = (data.upcomingEvents ?? []).filter(e => e.category === $activeCategory).slice(0, 4);
-  $: heroGradient = $activeCategory === 'sports'
-    ? 'linear-gradient(135deg, #FF5C00 0%, #C13800 100%)'
-    : 'linear-gradient(135deg, var(--color-music) 0%, var(--deeper-indigo) 100%)';
-  $: nearYouThisWeek = data.nearYouThisWeek ?? [];
-
-  // Rank comparison + improve-rank suggestions come from the server load.
-  // Tiers (Elite, Superfan, etc.) are per-artist/team — see progressThreads.
-  $: rankComparison = data.rankComparison;
-  $: rawSuggestions = data.improveRankSuggestions ?? [];
-  $: improveRankSuggestions = rawSuggestions.filter(s =>
-    (s.category === 'music' && $recMusic) ||
-    (s.category === 'sports' && $recSports)
-  );
-
-  // Server seed acts as a catalog of "fandoms you could follow". Followed status
-  // drives visibility; persisted progress (points) survives unfollow/refollow.
+  $: fan = data.fan;
   $: catalog = data.progressThreads ?? [];
 
-  // On first visit, auto-follow the catalog seeds so the section isn't empty.
-  // The version suffix (`.v2`) lets us force a one-time re-seed when the
-  // reward system's tier math changes (current: 10K / 100K / 250K / 1M bands).
-  // overwrite:true on hydrateProgress refreshes stale point values stored
-  // under the old reward system so all four tier colors render correctly.
+  // First-visit auto-follow seed — unchanged behavior from prior home, kept so
+  // the "Your fandoms" list isn't empty on a fresh demo.
   onMount(() => {
-    const SEEDED_KEY = 'maxess.followsSeeded.v2';
+    const SEEDED_KEY = 'maxess.followsSeeded';
     if (localStorage.getItem(SEEDED_KEY) === '1') return;
     if (catalog.length === 0) return;
     hydrateProgress(catalog.map(c => ({
       id: c.id, name: c.name, category: c.category, points: c.points,
-    })), true);
+    })));
     const ids = catalog.map(c => c.id);
     followedArtists.update(list => Array.from(new Set([...list, ...ids])));
     localStorage.setItem(SEEDED_KEY, '1');
@@ -69,1021 +52,546 @@
     })
     .filter(t => t !== null);
 
-  let heroDropdownOpen = false;
-  function toggleHeroDropdown() {
-    heroDropdownOpen = !heroDropdownOpen;
+  // Top 3 followed fandoms for the "Your fandoms" list.
+  $: topFandoms = [...progressThreads]
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 3);
+
+  // Top fandom for the Universal Balance hero pill.
+  $: heroFandom = topFandoms[0] ?? data.topFandom ?? null;
+
+  // Top upcoming event (1 card).
+  $: nextEvent = (data.upcomingEvents ?? [])
+    .filter(e => e.date)
+    .slice()
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))[0] ?? null;
+
+  // Greeting based on local hour.
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
+  function firstName(fullName) {
+    return (fullName || '').split(/\s+/)[0] || 'there';
   }
 
-  // Near You: do we have a usable, recent coordinate? Drives the header label
-  // and the inline "Use my location" chip. When the global mode is while_using
-  // and the cache has gone stale, opening the page refreshes it transparently.
-  $: locationActive = data.usingLocation === true
-    || ($locationMode !== 'off' && isFreshEnough($lastLocation));
+  function tierTone(tier) {
+    switch (tier) {
+      case 'Elite': return { fg: '#FF5C00', Icon: Diamond };
+      case 'Superfan': return { fg: '#3B28CC', Icon: Diamond };
+      case 'Loyal': return { fg: '#2667FF', Icon: Shield };
+      case 'Fan': return { fg: '#1A9E56', Icon: Heart };
+      default: return { fg: '#8E8E93', Icon: Heart };
+    }
+  }
 
-  // Push the captured coords into the URL so the server load re-runs with
-  // latlong-biased Ticketmaster queries. Uses replaceState so the back button
-  // doesn't fill up with location toggles.
-  async function applyLocationToUrl(loc) {
-    if (!loc) return;
-    const next = new URL($page.url);
-    next.searchParams.set('lat', loc.lat.toFixed(4));
-    next.searchParams.set('lon', loc.lon.toFixed(4));
-    const current = `${$page.url.searchParams.get('lat')},${$page.url.searchParams.get('lon')}`;
-    const proposed = `${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}`;
-    if (current === proposed) return;
-    await goto(`${next.pathname}${next.search}`, {
-      replaceState: true,
-      keepFocus: true,
-      noScroll: true,
-      invalidateAll: true,
+  // Build SVG path data for the sparkline. Empty/flat series fall back to a
+  // baseline so the card never renders broken geometry.
+  function buildSparkline(series) {
+    const W = 320, H = 88, PAD = 4;
+    const pts = (series && series.length > 0 ? series : [0, 0]).map(n => Math.max(0, Number(n) || 0));
+    const max = Math.max(...pts, 1);
+    const dx = (W - 2 * PAD) / Math.max(1, pts.length - 1);
+    const coords = pts.map((v, i) => {
+      const x = PAD + i * dx;
+      const y = H - PAD - (v / max) * (H - 2 * PAD);
+      return [x, y];
     });
+    const linePath = coords.map(([x, y], i) => (i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`)).join(' ');
+    const areaPath = `${linePath} L ${coords[coords.length - 1][0]} ${H} L ${coords[0][0]} ${H} Z`;
+    const last = coords[coords.length - 1];
+    return { linePath, areaPath, lastX: last[0], lastY: last[1], W, H };
   }
 
-  let nearYouRequesting = false;
-  async function useMyLocationInline() {
-    if (nearYouRequesting) return;
-    nearYouRequesting = true;
-    try {
-      // The reactive $: below pushes coords into the URL when lastLocation updates.
-      await requestLocation({ forceOnce: true });
-    } finally {
-      nearYouRequesting = false;
-    }
-  }
-
-  // Whenever a fresh fix lands (initial mount with cached coords, while_using
-  // refresh, or a one-shot capture), sync coords into the URL so the server
-  // load re-runs with latlong-biased queries. The guard in applyLocationToUrl
-  // prevents the resulting navigation from looping.
-  $: if ($lastLocation && isFreshEnough($lastLocation)) applyLocationToUrl($lastLocation);
-
-  onMount(() => {
-    if ($locationMode === 'while_using' && !isFreshEnough($lastLocation)) {
-      requestLocation();
-    }
-  });
+  $: spark = buildSparkline(data.xpHistory ?? []);
 </script>
 
 <svelte:head>
-  <title>Maxess - Your Fan Profile</title>
+  <title>Maxess</title>
 </svelte:head>
 
-<div class="page-container">
+<div class="page">
   <!-- Header -->
   <header class="page-header">
-    <div class="brand-section">
-      <h1 class="brand-wordmark">Maxess</h1>
-      <p class="brand-subtitle">Your fan profile</p>
+    <div>
+      <p class="greeting">{greeting}, {firstName(fan?.name)}</p>
+      <h1 class="hero-title">Your fan world,<br />all in one place.</h1>
     </div>
-    <NotificationBell />
+    <button type="button" class="bell-btn" aria-label="Notifications" on:click={() => $notifPanelOpen = true}>
+      <Bell size={22} />
+      {#if $unreadCount > 0}<span class="bell-dot" aria-hidden="true"></span>{/if}
+    </button>
   </header>
 
-  <!-- Music / Sports Toggle -->
-  <div class="toggle-row">
-    <button
-      class="toggle-pill music"
-      class:active={$activeCategory === 'music'}
-      on:click={() => activeCategory.set('music')}
-    >Music</button>
-    <button
-      class="toggle-pill sports"
-      class:active={$activeCategory === 'sports'}
-      on:click={() => activeCategory.set('sports')}
-    >Sports Events</button>
-  </div>
-
-  {#if data.fan}
-    <!-- Score Hero — click to expand improve-rank suggestions -->
-    <button
-      type="button"
-      class="hero-score-card"
-      class:open={heroDropdownOpen}
-      aria-expanded={heroDropdownOpen}
-      style:background={heroGradient}
-      on:click={toggleHeroDropdown}
-    >
-      <div class="hero-content">
-        <div class="hero-left">
-          <span class="hero-label">YOUR SCORE</span>
-          <div class="hero-score">{data.fan.xp_total.toLocaleString()}</div>
-          <div class="hero-details">
-            <span class="hero-detail">🔥 {data.fan.streak_days} day streak</span>
-          </div>
-        </div>
-        <div class="hero-right">
-          {#if rankComparison}
-            <div class="comparison" aria-label="Score comparison">
-              <span class="comparison-row">
-                <Users size={11} />
-                <span class="comparison-label">Peers</span>
-                <span class="comparison-delta" class:up={rankComparison.delta_vs_peers >= 0} class:down={rankComparison.delta_vs_peers < 0}>
-                  {rankComparison.delta_vs_peers >= 0 ? '+' : ''}{rankComparison.delta_vs_peers.toLocaleString()}
-                </span>
-              </span>
-              <span class="comparison-row">
-                <TrendingUp size={11} />
-                <span class="comparison-label">Friends ahead</span>
-                <span class="comparison-value">{rankComparison.friends_ahead}</span>
-              </span>
-            </div>
-          {/if}
-          <span class="hero-chevron" aria-hidden="true">
-            <ChevronDown size={20} />
+  {#if fan}
+    <!-- Universal Balance hero -->
+    {@const heroTone = heroFandom ? tierTone(heroFandom.tier_name) : null}
+    <div class="balance-card">
+      <div class="balance-left">
+        <span class="balance-label">Universal Balance</span>
+        <div class="balance-value">{fan.xp_total.toLocaleString()}</div>
+        <span class="balance-sub">Points never expire</span>
+        {#if heroFandom && heroTone}
+          <span class="balance-pill" style:background={heroTone.fg}>
+            <svelte:component this={heroTone.Icon} size={13} color="#FFFFFF" />
+            {heroFandom.tier_name} for {heroFandom.name}
           </span>
-        </div>
-      </div>
-    </button>
-
-    {#if heroDropdownOpen}
-      <div class="hero-dropdown" role="region" aria-label="Ways to climb the ranks">
-        <div class="dropdown-head">
-          <span class="dropdown-head-label">
-            <Sparkles size={14} />
-            <span>Climb your ranks</span>
-          </span>
-          <div class="rec-toggles" role="group" aria-label="Categories to recommend">
-            <button
-              type="button"
-              class="rec-toggle music"
-              class:on={$recMusic}
-              aria-pressed={$recMusic}
-              on:click={() => recMusic.update(v => !v)}
-            >Music</button>
-            <button
-              type="button"
-              class="rec-toggle sports"
-              class:on={$recSports}
-              aria-pressed={$recSports}
-              on:click={() => recSports.update(v => !v)}
-            >Sports</button>
-          </div>
-        </div>
-        {#if !$recMusic && !$recSports}
-          <p class="dropdown-empty">Turn on at least one category to see recommendations.</p>
-        {:else if improveRankSuggestions.length > 0}
-          <ul class="suggestion-list">
-            {#each improveRankSuggestions as s}
-              <li>
-                <a href="/events/{s.event_id}" class="suggestion-row">
-                  <span class="suggestion-cat" class:music={s.category === 'music'} class:sports={s.category === 'sports'}>
-                    {s.category === 'music' ? 'Music' : 'Sports'}
-                  </span>
-                  <span class="suggestion-body">
-                    <span class="suggestion-title">{s.title}</span>
-                    <span class="suggestion-meta">{s.reason} · +{s.points_reward.toLocaleString()} pts</span>
-                  </span>
-                  <ChevronRight size={16} />
-                </a>
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <p class="dropdown-empty">No {$recMusic && !$recSports ? 'music' : !$recMusic && $recSports ? 'sports' : ''} suggestions right now — check back after the next event drop.</p>
+          <p class="balance-fandom">
+            Current fandom balance: <strong>{heroFandom.points.toLocaleString()} pts</strong>
+          </p>
         {/if}
       </div>
-    {/if}
+      <svg class="balance-spark" viewBox="0 0 {spark.W} {spark.H}" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#FF5C00" stop-opacity="0.4" />
+            <stop offset="100%" stop-color="#FF5C00" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={spark.areaPath} fill="url(#sparkGradient)" />
+        <path d={spark.linePath} fill="none" stroke="#FF5C00" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+        <circle cx={spark.lastX} cy={spark.lastY} r="4" fill="#FF5C00" />
+      </svg>
+    </div>
 
-    <!-- Progress threads — per-artist / per-team tiers -->
-    <section class="section threads-section">
-      <div class="section-header">
-        <span class="section-label">YOUR PROGRESS</span>
-        <a href="/profile" class="see-all">See all</a>
+    <!-- Your fandoms -->
+    <section class="section">
+      <div class="section-head">
+        <h2 class="section-title">Your fandoms</h2>
+        <a href="/profile" class="see-all">View all</a>
       </div>
-      {#if progressThreads.length > 0}
-        <div class="threads-list">
-          {#each progressThreads as t (t.id)}
-            <a href="/artist/{t.id}" class="thread-row">
-              <span class="thread-tier" style="background: {t.tier_color}">{t.tier_name}</span>
-              <span class="thread-info">
-                <span class="thread-name">{t.name}</span>
-                <span class="thread-bar-wrap">
-                  <span class="thread-bar">
-                    <span class="thread-bar-fill" style="width: {Math.round(t.progress * 100)}%; background: {t.tier_color}"></span>
-                    <span class="thread-bar-text">{t.points.toLocaleString()} pts</span>
-                  </span>
-                  <span class="thread-bar-goal">
-                    {#if t.next_tier_name}
-                      {t.points_to_next.toLocaleString()} to {t.next_tier_name}
-                    {:else}
-                      Max tier
-                    {/if}
-                  </span>
-                </span>
-              </span>
-              <ChevronRight size={16} color="#8E8E93" />
-            </a>
-          {/each}
-        </div>
+      {#if topFandoms.length === 0}
+        <p class="empty">No fandoms yet — follow an artist or team to see your progress here.</p>
       {:else}
-        <p class="empty-state">Follow an artist or team to start tracking progress. Your points are saved even if you unfollow.</p>
+        <ul class="fandom-list">
+          {#each topFandoms as t (t.id)}
+            {@const tone = tierTone(t.tier_name)}
+            <li>
+              <a class="fandom-row" href={t.category === 'sports' ? `/score` : `/artist/${t.id}`}>
+                <span class="fandom-avatar" style:background={t.tier_color}>
+                  {t.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                </span>
+                <span class="fandom-name">{t.name}</span>
+                <span class="fandom-points">
+                  <span class="fandom-points-value">{t.points.toLocaleString()}</span>
+                  <span class="fandom-points-unit">pts</span>
+                </span>
+                <span class="tier-badge" style:color={tone.fg} style:border-color={tone.fg}>
+                  <svelte:component this={tone.Icon} size={12} />
+                  {t.tier_name}
+                </span>
+              </a>
+            </li>
+          {/each}
+        </ul>
       {/if}
     </section>
 
-    <!-- For You / Upcoming -->
-    <section class="section">
-      <div class="section-header">
-        <span class="section-label">FOR YOU</span>
-        <a href="/events" class="see-all">See All</a>
-      </div>
-      <div class="cards-scroll">
-        {#each filteredEvents as event (event.event_id)}
-          <a href="/events/{event.event_id}" class="for-you-card">
-            <div class="for-you-image" style="background-color: {event.image_color || '#2667FF'}">
-              <div class="for-you-overlay">
-                <span class="for-you-tag {event.category === 'sports' ? 'sports' : 'music'}">{event.category === 'sports' ? 'SPORTS ACCESS' : 'MUSIC ACCESS'}</span>
-                <div class="for-you-bottom">
-                  <h3 class="for-you-name">{event.title}</h3>
-                  <p class="for-you-date">{event.date_display || event.date}</p>
-                </div>
-              </div>
-            </div>
-          </a>
-        {:else}
-          <p class="empty-state">No upcoming {$activeCategory} events.</p>
-        {/each}
-      </div>
-    </section>
-
-    <!-- Near You This Week — music only. Hidden entirely when the user has
-         declined location sharing. When pending or accepted-but-no-fix, the
-         section stays hidden until a coordinate is captured (modal handles
-         first-run; Profile settings handles subsequent opt-in). -->
-    {#if $activeCategory === 'music' && locationActive && $locationPromptStatus !== 'declined'}
+    <!-- Upcoming -->
+    {#if nextEvent}
+      {@const eventTier = nextEvent.required_tier || 'Elite'}
+      {@const eventTone = tierTone(eventTier)}
       <section class="section">
-        <div class="section-header">
-          <span class="section-label">
-            NEAR YOU THIS WEEK
-            <span class="near-you-loc-tag">· using your location</span>
-          </span>
-          <div class="near-you-header-right">
-            <a href="/events" class="see-all">See All</a>
-          </div>
+        <div class="section-head">
+          <h2 class="section-title">Upcoming</h2>
+          <a href="/events" class="see-all">View all</a>
         </div>
-        {#if nearYouThisWeek.length > 0}
-          <ul class="near-you-list">
-            {#each nearYouThisWeek as event (event.event_id)}
-              <li>
-                <a href="/events/{event.event_id}" class="near-you-row">
-                  <span class="near-you-date">
-                    <span class="near-you-date-month">{(event.date_display || event.date).split(' ')[0] || ''}</span>
-                    <span class="near-you-date-day">{(event.date_display || event.date).split(' ')[1]?.replace(',', '') || event.date.slice(-2)}</span>
-                  </span>
-                  <span class="near-you-info">
-                    <span class="near-you-title">{event.title}</span>
-                    <span class="near-you-meta">
-                      <MapPin size={11} />
-                      <span>{event.venue ?? event.location_display ?? 'Los Angeles'}{event.time ? ` · ${event.time}` : ''}</span>
-                    </span>
-                  </span>
-                  <ChevronRight size={16} color="#8E8E93" />
-                </a>
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <p class="empty-state">No music events near you this week — check back soon.</p>
-        {/if}
+        <a class="upcoming-card" href="/events/{nextEvent.event_id}">
+          <div class="upcoming-thumb" style:background-color={nextEvent.image_color || '#1a1a2e'}>
+            {#if nextEvent.image_url}
+              <img src={nextEvent.image_url} alt="" />
+            {/if}
+          </div>
+          <div class="upcoming-body">
+            <h3 class="upcoming-title">{nextEvent.title}</h3>
+            {#if nextEvent.subtitle}
+              <p class="upcoming-line">{nextEvent.subtitle}</p>
+            {/if}
+            <p class="upcoming-line">{nextEvent.venue}</p>
+            <p class="upcoming-line">
+              {nextEvent.date_display || nextEvent.date}{nextEvent.time ? ` • ${nextEvent.time}` : ''}
+            </p>
+          </div>
+          <div class="upcoming-right">
+            <span class="tier-badge" style:color={eventTone.fg} style:border-color={eventTone.fg}>
+              <svelte:component this={eventTone.Icon} size={12} />
+              {eventTier}
+            </span>
+            <span class="chevron-dim"><ChevronRight size={18} /></span>
+          </div>
+        </a>
       </section>
     {/if}
 
-    <!-- Climb the Ranks -->
+    <!-- Earn more points -->
     <section class="section">
-      <div class="climb-card">
-        <div class="climb-content">
-          <div class="climb-avatars">
-            <div class="climb-avatar" style="background: #FF5C00">SM</div>
-            <div class="climb-avatar" style="background: #2667FF">JK</div>
-            <div class="climb-avatar" style="background: #3B28CC">AL</div>
-          </div>
-          <div class="climb-text">
-            <span class="climb-title">Climb the ranks</span>
-            <a href="/score" class="climb-link">See leaderboard <ChevronRight size={14} /></a>
-          </div>
+      <h2 class="section-title">Earn more points</h2>
+      <div class="earn-grid">
+        <a class="earn-tile" href="/admin/scan">
+          <span class="earn-icon earn-icon--ring"><Check size={20} color="#FF5C00" /></span>
+          <span class="earn-label">Verified check-in</span>
+          <span class="earn-value">+{XP_PER_CHECKIN}</span>
+        </a>
+        <a class="earn-tile" href="/profile">
+          <span class="earn-icon earn-icon--spotify">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path fill="#000" d="M16.7 16.3c-.2.3-.6.4-.9.2-2.4-1.5-5.5-1.8-9.1-1-.3.1-.7-.1-.8-.5-.1-.3.1-.7.5-.8 4-.9 7.4-.5 10.1 1.1.3.2.4.6.2.9zm1.3-2.7c-.3.4-.8.5-1.2.3-2.8-1.7-7.1-2.2-10.4-1.2-.5.1-1-.1-1.1-.6-.1-.5.1-1 .6-1.1 3.8-1.2 8.5-.6 11.7 1.4.4.2.5.8.4 1.2zm.1-2.9C14.8 8.7 9 8.5 5.7 9.5c-.5.2-1.1-.2-1.3-.7-.2-.5.2-1.1.7-1.3 3.8-1.1 10.2-.9 14.2 1.5.5.3.7 1 .4 1.5-.3.4-1 .6-1.5.2z" />
+            </svg>
+          </span>
+          <span class="earn-label">Spotify</span>
+          <span class="earn-value">+{XP_PER_LISTENING_HOUR}/hr</span>
+        </a>
+        <a class="earn-tile" href="/trivia">
+          <span class="earn-icon earn-icon--ring"><MessageCircleQuestion size={20} color="#FF5C00" /></span>
+          <span class="earn-label">Trivia</span>
+          <span class="earn-value">+{XP_PER_TRIVIA_CORRECT}</span>
+        </a>
+        <div class="earn-tile">
+          <span class="earn-icon"><Flame size={20} color="#FF5C00" /></span>
+          <span class="earn-label">Streak</span>
+          <span class="earn-value">+{XP_PER_STREAK_BONUS}</span>
         </div>
       </div>
     </section>
-
   {:else}
-    <div class="loading-state">
-      <div class="loading-spinner"></div>
-      <p>Loading your fan profile...</p>
-    </div>
+    <div class="loading">Loading your fan profile…</div>
   {/if}
 </div>
 
 <style>
-  .page-container {
+  /* Page-scoped dark surface matching the mockup. */
+  .page {
     min-height: 100vh;
     background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 8px 20px 96px;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   }
 
-  /* ── Status Bar ─────────────────────────────── */
-  /* ── Header ─────────────────────────────────── */
+  /* Header */
   .page-header {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    padding: 8px 16px 16px;
-  }
-
-  .brand-section {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .brand-wordmark {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-    line-height: 1.2;
-    letter-spacing: -0.5px;
-  }
-
-  .brand-subtitle {
-    font-size: 15px;
-    color: var(--text-secondary);
-    margin: 2px 0 0;
-  }
-
-  /* ── Toggle ─────────────────────────────────── */
-  .toggle-row {
-    display: flex;
-    gap: 8px;
-    padding: 0 16px 20px;
-  }
-
-  .toggle-pill {
-    padding: 10px 20px;
-    border-radius: 25px;
-    font-size: 14px;
-    font-weight: 600;
-    border: 1.5px solid var(--border-gray);
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-  }
-
-  .toggle-pill.music.active {
-    background: var(--deep-navy);
-    color: #FFFFFF;
-    border-color: var(--deep-navy);
-  }
-
-  .toggle-pill.sports.active {
-    background: var(--action-orange);
-    color: #FFFFFF;
-    border-color: var(--action-orange);
-  }
-
-  /* ── Hero Score Card ────────────────────────── */
-  .hero-score-card {
-    display: block;
-    width: calc(100% - 32px);
-    margin: 0 16px 12px;
-    border-radius: 20px;
-    padding: 24px 20px;
-    color: #FFFFFF;
-    overflow: hidden;
-    position: relative;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    font-family: inherit;
-    transition: transform 0.15s ease, background 0.25s ease;
-  }
-
-  .hero-score-card:active { transform: scale(0.99); }
-
-  .hero-content {
-    display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    padding: 24px 0 8px;
     gap: 16px;
   }
+  .greeting {
+    margin: 0 0 8px;
+    font-size: 15px;
+    color: var(--text-secondary);
+  }
+  .hero-title {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+  }
+  .bell-btn {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .bell-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #FF5C00;
+    box-shadow: 0 0 0 2px var(--bg-primary);
+  }
 
-  .hero-left {
+  /* Universal Balance card */
+  .balance-card {
+    position: relative;
+    margin-top: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 18px;
+    padding: 20px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    min-height: 220px;
+  }
+  .balance-left {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    flex: 1;
-    min-width: 0;
+    justify-content: flex-start;
+    gap: 10px;
+    z-index: 1;
   }
-
-  .hero-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 1.5px;
+  .balance-label {
+    font-size: 14px;
+    color: var(--text-tertiary);
   }
-
-  .hero-score {
+  .balance-value {
     font-size: 48px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: -1px;
-    color: #FFFFFF;
-  }
-
-  .hero-details {
-    display: flex;
-    gap: 12px;
-  }
-
-  .hero-detail {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
-  }
-
-  .hero-right {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
-  }
-
-  .comparison {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
-  }
-
-  .comparison-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.75);
-  }
-
-  .comparison-label { letter-spacing: 0.3px; }
-
-  .comparison-value {
-    font-weight: 700;
-    color: #FFFFFF;
-    font-size: 12px;
-  }
-
-  .comparison-delta {
-    font-weight: 700;
-    font-size: 12px;
-  }
-
-  .comparison-delta.up { color: #34D399; }
-  .comparison-delta.down { color: #FCA5A5; }
-
-  .hero-chevron {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255, 255, 255, 0.8);
-    transition: transform 0.2s ease;
-  }
-
-  .hero-score-card.open .hero-chevron { transform: rotate(180deg); }
-
-  /* Hero dropdown — improve-rank suggestions */
-  .hero-dropdown {
-    margin: 0 16px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-gray);
-    border-radius: 16px;
-    overflow: hidden;
-    animation: dropdownIn 0.2s ease-out;
-  }
-
-  @keyframes dropdownIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .dropdown-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 14px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .dropdown-head-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .rec-toggles {
-    display: inline-flex;
-    gap: 6px;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-
-  .rec-toggle {
-    border: 1.5px solid var(--border-gray);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 99px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s ease;
-  }
-
-  .rec-toggle.music.on {
-    background: var(--color-music);
-    border-color: var(--color-music);
-    color: #FFFFFF;
-  }
-
-  .rec-toggle.sports.on {
-    background: var(--color-sports);
-    border-color: var(--color-sports);
-    color: #FFFFFF;
-  }
-
-  .suggestion-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .suggestion-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    text-decoration: none;
-    color: inherit;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .suggestion-list li:last-child .suggestion-row { border-bottom: none; }
-
-  .suggestion-cat {
-    flex-shrink: 0;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    padding: 4px 8px;
-    border-radius: 6px;
-    color: #FFFFFF;
-  }
-
-  .suggestion-cat.music { background: var(--color-music); }
-  .suggestion-cat.sports { background: var(--color-sports); }
-
-  .suggestion-body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .suggestion-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .suggestion-meta {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .dropdown-empty {
-    padding: 16px 14px;
-    color: var(--text-secondary);
-    font-size: 13px;
-    margin: 0;
-  }
-
-  /* Progress threads */
-  .threads-section { margin-bottom: 24px; }
-
-  .threads-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .thread-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-gray);
-    border-radius: 14px;
-    text-decoration: none;
-    color: inherit;
-  }
-
-  .thread-tier {
-    flex-shrink: 0;
-    font-size: 10px;
-    font-weight: 700;
-    color: #FFFFFF;
-    padding: 4px 8px;
-    border-radius: 6px;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-  }
-
-  .thread-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .thread-name {
-    font-size: 14px;
-    font-weight: 600;
     color: var(--text-primary);
   }
-
-  .thread-bar-wrap {
-    display: flex;
+  .balance-sub {
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+  .balance-pill {
+    align-self: flex-start;
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
     margin-top: 4px;
   }
-
-  .thread-bar {
-    flex: 1;
-    display: block;
-    position: relative;
-    height: 22px;
-    background: var(--border-gray);
-    border-radius: 11px;
-    overflow: hidden;
-  }
-
-  .thread-bar-goal {
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-
-  .thread-bar-fill {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    border-radius: 11px;
-    transition: width 0.4s ease-out;
-  }
-
-  .thread-bar-text {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    height: 100%;
-    padding: 0 10px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #FFFFFF;
-    mix-blend-mode: difference;
-    white-space: nowrap;
-  }
-
-  /* ── Sections ───────────────────────────────── */
-  .section {
-    margin-bottom: 24px;
-    padding: 0 16px;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-  }
-
-  .section-label {
+  .balance-fandom {
+    margin: 6px 0 0;
     font-size: 13px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    letter-spacing: 1.5px;
+    color: var(--text-tertiary);
+  }
+  .balance-fandom strong { color: var(--text-primary); font-weight: 600; }
+
+  .balance-spark {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-30%);
+    width: 56%;
+    height: 60%;
+    pointer-events: none;
   }
 
+  /* Sections */
+  .section { margin-top: 26px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
   .see-all {
+    color: #FF5C00;
     font-size: 14px;
     font-weight: 600;
-    color: var(--action-orange);
-  }
-
-  /* Near You — location chip + active tag */
-  .near-you-header-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .near-you-loc-tag {
-    margin-left: 6px;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--action-orange);
-    letter-spacing: 0.5px;
-    text-transform: none;
-  }
-
-  .near-you-loc-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 10px;
-    min-height: 28px;
-    border-radius: 99px;
-    border: 1px solid var(--border-gray);
-    background: var(--bg-card);
-    color: #1C1C1E;
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
-
-  .near-you-loc-chip:hover:not(:disabled) {
-    background: var(--bg-input);
-    color: var(--action-orange);
-    border-color: var(--action-orange);
-  }
-
-  .near-you-loc-chip:disabled {
-    opacity: 0.6;
-    cursor: progress;
-  }
-
-  /* ── For You Cards ──────────────────────────── */
-  .cards-scroll {
-    display: flex;
-    gap: 12px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .cards-scroll::-webkit-scrollbar {
-    display: none;
-  }
-
-  .for-you-card {
-    min-width: 240px;
-    flex-shrink: 0;
-    border-radius: 16px;
-    overflow: hidden;
     text-decoration: none;
-    color: inherit;
   }
 
-  .for-you-image {
-    height: 180px;
-    position: relative;
-  }
-
-  .for-you-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%);
-    padding: 14px;
+  /* Fandom list */
+  .fandom-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
     display: flex;
     flex-direction: column;
+    gap: 10px;
   }
-
-  .for-you-tag {
-    align-self: flex-start;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(4px);
-    color: #FFFFFF;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 6px;
-    letter-spacing: 0.5px;
-  }
-
-  .for-you-tag.music { background: var(--color-music); }
-  .for-you-tag.sports { background: var(--color-sports); }
-
-  .for-you-bottom {
-    margin-top: auto;
-  }
-
-  .for-you-name {
-    font-size: 18px;
-    font-weight: 700;
-    color: white;
-    margin: 0 0 4px;
-    line-height: 1.2;
-  }
-
-  .for-you-date {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0;
-  }
-
-  .empty-state {
-    color: var(--text-secondary);
-    font-size: 14px;
-    padding: 24px 4px;
-    margin: 0;
-  }
-
-  /* ── Near You This Week ─────────────────────── */
-  .near-you-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    background: var(--bg-card);
-    border: 1px solid var(--border-gray);
-    border-radius: 16px;
-    overflow: hidden;
-  }
-
-  .near-you-list li + li {
-    border-top: 1px solid var(--border-gray);
-  }
-
-  .near-you-row {
-    display: flex;
+  .fandom-row {
+    display: grid;
+    grid-template-columns: 56px 1fr auto auto;
+    gap: 14px;
     align-items: center;
-    gap: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
     padding: 12px 14px;
     text-decoration: none;
     color: inherit;
-    transition: background 0.15s ease;
   }
-
-  .near-you-row:active {
-    background: rgba(0, 0, 0, 0.04);
-  }
-
-  .near-you-date {
-    flex-shrink: 0;
-    width: 44px;
-    display: flex;
-    flex-direction: column;
+  .fandom-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 0;
-    border-radius: 10px;
-    background: var(--deep-navy);
-    color: #FFFFFF;
-    line-height: 1;
-  }
-
-  .near-you-date-month {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    opacity: 0.85;
-  }
-
-  .near-you-date-day {
     font-size: 18px;
     font-weight: 700;
-    margin-top: 2px;
+    color: var(--text-primary);
+    flex-shrink: 0;
+  }
+  .fandom-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fandom-points {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    color: var(--text-primary);
+  }
+  .fandom-points-value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .fandom-points-unit {
+    font-size: 13px;
+    color: var(--text-tertiary);
   }
 
-  .near-you-info {
-    flex: 1;
+  /* Tier badge — reused on multiple rows */
+  .tier-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid currentColor;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+  }
+
+  /* Upcoming */
+  .upcoming-card {
+    display: grid;
+    grid-template-columns: 132px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
+    padding: 12px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .upcoming-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .upcoming-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .upcoming-body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
   }
-
-  .near-you-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .near-you-meta {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .near-you-meta span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* ── Climb the Ranks ────────────────────────── */
-  .climb-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-gray);
-    border-radius: 16px;
-    padding: 16px;
-  }
-
-  .climb-content {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .climb-avatars {
-    display: flex;
-    flex-shrink: 0;
-  }
-
-  .climb-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
+  .upcoming-title {
+    margin: 0 0 4px;
+    font-size: 17px;
     font-weight: 700;
-    color: white;
-    border: 2px solid #FFFFFF;
-    margin-left: -8px;
+    color: var(--text-primary);
+    line-height: 1.2;
   }
-
-  .climb-avatar:first-child {
-    margin-left: 0;
+  .upcoming-line {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-
-  .climb-text {
-    flex: 1;
+  .upcoming-right {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    height: 100%;
+    padding: 8px 4px 8px 0;
   }
 
-  .climb-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
+  /* Earn-more grid */
+  .earn-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
   }
-
-  .climb-link {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--action-orange);
+  .earn-tile {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+    padding: 14px 8px 12px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 2px;
-  }
-
-  /* ── Loading State ──────────────────────────── */
-  .loading-state {
-    padding: 60px 16px;
+    gap: 8px;
+    text-decoration: none;
+    color: inherit;
     text-align: center;
-    color: var(--text-secondary);
+    min-height: 116px;
   }
-
-  .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border-gray);
-    border-top-color: var(--action-orange);
+  .earn-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .earn-icon--ring {
+    border: 1.5px solid #FF5C00;
     border-radius: 50%;
-    margin: 0 auto 16px;
-    animation: spin 0.8s linear infinite;
+  }
+  .earn-icon--spotify {
+    background: #1ED760;
+    border-radius: 50%;
+  }
+  .earn-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.2;
+  }
+  .earn-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #FF5C00;
   }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  /* Chevron-icon wrapper — lucide-svelte inherits `currentColor` when no
+     color attribute is set, so wrapping a span lets us drive the icon hue
+     from a CSS variable that flips with the theme. */
+  .chevron-dim {
+    display: inline-flex;
+    color: var(--icon-dim);
   }
 
-  .loading-state p {
-    font-size: 17px;
-    margin: 0;
+  /* Misc */
+  .empty {
+    margin: 8px 0 0;
+    color: var(--text-tertiary);
+    font-size: 14px;
+  }
+  .loading {
+    padding: 80px 16px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 15px;
   }
 </style>
