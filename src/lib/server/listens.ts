@@ -231,3 +231,149 @@ export async function getRecentListens(fanId: string, limit = 10) {
     take: limit,
   });
 }
+
+// ─── Per-artist listening summary ────────────────────────────────────────────
+// Aggregates a user's `ListeningEvent` rows into the same shape the
+// artist-detail "Monthly recap" + KPI cards used to hardcode in mock data.
+// Window math:
+//   • hours_listened — all-time sum of duration_seconds.
+//   • monthly_plays / monthly_hours / top_tracks / peak_day / discovery_count
+//     are scoped to the last 30 days (relative to `now`).
+//   • longest_session_min — longest contiguous listening burst across the
+//     entire history, where "contiguous" means consecutive plays whose start
+//     times are within 30 minutes of the previous play's projected end.
+
+type AggregatorRow = {
+  artist_name_canonical: string;
+  track_name: string;
+  played_at: Date;
+  duration_seconds: number | null;
+};
+
+export type ArtistListeningSummary = {
+  hours_listened: number;
+  monthly_plays: number;
+  monthly_hours: number;
+  top_tracks: Array<{ title: string; plays: number }>;
+  longest_session_min: number;
+  peak_day: string;
+  peak_day_hours: number;
+  discovery_count: number;
+  top_track: string;
+};
+
+const EMPTY_SUMMARY: ArtistListeningSummary = {
+  hours_listened: 0,
+  monthly_plays: 0,
+  monthly_hours: 0,
+  top_tracks: [],
+  longest_session_min: 0,
+  peak_day: '',
+  peak_day_hours: 0,
+  discovery_count: 0,
+  top_track: '',
+};
+
+export function aggregateArtistListens(
+  rows: AggregatorRow[],
+  artistCanonical: string,
+  now: Date,
+): ArtistListeningSummary {
+  const artistRows = rows
+    .filter(r => r.artist_name_canonical === artistCanonical)
+    .sort((a, b) => a.played_at.getTime() - b.played_at.getTime());
+
+  if (artistRows.length === 0) return { ...EMPTY_SUMMARY };
+
+  const monthAgoMs = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+  const monthRows = artistRows.filter(r => r.played_at.getTime() >= monthAgoMs);
+
+  const allSec = artistRows.reduce((s, r) => s + (r.duration_seconds ?? 0), 0);
+  const monthSec = monthRows.reduce((s, r) => s + (r.duration_seconds ?? 0), 0);
+
+  // Top tracks in the 30-day window, count-desc.
+  const trackCounts = new Map<string, number>();
+  for (const r of monthRows) {
+    trackCounts.set(r.track_name, (trackCounts.get(r.track_name) ?? 0) + 1);
+  }
+  const top_tracks = [...trackCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([title, plays]) => ({ title, plays }));
+
+  // Longest contiguous session across all-time history.
+  const SESSION_GAP_MS = 30 * 60 * 1000;
+  let longestSec = 0;
+  let currentSec = artistRows[0].duration_seconds ?? 0;
+  let lastEndMs = artistRows[0].played_at.getTime() + currentSec * 1000;
+  for (let i = 1; i < artistRows.length; i++) {
+    const r = artistRows[i];
+    const startMs = r.played_at.getTime();
+    const dur = r.duration_seconds ?? 0;
+    if (startMs - lastEndMs > SESSION_GAP_MS) {
+      longestSec = Math.max(longestSec, currentSec);
+      currentSec = dur;
+    } else {
+      currentSec += dur;
+    }
+    lastEndMs = startMs + dur * 1000;
+  }
+  longestSec = Math.max(longestSec, currentSec);
+
+  // Peak day (within last 30 days) — most listening seconds on a single date.
+  const dayTotals = new Map<string, number>();
+  for (const r of monthRows) {
+    const iso = r.played_at.toISOString().slice(0, 10);
+    dayTotals.set(iso, (dayTotals.get(iso) ?? 0) + (r.duration_seconds ?? 0));
+  }
+  let peakDayIso = '';
+  let peakSec = 0;
+  for (const [iso, sec] of dayTotals) {
+    if (sec > peakSec) { peakSec = sec; peakDayIso = iso; }
+  }
+  const peak_day = peakDayIso
+    ? new Date(`${peakDayIso}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+    : '';
+
+  // Discovery: tracks whose earliest play in the user's history falls inside
+  // the 30-day window — i.e., truly new tracks for them, not repeats.
+  const earliestByTrack = new Map<string, number>();
+  for (const r of artistRows) {
+    const t = earliestByTrack.get(r.track_name);
+    const at = r.played_at.getTime();
+    if (t === undefined || at < t) earliestByTrack.set(r.track_name, at);
+  }
+  let discovery_count = 0;
+  for (const earliest of earliestByTrack.values()) {
+    if (earliest >= monthAgoMs) discovery_count++;
+  }
+
+  return {
+    hours_listened: Math.round(allSec / 3600),
+    monthly_plays: monthRows.length,
+    monthly_hours: Math.round(monthSec / 3600),
+    top_tracks,
+    longest_session_min: Math.round(longestSec / 60),
+    peak_day,
+    peak_day_hours: peakSec > 0 ? Math.round((peakSec / 3600) * 10) / 10 : 0,
+    discovery_count,
+    top_track: top_tracks[0]?.title ?? '',
+  };
+}
+
+export async function getArtistListeningSummary(
+  fanId: string,
+  artistDisplayName: string,
+  now: Date = new Date(),
+): Promise<ArtistListeningSummary | null> {
+  const user = await db.user.findUnique({ where: { fan_id: fanId } });
+  if (!user) return null;
+  const canonical = canonicalArtistName(artistDisplayName);
+  const rows = await db.listeningEvent.findMany({
+    where: { user_id: user.id, artist_name_canonical: canonical },
+    select: { artist_name_canonical: true, track_name: true, played_at: true, duration_seconds: true },
+    orderBy: { played_at: 'asc' },
+  });
+  if (rows.length === 0) return null;
+  return aggregateArtistListens(rows, canonical, now);
+}

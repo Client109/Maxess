@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { universalBalance, topByBalance } from './home.js';
+import { universalBalance, topByBalance, topByLifetime } from './home.js';
 
 describe('universalBalance', () => {
   it('sums points_balance across all fandom rows', () => {
@@ -60,5 +60,39 @@ describe('topByBalance', () => {
 
   it('returns an empty array for an empty input', () => {
     expect(topByBalance([], 3)).toEqual([]);
+  });
+});
+
+describe('topByLifetime', () => {
+  it('returns top N by lifetime_points, highest first', () => {
+    const rows = [
+      { fandom_id: 'weeknd', lifetime_points: 1_000_000 },
+      { fandom_id: 'lakers', lifetime_points: 240_000 },
+      { fandom_id: 'ducks',  lifetime_points: 105_000 },
+      { fandom_id: 'ariana-grande', lifetime_points: 10_500 },
+      { fandom_id: 'kings',  lifetime_points: 1_500 },
+    ];
+    const top3 = topByLifetime(rows, 3);
+    expect(top3.map(r => r.fandom_id)).toEqual(['weeknd', 'lakers', 'ducks']);
+  });
+
+  it('drops rows with lifetime_points == 0', () => {
+    const rows = [
+      { fandom_id: 'a', lifetime_points: 100 },
+      { fandom_id: 'b', lifetime_points: 0 },
+    ];
+    expect(topByLifetime(rows, 5)).toEqual([{ fandom_id: 'a', lifetime_points: 100 }]);
+  });
+
+  it('breaks ties on fandom_id alphabetically', () => {
+    const rows = [
+      { fandom_id: 'b', lifetime_points: 100 },
+      { fandom_id: 'a', lifetime_points: 100 },
+    ];
+    expect(topByLifetime(rows, 2).map(r => r.fandom_id)).toEqual(['a', 'b']);
+  });
+
+  it('returns an empty array for an empty input', () => {
+    expect(topByLifetime([], 3)).toEqual([]);
   });
 });

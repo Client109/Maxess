@@ -23,3 +23,22 @@ export function topByBalance<R extends BalanceRow>(rows: R[], n: number): R[] {
     })
     .slice(0, n);
 }
+
+// Top N fandoms by lifetime_points (tier-driving total). Used by the home
+// "Your fandoms" preview so the displayed numbers stay consistent with the
+// lifetime points shown on /score, /profile, and /access (where lifetime is
+// also what drives the tier chip). Balance-only ranking left Lakers (240K
+// lifetime, 0 balance) hidden behind Ariana Grande (10K lifetime, 930 balance).
+export interface LifetimeRow {
+  fandom_id: string;
+  lifetime_points: number;
+}
+export function topByLifetime<R extends LifetimeRow>(rows: R[], n: number): R[] {
+  return [...rows]
+    .filter(r => r.lifetime_points > 0)
+    .sort((a, b) => {
+      if (b.lifetime_points !== a.lifetime_points) return b.lifetime_points - a.lifetime_points;
+      return a.fandom_id.localeCompare(b.fandom_id);
+    })
+    .slice(0, n);
+}

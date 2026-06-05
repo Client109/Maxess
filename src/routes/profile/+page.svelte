@@ -12,6 +12,7 @@
   $: rewardsRedeemed = fan?.rewards_redeemed ?? 0;
   $: fandomBreakdown = data.fandomBreakdown ?? [];
   $: pointSources = data.pointSources ?? [];
+  $: recentActivity = data.recentActivity ?? [];
 
   // Tier name → chip icon (glyph from the mockup).
   const tierIcons = { Elite: Diamond, Superfan: Diamond, Loyal: Shield, Fan: Heart, Newcomer: Heart };
@@ -140,6 +141,28 @@
       Points never expire. Tiers are independent by artist or team.<br/>
       Points unlock tiers and are also spent on rewards.
     </p>
+
+    <!-- Recent activity (real RecentActivity rows from the DB) -->
+    {#if recentActivity.length > 0}
+      <h3 class="section-heading">Recent activity</h3>
+      <section class="card list-card">
+        {#each recentActivity as ra, i (ra.activity_id)}
+          <div class="list-row activity-row" class:no-divider={i === recentActivity.length - 1}>
+            <span class="activity-icon" aria-hidden="true">{ra.source_icon}</span>
+            <div class="row-main">
+              <div class="row-name">{ra.description}</div>
+              <div class="activity-time">{ra.timestamp}</div>
+            </div>
+            {#if ra.xp_amount}
+              <div class="row-points">
+                <span class="row-points-value">+{ra.xp_amount.toLocaleString()}</span>
+                <span class="row-points-unit">pts</span>
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </section>
+    {/if}
 
     <!-- Menu -->
     <section class="card list-card menu-card">
@@ -403,6 +426,24 @@
     font-size: 12px;
     line-height: 1.45;
     margin: 0 0 22px;
+  }
+
+  /* Recent activity rows — emoji icon + activity copy + timestamp + optional pts. */
+  .activity-row { padding: 12px 16px; }
+  .activity-icon {
+    width: 32px; height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-pill);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .activity-time {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text-tertiary);
   }
 
   .menu-card { margin-bottom: 32px; }

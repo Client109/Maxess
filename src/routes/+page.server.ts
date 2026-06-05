@@ -8,7 +8,7 @@ import { serverConfig } from '$lib/config/env.js';
 import { mockEvents } from '$lib/data/mockData.js';
 import { FOLLOWED_ARTISTS, FOLLOWED_TEAMS, type FollowedFandom } from '$lib/data/seedFandoms.js';
 import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
-import { universalBalance, topByBalance } from '$lib/server/home.js';
+import { universalBalance, topByLifetime } from '$lib/server/home.js';
 import {
   XP_PER_CHECKIN,
   XP_PER_LISTENING_HOUR,
@@ -176,7 +176,9 @@ export async function load({ url }) {
     });
     universalBalanceTotal = universalBalance(fanTiers);
 
-    const top3 = topByBalance(fanTiers, 3);
+    // Top fandoms by LIFETIME points (tier-driving total), not spendable
+    // balance — keeps the row points consistent with /score and /profile.
+    const top3 = topByLifetime(fanTiers, 3);
     topFandomsByBalance = top3.map(t => {
       const meta = allFandomMeta.find(m => m.id === t.fandom_id);
       const tier = classifyArtistTier(t.lifetime_points);

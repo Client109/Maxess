@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { mockEvents, mockFanProfile } from '$lib/data/mockData.js';
-import { isArtistFollowed } from '$lib/server/listens.js';
+import { isArtistFollowed, getArtistListeningSummary } from '$lib/server/listens.js';
 import { getArtistImage } from '$lib/server/music.js';
 import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
 import { getArtistProfile } from '$lib/data/artistProfiles.js';
@@ -70,6 +70,13 @@ export async function load({ params }) {
   const tier = classifyArtistTier(points);
   const next = pointsToNextArtistTier(points);
 
+  // Real listening aggregates from ListeningEvent rows. Skipped for sports
+  // (no streaming signal); when a music artist has zero captured listens we
+  // fall back to the hand-authored mock fields below.
+  const listening = isSportsGenre
+    ? null
+    : await getArtistListeningSummary('fan_001', artist.name).catch(() => null);
+
   const artistWithImage = {
     ...artist,
     image: heroImage,
@@ -79,6 +86,21 @@ export async function load({ params }) {
     tier_progress: next.progress,           // 0–1 within the current tier band
     points_to_next: next.pointsNeeded,
     next_tier_name: next.nextTier?.name ?? null,
+    // Listening fields prefer real aggregates; mock values stay as fallback so
+    // artists with no captured plays still render a populated Monthly recap.
+    hours_listened: listening?.hours_listened ?? artist.hours_listened,
+    monthly_plays: listening?.monthly_plays ?? artist.monthly_plays,
+    monthly_hours: listening?.monthly_hours ?? artist.monthly_hours,
+    top_track: listening?.top_track || artist.top_track,
+    top_tracks: (listening && listening.top_tracks.length > 0)
+      ? listening.top_tracks
+      : artist.top_tracks,
+    longest_session_min: listening?.longest_session_min || artist.longest_session_min,
+    peak_day: listening?.peak_day || artist.peak_day,
+    peak_day_hours: listening?.peak_day_hours || artist.peak_day_hours,
+    discovery_count: listening?.discovery_count ?? artist.discovery_count,
+    // Flag the source so the UI could badge "Real listening data" later.
+    listening_is_real: listening !== null,
   };
 
   return {

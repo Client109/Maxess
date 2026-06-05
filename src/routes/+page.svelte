@@ -52,15 +52,15 @@
     })
     .filter(t => t !== null);
 
-  // Top 3 fandoms for the "Your fandoms" list. Prefer the server-side
-  // FanTier.points_balance ordering — that's what the Home mockup is
-  // wired to (Weeknd 5,480 / Ducks 2,340 / Ariana 930). Falls back to
-  // the client-side followed/progress store when server data is missing.
+  // Top 3 fandoms for the "Your fandoms" list. Server returns rows sorted by
+  // lifetime_points (tier-driving total) so the displayed per-row number
+  // matches /score and /profile (Weeknd 1M Elite / Lakers 240K Loyal /
+  // Ducks 105K Loyal) instead of the much smaller post-redemption balance.
   $: serverFandoms = (data.topFandomsByBalance ?? []).map(f => ({
     id: f.fandom_id,
     name: f.name,
     image: f.image,
-    points: f.points_balance,
+    points: f.lifetime_points,
     tier_name: f.tier,
     tier_color: f.tier_color,
     category: 'music',
@@ -111,9 +111,11 @@
   }
 
   // Build SVG path data for the sparkline. Empty/flat series fall back to a
-  // baseline so the card never renders broken geometry.
+  // baseline so the card never renders broken geometry. ViewBox is a flat
+  // 600×60 (10:1) so the rendered aspect matches the long, thin sparkline
+  // look in the mockup without preserveAspectRatio="none" distortion.
   function buildSparkline(series) {
-    const W = 320, H = 88, PAD = 4;
+    const W = 600, H = 60, PAD = 3;
     const pts = (series && series.length > 0 ? series : [0, 0]).map(n => Math.max(0, Number(n) || 0));
     const max = Math.max(...pts, 1);
     const dx = (W - 2 * PAD) / Math.max(1, pts.length - 1);
@@ -166,7 +168,12 @@
           </p>
         {/if}
       </div>
-      <svg class="balance-spark" viewBox="0 0 {spark.W} {spark.H}" preserveAspectRatio="none" aria-hidden="true">
+      <!-- Sparkline. preserveAspectRatio default ("xMidYMid meet") preserves
+           the viewBox aspect so the dot stays a true circle and the line stays
+           a fine 1.5px stroke instead of being stretched into a thick band.
+           Container CSS (.balance-spark) drives horizontal extent — the SVG
+           scales to whatever width its grid cell gives it. -->
+      <svg class="balance-spark" viewBox="0 0 {spark.W} {spark.H}" aria-hidden="true">
         <defs>
           <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#FF5C00" stop-opacity="0.4" />
@@ -174,8 +181,15 @@
           </linearGradient>
         </defs>
         <path d={spark.areaPath} fill="url(#sparkGradient)" />
-        <path d={spark.linePath} fill="none" stroke="#FF5C00" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-        <circle cx={spark.lastX} cy={spark.lastY} r="4" fill="#FF5C00" />
+        <path
+          d={spark.linePath}
+          fill="none"
+          stroke="#FF5C00"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        <circle cx={spark.lastX} cy={spark.lastY} r="2" fill="#FF5C00" />
       </svg>
     </div>
 
@@ -352,9 +366,9 @@
     border-radius: 18px;
     padding: 20px;
     overflow: hidden;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
     min-height: 220px;
   }
   .balance-left {
@@ -362,6 +376,8 @@
     flex-direction: column;
     justify-content: flex-start;
     gap: 10px;
+    flex: 0 0 auto;       /* take natural content width */
+    min-width: 0;
     z-index: 1;
   }
   .balance-label {
@@ -399,13 +415,14 @@
   .balance-fandom strong { color: var(--text-primary); font-weight: 600; }
 
   .balance-spark {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-30%);
-    width: 56%;
-    height: 60%;
+    flex: 1 1 auto;       /* fill remaining card width after the left content */
+    align-self: center;   /* vertically centered with the hero text */
+    min-width: 0;
+    width: 100%;
+    height: auto;
+    max-height: 72px;     /* keeps the line "fine" instead of stretching tall */
     pointer-events: none;
+    display: block;
   }
 
   /* Sections */

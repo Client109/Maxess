@@ -1,7 +1,7 @@
 // Profile page server load — fan identity, artists, sports teams, and point system
-import { getUserByFanId, getXpBreakdown } from '$lib/server/database.js';
+import { getUserByFanId, getXpBreakdown, getRecentActivity } from '$lib/server/database.js';
 import { getFollowedArtists, getRecentListens } from '$lib/server/listens.js';
-import { transformUserToFan } from '$lib/server/transforms.js';
+import { transformUserToFan, transformRecentActivity } from '$lib/server/transforms.js';
 import { TicketmasterClient } from '$lib/api/ticketmaster.js';
 import { getArtistImage } from '$lib/server/music.js';
 import { serverConfig } from '$lib/config/env.js';
@@ -161,11 +161,12 @@ export async function load() {
     return { fan: null, artists: [], teams: [], topConnection: null, topTeamConnection: null };
   }
 
-  const [xpBreakdown, teams, followedArtists, recentListens] = await Promise.all([
+  const [xpBreakdown, teams, followedArtists, recentListens, rawRecentActivity] = await Promise.all([
     getXpBreakdown('fan_001'),
     loadSportsTeams(),
     getFollowedArtists('fan_001'),
     getRecentListens('fan_001', 10),
+    getRecentActivity('fan_001', 8).catch(() => [] as any[]),
   ]);
   const fan = { ...transformUserToFan(dbUser), xp_breakdown: xpBreakdown };
 
@@ -266,5 +267,9 @@ export async function load() {
       source: l.source,
       is_followed: l.is_followed,
     })),
+    // Real RecentActivity rows (seed populates them; getRecentActivity helper
+    // existed but had no consumer until now). Transformed into the same shape
+    // mockData.mockRecentActivity used to expose.
+    recentActivity: rawRecentActivity.map((ra: any, i: number) => transformRecentActivity(ra, i)),
   };
 }
