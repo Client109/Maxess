@@ -32,6 +32,13 @@ export const serverConfig = {
     url: env.SUPABASE_URL || '',
     anonKey: env.SUPABASE_ANON_KEY || '',
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY || ''
+  },
+  applePass: {
+    passTypeId: env.APPLE_PASS_TYPE_ID || '',
+    teamId: env.APPLE_TEAM_ID || '',
+    certP12Base64: env.APPLE_PASS_CERT_P12_BASE64 || '',
+    certPassword: env.APPLE_PASS_CERT_PASSWORD || '',
+    organizationName: env.APPLE_PASS_ORGANIZATION_NAME || 'Maxxes'
   }
 };
 

@@ -1,7 +1,7 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
-  version: "0.5.0-MVP"
-  status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel"
+  version: "0.6.0-MVP"
+  status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel, Apple Wallet attendance verification (unsigned-mode demo)"
 
   product_direction:
     description: "Maxxes is a fan ranking, rewards, and community platform for the live events industry. It connects ticketing history and music streaming behavior into a single verified fan profile — the Superfan Score — and uses that score to unlock tier-based rewards, presale access, and community standing."
@@ -16,7 +16,7 @@ app_spec:
       - "Which events should I attend for maximum fan engagement?"
 
   mvp_boundary:
-    version_target: "0.5.0 — currently shipping"
+    version_target: "0.6.0 — currently shipping"
     must_build:
       - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
       - "Events screen with filtering, search, and booking capabilities"
@@ -231,9 +231,15 @@ app_spec:
           purpose: "Append-only XP ledger — feeds getXpBreakdown(), getXpHistory(), and xp_total recomputation"
           table: "xp_transactions"
         Pass:
-          fields: ["id (cuid)", "pass_id @unique", "user_id?", "title", "description?", "tier (Tier)", "status (PassStatus, default AVAILABLE)", "valid_until?", "created_at", "claimed_at?"]
-          notes: "user_id is null for featured/available offers; populated when claimed"
+          fields: ["id (cuid)", "pass_id @unique", "user_id?", "title", "description?", "tier (Tier)", "status (PassStatus, default AVAILABLE)", "valid_until?", "created_at", "claimed_at?", "apple_wallet_serial? @unique", "wallet_added_at?", "pass_kind (PassKind, default PERK)", "event_id?"]
+          relations: ["attendance_verifications → AttendanceVerification"]
+          notes: "user_id is null for featured/available offers; populated when claimed. event_id links a TICKET-kind pass to its Event for attendance scoring."
           table: "passes"
+        AttendanceVerification:
+          fields: ["id (cuid)", "user_id", "event_id", "pass_id?", "method (VerificationMethod)", "confidence (0-100)", "xp_awarded", "scanner_ip?", "metadata (Json)?", "verified_at"]
+          constraints: ["@@unique([user_id, event_id, method])", "@@index([event_id])"]
+          purpose: "Append-only log of attendance verification events. Each (user, event, method) tuple records once — re-scans are idempotent. Drives XP award via addXpTransaction with source='Event Attendance' and reference=event_id."
+          table: "attendance_verifications"
         FriendActivity:
           fields: ["id (cuid)", "user_id", "friend_name (string — not yet FK)", "activity", "xp_change?", "created_at"]
           notes: "friend_name is a plain string for demo. getFriendUserIds() resolves it to User rows by name match."
@@ -251,6 +257,8 @@ app_spec:
         EventCategory: ["MUSIC", "SPORTS", "THEATER", "COMEDY", "OTHER"]
         PassStatus: ["AVAILABLE", "CLAIMED", "ACTIVE", "EXPIRED"]
         Period: ["WEEKLY", "MONTHLY", "ALL_TIME"]
+        PassKind: ["TICKET", "PERK", "PRESALE"]
+        VerificationMethod: ["WALLET_SCAN", "SELF_CHECKIN", "MANUAL", "TICKETMASTER_WEBHOOK"]
       seed_inventory:
         path: "prisma/seed.ts"
         run: "npm run db:seed"
@@ -306,15 +314,18 @@ app_spec:
         - "Brand header with Zap icon + MAXESS wordmark"
         - "Time-based greeting (Good morning/afternoon/evening, Alex)"
         - "Momentum Score hero card with sparkline SVG, tier badge, XP progress bar, and weekly delta"
-        - "Upcoming For You section with event cards (both music + sports — UI toggles client-side)"
+        - "Music / Sports Events toggle pill row — drives client-side filtering of FOR YOU cards and gates the music-only NEAR YOU THIS WEEK section"
+        - "Upcoming For You horizontal card scroll, filtered to active toggle's category (music OR sports), top 4 by server order"
+        - "Near You This Week — music-only vertical list of upcoming music events in user's city (LA) within next 7 days, max 5; visible only when Music toggle is active. When the user has opted into location sharing (Once or While Using) and a fresh coordinate exists, header copy reflects 'using your location'; otherwise falls back to the hardcoded LA filter."
         - "Your Ranking card with rank, percentile, city leaderboard position"
         - "Community Activity feed showing friend actions"
-        - "Trending Near You section with genre-tagged event chips"
       required_interactions:
         - "XP progress bar animates to fill percentage on load"
         - "Event cards link to /events/[id]"
         - "Your Ranking card links to /score"
         - "Community Activity shows friend names with action descriptions"
+        - "Music/Sports toggle change re-filters FOR YOU cards and shows/hides NEAR YOU THIS WEEK section"
+        - "NEAR YOU THIS WEEK rows link to /events/[id]; shows empty state copy when no qualifying events exist"
       after_data_layer: "Real fan score (8,750 XP), real Elite tier badge, real 12-day streak, server-side data from PostgreSQL, community activity from friend_activities, upcoming events from Ticketmaster (LA music + sports) enriched with user's top artists"
 
     events:
@@ -407,6 +418,25 @@ app_spec:
       route: "/passes/[id]"
       load_function: "src/routes/passes/[id]/+page.server.ts"
       data_sources: ["getPassByPassId(params.id)"]
+      primary_components:
+        - "Pass header (title, tier badge, status)"
+        - "Tier perks list"
+        - "Add to Apple Wallet button — visible when pass.apple_wallet_serial is set; links to /api/passes/[passId]/wallet which streams the .pkpass"
+      required_interactions:
+        - "Add-to-Wallet tap → downloads .pkpass with Content-Type application/vnd.apple.pkpass"
+
+    admin_scan:
+      route: "/admin/scan"
+      load_function: "src/routes/admin/scan/+page.server.ts"
+      purpose: "Demo-only page to simulate venue ticket scans against Alex Chen's passes. Lists Alex's TICKET-kind passes with a 'Simulate scan' button per pass that POSTs to /api/passes/scan/[serial]."
+      data_sources:
+        - "getUserByFanId('fan_001') → owner"
+        - "getUserPasses('fan_001') filtered to pass_kind=TICKET with apple_wallet_serial set"
+      primary_components:
+        - "List of scannable passes with status indicator (scanned / not-yet-scanned)"
+        - "Simulate-scan button per pass"
+        - "QR image per pass that links to GET /api/passes/scan/[serial] for in-person demo via phone camera"
+      notes: "Demo affordance, gated behind /admin/ path. Pre-auth this is open; once auth ships, restrict to staff role."
 
     artist_detail:
       route: "/artist/[id]"
@@ -427,9 +457,11 @@ app_spec:
         - "XP breakdown by source"
         - "Statistics overview with streak and totals"
         - "Settings toggles for notifications and preferences"
+        - "Location sharing segmented control (Off | Once | While Using) — see location_sharing section"
       required_interactions:
         - "Settings toggles persist state changes"
         - "Tier progression shows next milestone"
+        - "Location sharing selection triggers the native browser permission prompt when changing from Off → Once or Off → While Using"
       after_data_layer: "Alex Chen's real XP breakdown — 3,600 Event Attendance, 2,840 Streaming, 960 Watch XP, 440 Spend XP, 910 Challenges. Events attended count from User.events_attended. Top artist/venue from User row."
 
   navigation:
@@ -483,6 +515,35 @@ app_spec:
       Challenges: 910
     note: "xp_breakdown keys match XpTransaction.source values written by prisma/seed.ts. UI maps them in transformUserToFan / getXpBreakdown."
 
+  wallet_attendance:
+    description: "Apple Wallet-backed attendance verification. A ticket-kind Pass owned by a user can be added to Apple Wallet as a signed (or in dev: unsigned) .pkpass. The pass embeds a QR/barcode whose payload is its apple_wallet_serial. When that serial is scanned at the venue, the scanner hits /api/passes/scan/[serial], which records an AttendanceVerification row and awards XP via the existing xp_transactions ledger."
+    components:
+      generator:
+        path: "src/lib/server/wallet/pkpass.ts"
+        purpose: "Build a .pkpass bundle (pass.json + manifest.json + signature) for a given Pass row. Pluggable signer interface: unsigned in dev (no Apple cert), real-signed when APPLE_PASS_CERT_P12_BASE64 + APPLE_PASS_CERT_PASSWORD are present."
+        deps: ["jszip for the .pkpass zip container"]
+      endpoints:
+        wallet_download:
+          route: "GET /api/passes/[passId]/wallet"
+          response: "200 application/vnd.apple.pkpass with the generated bundle; 404 if pass not found; 400 if pass is not user-owned or lacks an apple_wallet_serial"
+          side_effects: "Stamps pass.wallet_added_at on first download"
+        scan_ingest:
+          route: "GET|POST /api/passes/scan/[serial]"
+          purpose: "Record a venue scan against the pass identified by apple_wallet_serial"
+          methods:
+            GET: "Confirmation page-style HTML redirect — used when a phone camera opens the QR. Records the scan then 302s to /events/[event_id]?scanned=1"
+            POST: "JSON API for venue scanner integrations. Returns { status: 'ok'|'duplicate'|'not_found', xp_awarded, attendance_id }"
+          idempotency: "AttendanceVerification has @@unique([user_id, event_id, method]) — re-scans of the same pass return status='duplicate' and no additional XP is awarded"
+    verification_xp:
+      WALLET_SCAN: { xp: 200, confidence: 90, source: "Event Attendance" }
+      SELF_CHECKIN: { xp: 50, confidence: 30, source: "Event Attendance" }
+      MANUAL: { xp: 100, confidence: 70, source: "Event Attendance" }
+      TICKETMASTER_WEBHOOK: { xp: 200, confidence: 95, source: "Event Attendance" }
+      notes: "XP amounts align with xp_scoring_model.eventAttended (200) and concertCheckIns (50)."
+    signing_modes:
+      unsigned_default: "When any of APPLE_PASS_TYPE_ID / APPLE_TEAM_ID / APPLE_PASS_CERT_P12_BASE64 / APPLE_PASS_CERT_PASSWORD is missing, the generator emits a valid .pkpass zip with pass.json + manifest.json but no signature.bin. iOS will refuse to add it but the download flow, scan endpoint, attendance ledger, and XP wiring are fully exercised."
+      signed: "When all four env vars are set, generator inserts a PKCS#7 detached signature of manifest.json under Apple's WWDR cert chain. Implementation slot present; full PKCS#7 path is a follow-up (current ship: unsigned-only)."
+
   xp_scoring_model:
     description: "Signal-based XP calculation from listener activity data"
     signals:
@@ -525,11 +586,54 @@ app_spec:
       challenge_completion: "checked tasks, progress percentages"
       notification_preferences: "notify me buttons, bookmark icons"
       leaderboard_filters: "city selection, time period selection"
+      location_sharing: "user-controlled location-share preference (off | once | while_using). Persists in localStorage under maxess.locationSharing. 'once' captures a single coordinate and reverts to 'off'. 'while_using' refreshes on each page that requests location while the tab is in the foreground."
 
     session_state:
       loading_states: "for all data fetching operations"
       error_states: "graceful error handling and retry logic"
       form_validation: "real-time validation with user feedback"
+
+  location_sharing:
+    description: "User-controlled native geolocation. Uses the standard browser Geolocation API (navigator.geolocation) which proxies to the platform's native permission prompt — iOS Safari surfaces 'Allow Once / While Using App / Don't Allow', Android Chrome surfaces 'Allow this time / While visiting the site / Never allow'. No background tracking, no server-side storage of coordinates."
+    modes:
+      off: "Default. No location requested or used. App continues to operate against the hardcoded city ('Los Angeles')."
+      once: "Single coordinate capture for the current page interaction (e.g. 'Use my location' on Near You This Week). After capture the preference auto-reverts to 'off' so the next visit does not silently re-request."
+      while_using: "App may refresh coordinates each time the user opens a location-aware page in the foreground. No watchPosition tail — the moment the tab is hidden or closed, no further location is fetched."
+    user_controls:
+      surface: "Profile → Settings section. Single segmented control with three options (Off | Once | While Using)."
+      copy: "Plain language: 'Off — never asks. Once — uses your location now, then forgets. While Using — refreshes when you open Near You.'"
+      style: "Custom Svelte segmented control. NEVER use native <select> or browser radio inputs (per app spec: thematic, framework-based, consistently-styled elements)."
+    consumers:
+      home_near_you_this_week: "If mode is 'once' or 'while_using' and a fresh coordinate is available, the section header shows 'Near you this week — using your location'. If permission denied or coordinate stale (> 30 min for while_using), falls back to the hardcoded LA city filter."
+      events_page_future: "Reserved — /events page may consume the same store to bias Ticketmaster queries by latlong. Out of scope for initial implementation."
+    permission_handling:
+      denied: "If the browser returns PERMISSION_DENIED, store sets mode back to 'off' and shows a toast: 'Location blocked. Re-enable in your browser settings to use this feature.'"
+      unavailable: "If navigator.geolocation is undefined (very old browsers, insecure context), the segmented control is rendered disabled with a 'Not supported on this device' caption."
+      timeout: "10-second timeout on getCurrentPosition. On timeout, show a toast and revert mode to 'off' for 'once', keep 'while_using' (will retry on next consumer call)."
+    privacy:
+      storage: "Latest coordinate held only in an in-memory Svelte writable + localStorage (last reading + timestamp). NEVER sent to the server in this MVP."
+      no_logging: "Coordinates are not logged, not written to xp_transactions, not exposed in any API endpoint."
+      native_prompt_only: "Relies on browser-native permission UI — Maxess does not show its own custom 'allow location?' modal; the segmented control IS the consent surface."
+    store:
+      path: "src/lib/stores/location.ts"
+      shape: |
+        type LocationMode = 'off' | 'once' | 'while_using';
+        type StoredLocation = { lat: number; lon: number; accuracy: number; capturedAt: number };
+        export const locationMode: Writable<LocationMode>;
+        export const lastLocation: Writable<StoredLocation | null>;
+        export function requestLocation(): Promise<StoredLocation | null>;
+      localStorage_keys:
+        - "maxess.locationMode (off | once | while_using)"
+        - "maxess.lastLocation (JSON of StoredLocation)"
+    accessibility:
+      - "Segmented control buttons each have aria-pressed reflecting active mode"
+      - "Toast announcements use the existing showToast helper"
+      - "Disabled state when unavailable has aria-disabled + visible caption"
+    test_coverage:
+      - "Mode transitions: off → once → off (auto-revert after capture)"
+      - "Mode transitions: off → while_using stays sticky across requests"
+      - "Permission denied path reverts to off and toasts"
+      - "SSR safety: store initializes to 'off' without touching navigator/localStorage"
 
   data_architecture:
     storage_method: "Server-side data fetching via SvelteKit +page.server.ts load functions. Events from Ticketmaster Discovery API, music intelligence from Spotify Client Credentials / Last.fm, all user-state data from PostgreSQL via Prisma 7.8 + @prisma/adapter-pg. Static JSON files in /static/data/ and mockEvents in src/lib/data/mockData.ts retained as deterministic fallback when API keys are missing."
@@ -650,6 +754,12 @@ app_spec:
       SPOTIFY_CLIENT_ID: "From developer.spotify.com (optional — music enrichment degrades gracefully)"
       SPOTIFY_CLIENT_SECRET: "From developer.spotify.com (optional)"
       LASTFM_API_KEY: "From last.fm/api (optional — fallback to seeded top-artist list)"
+      PUBLIC_APP_URL: "Public base URL for generated pass webServiceURL / barcode payloads (e.g. https://maxess-test.vercel.app). Used by the .pkpass generator so scan QRs resolve to the deployed scan endpoint."
+      APPLE_PASS_TYPE_ID: "Apple Pass Type Identifier (e.g. pass.com.maxxes.eventticket). Optional — without it the generator emits an unsigned .pkpass that demos the flow but cannot be added to a real iPhone."
+      APPLE_TEAM_ID: "Apple Developer Team ID. Optional, paired with APPLE_PASS_TYPE_ID."
+      APPLE_PASS_CERT_P12_BASE64: "Base64-encoded signing certificate (.p12). Optional — required for real-device-installable passes."
+      APPLE_PASS_CERT_PASSWORD: "Password for the .p12 cert. Optional, paired with APPLE_PASS_CERT_P12_BASE64."
+      APPLE_PASS_ORGANIZATION_NAME: "Organization name shown in Wallet UI (default 'Maxxes')."
 
     build_process:
       1: "package.json postinstall runs `prisma generate` automatically"
@@ -765,8 +875,15 @@ app_spec:
       │   ├── profile/
       │   │   ├── +page.svelte
       │   │   └── +page.server.ts (fan + xp breakdown + per-artist tier mock)
+      │   ├── admin/
+      │   │   └── scan/
+      │   │       ├── +page.svelte (demo simulate-scan UI)
+      │   │       └── +page.server.ts (lists Alex's TICKET passes)
       │   └── api/
-      │       └── events/+server.ts (search endpoint)
+      │       ├── events/+server.ts (search endpoint)
+      │       └── passes/
+      │           ├── [passId]/wallet/+server.ts (.pkpass download)
+      │           └── scan/[serial]/+server.ts (attendance scan ingest)
       ├── lib/
       │   ├── api/
       │   │   ├── base.ts (BaseApiClient with rate limiting, SimpleCache)
@@ -785,10 +902,12 @@ app_spec:
       │   │   ├── hotlist.ts
       │   │   └── xp.ts (classifyTier + tier math)
       │   ├── server/
-      │   │   ├── database.ts (Prisma singleton + 20+ query helpers + calculateTier)
+      │   │   ├── database.ts (Prisma singleton + 20+ query helpers + calculateTier + recordAttendanceVerification)
       │   │   ├── transforms.ts (Prisma row → UI domain type mappers + getTierPerks)
-      │   │   ├── events.ts (Ticketmaster → Event normalizer)
-      │   │   └── music.ts (Spotify-first / Last.fm-fallback intelligence service)
+      │   │   ├── events.ts (Ticketmaster → Event normalizer + filterNearYouThisWeek helper)
+      │   │   ├── music.ts (Spotify-first / Last.fm-fallback intelligence service)
+      │   │   └── wallet/
+      │   │       └── pkpass.ts (Apple Wallet .pkpass generator + pluggable signer)
       │   ├── stores/
       │   ├── styles/
       │   │   ├── tokens.css

@@ -13,9 +13,12 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const connectionString =
-    env.DATABASE_URL ||
-    'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable';
+  // pg.Pool only speaks raw postgres. If DATABASE_URL is a `prisma+postgres://`
+  // proxy URL (from `prisma dev`), fall back to the embedded raw-postgres port.
+  const envUrl = env.DATABASE_URL;
+  const connectionString = envUrl && envUrl.startsWith('postgres://')
+    ? envUrl
+    : 'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable';
   const pool = new pg.Pool({ connectionString });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({
@@ -402,6 +405,89 @@ export async function getFeaturedOffers(limit: number = 5) {
 // Get a single pass by pass_id
 export async function getPassByPassId(passId: string) {
   return await db.pass.findUnique({ where: { pass_id: passId } });
+}
+
+// Get a single pass by its Apple Wallet serial number
+export async function getPassByWalletSerial(serial: string) {
+  return await db.pass.findUnique({ where: { apple_wallet_serial: serial } });
+}
+
+// Stamp wallet_added_at on first download of the .pkpass
+export async function markPassWalletAdded(passId: string) {
+  return await db.pass.update({
+    where: { pass_id: passId },
+    data: { wallet_added_at: new Date() },
+  });
+}
+
+// Attendance verification — XP / confidence per method
+export const VERIFICATION_XP: Record<
+  'WALLET_SCAN' | 'SELF_CHECKIN' | 'MANUAL' | 'TICKETMASTER_WEBHOOK',
+  { xp: number; confidence: number }
+> = {
+  WALLET_SCAN: { xp: 200, confidence: 90 },
+  SELF_CHECKIN: { xp: 50, confidence: 30 },
+  MANUAL: { xp: 100, confidence: 70 },
+  TICKETMASTER_WEBHOOK: { xp: 200, confidence: 95 },
+};
+
+// Record an attendance verification (idempotent on user+event+method).
+// Returns { attendance, xp_awarded, duplicate }.
+export async function recordAttendanceVerification(opts: {
+  userId: string;
+  eventId: string;
+  passId?: string | null;
+  method: 'WALLET_SCAN' | 'SELF_CHECKIN' | 'MANUAL' | 'TICKETMASTER_WEBHOOK';
+  scannerIp?: string | null;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const existing = await db.attendanceVerification.findUnique({
+    where: {
+      user_id_event_id_method: {
+        user_id: opts.userId,
+        event_id: opts.eventId,
+        method: opts.method,
+      },
+    },
+  });
+
+  if (existing) {
+    return { attendance: existing, xp_awarded: 0, duplicate: true as const };
+  }
+
+  const { xp, confidence } = VERIFICATION_XP[opts.method];
+
+  const attendance = await db.attendanceVerification.create({
+    data: {
+      user_id: opts.userId,
+      event_id: opts.eventId,
+      pass_id: opts.passId ?? null,
+      method: opts.method,
+      confidence,
+      xp_awarded: xp,
+      scanner_ip: opts.scannerIp ?? null,
+      metadata: (opts.metadata as any) ?? undefined,
+    },
+  });
+
+  // Award XP via the existing ledger (recomputes xp_total + current_tier).
+  const user = await db.user.findUnique({ where: { id: opts.userId } });
+  if (user) {
+    await addXpTransaction(user.fan_id, {
+      amount: xp,
+      source: 'Event Attendance',
+      reference: opts.eventId,
+      description: `Attendance verified via ${opts.method.toLowerCase()}`,
+    });
+
+    // Bump the events_attended counter on the user row.
+    await db.user.update({
+      where: { id: opts.userId },
+      data: { events_attended: { increment: 1 } },
+    });
+  }
+
+  return { attendance, xp_awarded: xp, duplicate: false as const };
 }
 
 // Cleanup function

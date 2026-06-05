@@ -1,5 +1,5 @@
 <script>
-  import { ArrowLeft, Check } from 'lucide-svelte';
+  import { ArrowLeft, Check, Wallet } from 'lucide-svelte';
 
   export let data;
 
@@ -8,6 +8,7 @@
   $: description = data.description;
   $: validUntil = data.valid_until ? new Date(data.valid_until) : null;
   $: claimedAt = data.claimed_at ? new Date(data.claimed_at) : null;
+  $: walletEnabled = data.wallet_enabled;
 
   const tierColors = {
     ELITE: '#FF5C00',
@@ -105,6 +106,18 @@
       <span class="detail-value">{pass.xp_tier_required.toLocaleString()} pts</span>
     </div>
   </div>
+
+  <!-- Add to Apple Wallet -->
+  {#if walletEnabled}
+    <a
+      class="wallet-btn"
+      href="/api/passes/{pass.pass_id}/wallet"
+      download
+    >
+      <Wallet size={18} />
+      Add to Apple Wallet
+    </a>
+  {/if}
 
   <!-- About -->
   {#if description}
@@ -329,5 +342,27 @@
     width: 24px;
     height: 24px;
     flex-shrink: 0;
+  }
+
+  /* Add to Apple Wallet */
+  .wallet-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 16px 24px;
+    padding: 14px 16px;
+    min-height: 48px;
+    background: #000;
+    color: #fff;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.2px;
+  }
+
+  .wallet-btn:active {
+    transform: scale(0.985);
   }
 </style>

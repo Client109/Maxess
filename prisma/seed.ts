@@ -4,11 +4,13 @@ import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
-const pool = new pg.Pool({
-  connectionString:
-    process.env.DATABASE_URL ||
-    'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable',
-});
+// pg.Pool only speaks raw postgres. If DATABASE_URL is a `prisma+postgres://`
+// proxy URL (from `prisma dev`), fall back to the embedded raw-postgres port.
+const envUrl = process.env.DATABASE_URL;
+const connectionString = envUrl && envUrl.startsWith('postgres://')
+  ? envUrl
+  : 'postgres://postgres:postgres@localhost:51214/template1?sslmode=disable';
+const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
@@ -42,6 +44,7 @@ async function main() {
   await prisma.leaderboardEntry.deleteMany();
   await prisma.friendActivity.deleteMany();
   await prisma.recentActivity.deleteMany();
+  await prisma.attendanceVerification.deleteMany();
   await prisma.pass.deleteMany();
   await prisma.event.deleteMany();
   await prisma.challenge.deleteMany();
@@ -371,6 +374,36 @@ async function main() {
     }
   }
 
+  // ── Demo events (so TICKET passes can link to them) ───────────────────
+  await prisma.event.createMany({
+    data: [
+      {
+        event_id: 'evt_ariana_grande_2026_06_13',
+        title: 'Ariana Grande — The Eternal Sunshine Tour',
+        artist: 'Ariana Grande',
+        venue: 'Crypto.com Arena',
+        city: 'Los Angeles',
+        date: new Date('2026-06-13T19:30:00Z'),
+        category: 'MUSIC',
+        status: 'upcoming',
+        featured: true,
+        trending: true,
+      },
+      {
+        event_id: 'evt_don_toliver_2026_06_28',
+        title: 'Don Toliver: Octane Tour',
+        artist: 'Don Toliver',
+        venue: 'Crypto.com Arena',
+        city: 'Los Angeles',
+        date: new Date('2026-06-28T20:00:00Z'),
+        category: 'MUSIC',
+        status: 'upcoming',
+        featured: false,
+        trending: true,
+      },
+    ],
+  });
+
   // ── Passes (for Alex Chen) ────────────────────────────────────────────
   await prisma.pass.createMany({
     data: [
@@ -383,6 +416,7 @@ async function main() {
         status: 'ACTIVE',
         valid_until: new Date('2026-06-30'),
         claimed_at: new Date('2026-05-01'),
+        pass_kind: 'PERK',
       },
       {
         pass_id: 'pass_002',
@@ -449,6 +483,33 @@ async function main() {
         status: 'AVAILABLE',
         valid_until: new Date('2026-12-31'),
       },
+      // Wallet-enabled TICKET passes for the attendance demo
+      {
+        pass_id: 'pass_tkt_ariana_001',
+        user_id: mainUser.id,
+        title: 'Ariana Grande · Floor GA',
+        description: 'Eternal Sunshine Tour — Crypto.com Arena, Jun 13 2026',
+        tier: 'ELITE',
+        status: 'ACTIVE',
+        valid_until: new Date('2026-06-14'),
+        claimed_at: new Date('2026-05-20'),
+        pass_kind: 'TICKET',
+        event_id: 'evt_ariana_grande_2026_06_13',
+        apple_wallet_serial: 'mxs-ticket-ariana-fan001-001',
+      },
+      {
+        pass_id: 'pass_tkt_dontoliver_001',
+        user_id: mainUser.id,
+        title: 'Don Toliver · Sec 101 Row 12',
+        description: 'Octane Tour — Crypto.com Arena, Jun 28 2026',
+        tier: 'SUPERFAN',
+        status: 'ACTIVE',
+        valid_until: new Date('2026-06-29'),
+        claimed_at: new Date('2026-05-22'),
+        pass_kind: 'TICKET',
+        event_id: 'evt_don_toliver_2026_06_28',
+        apple_wallet_serial: 'mxs-ticket-toliver-fan001-001',
+      },
     ],
   });
 
@@ -508,7 +569,7 @@ async function main() {
   const totalUsers = await prisma.user.count();
   const totalLeaderboard = await prisma.leaderboardEntry.count();
   const totalFriendActivities = await prisma.friendActivity.count();
-  console.log(`Seed completed: ${totalUsers} users, ${totalLeaderboard} leaderboard entries, ${totalFriendActivities} friend activities, 8 challenges, 8 passes`);
+  console.log(`Seed completed: ${totalUsers} users, ${totalLeaderboard} leaderboard entries, ${totalFriendActivities} friend activities, 8 challenges, 10 passes (2 wallet tickets), 2 events`);
 }
 
 main()

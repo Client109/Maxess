@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-06-04
+
+### Added
+- Apple Wallet attendance verification (`/admin/scan` demo page, `/api/passes/[passId]/wallet` download, `/api/passes/scan/[serial]` ingest)
+- `src/lib/server/wallet/pkpass.ts` — `.pkpass` generator with pluggable signer; unsigned-mode default, signed-mode stub for when Apple Pass certs land
+- Prisma schema: `Pass.apple_wallet_serial`, `Pass.wallet_added_at`, `Pass.pass_kind`, `Pass.event_id`; new `AttendanceVerification` model; `PassKind` + `VerificationMethod` enums
+- `recordAttendanceVerification()` in `src/lib/server/database.ts` — idempotent on `(user_id, event_id, method)`, awards XP through the existing ledger, increments `User.events_attended`
+- `APPLE_PASS_TYPE_ID`, `APPLE_TEAM_ID`, `APPLE_PASS_CERT_P12_BASE64`, `APPLE_PASS_CERT_PASSWORD`, `APPLE_PASS_ORGANIZATION_NAME` env vars (all optional)
+- "Add to Apple Wallet" button on `/passes/[id]` for wallet-enabled ticket passes
+- Seed: two demo `Event` rows + two `TICKET`-kind passes for Alex Chen with pre-assigned wallet serials
+- `jszip` dependency for `.pkpass` zip container
+
+### Fixed
+- `prisma/seed.ts` now falls back to the raw-postgres port when `DATABASE_URL` is a `prisma+postgres://` proxy URL (same fallback already used by `src/lib/server/database.ts`)
+
 ## [0.5.0] - 2026-05-28
 
 ### Added

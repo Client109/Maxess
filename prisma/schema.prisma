@@ -150,8 +150,36 @@ model Pass {
   valid_until DateTime?
   created_at  DateTime   @default(now())
   claimed_at  DateTime?
-  
+
+  // Apple Wallet integration
+  apple_wallet_serial String?   @unique
+  wallet_added_at     DateTime?
+  pass_kind           PassKind  @default(PERK)
+  event_id            String?
+
+  attendance_verifications AttendanceVerification[]
+
   @@map("passes")
+}
+
+// AttendanceVerification — append-only log of how a user's attendance at an event was verified
+model AttendanceVerification {
+  id           String             @id @default(cuid())
+  user_id      String
+  event_id     String
+  pass_id      String?
+  method       VerificationMethod
+  confidence   Int                // 0–100; WALLET_SCAN=90, SELF_CHECKIN=30, MANUAL=70
+  xp_awarded   Int                @default(0)
+  scanner_ip   String?
+  metadata     Json?
+  verified_at  DateTime           @default(now())
+
+  pass         Pass?              @relation(fields: [pass_id], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, event_id, method])
+  @@index([event_id])
+  @@map("attendance_verifications")
 }
 
 // Friend Activity (social feed)
@@ -232,6 +260,23 @@ enum Period {
   WEEKLY
   MONTHLY
   ALL_TIME
-  
+
   @@map("period")
+}
+
+enum PassKind {
+  TICKET
+  PERK
+  PRESALE
+
+  @@map("pass_kind")
+}
+
+enum VerificationMethod {
+  WALLET_SCAN
+  SELF_CHECKIN
+  MANUAL
+  TICKETMASTER_WEBHOOK
+
+  @@map("verification_method")
 }

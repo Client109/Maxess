@@ -17,5 +17,7 @@ export async function load({ params }) {
     tier: dbPass.tier,
     valid_until: dbPass.valid_until?.toISOString() ?? null,
     claimed_at: dbPass.claimed_at?.toISOString() ?? null,
+    wallet_enabled: !!(dbPass.apple_wallet_serial && dbPass.event_id),
+    pass_kind: dbPass.pass_kind,
   };
 }
