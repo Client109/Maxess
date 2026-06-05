@@ -231,11 +231,23 @@ export async function load() {
   // falls back into "Streak bonuses" so the totals reconcile to xp_total.
   const pickXp = (...keys: string[]) =>
     keys.reduce((sum, k) => sum + (xpBreakdown[k] ?? 0), 0);
-  const sourceCheckIns = pickXp('Event Attendance', 'Venue Check-ins', 'Attendance', 'Check-ins');
-  const sourceStreaming = pickXp('Streaming', 'Spotify', 'Listening', 'Spotify Listening');
-  const sourceTrivia = pickXp('Trivia', 'Live Trivia', 'Challenges');
-  const allClassified = sourceCheckIns + sourceStreaming + sourceTrivia;
-  const sourceStreak = Math.max(0, fan.xp_total - allClassified);
+  // Each pickXp() arg list leads with the CANONICAL label written by
+  // prisma/seed.ts (the four xp_transactions rows: 'Verified Check-ins',
+  // 'Spotify Listening', 'Live Trivia', 'Streak Bonus'). Trailing aliases
+  // catch legacy seed data so an unmigrated DB still resolves cleanly.
+  const sourceCheckIns  = pickXp('Verified Check-ins', 'Event Attendance', 'Venue Check-ins', 'Attendance', 'Check-ins');
+  const sourceStreaming = pickXp('Spotify Listening', 'Streaming', 'Spotify', 'Listening');
+  const sourceTrivia    = pickXp('Live Trivia', 'Trivia', 'Challenges');
+  const sourceStreakDirect = pickXp('Streak Bonus', 'Streak Bonuses');
+  // Any unlabeled XP transactions (legacy 'Watch XP' / 'Spend XP' / etc.)
+  // roll into Streak so the four point-sources still sum to the rewards
+  // total. xp_breakdown only aggregates xp_transactions (NOT FanTier lifetime
+  // points), so this leftover is bounded by REWARDS_XP_TOTAL — we must NOT
+  // subtract fan.xp_total here, which would incorrectly attribute every
+  // followed-fandom lifetime point to "Streak bonuses".
+  const breakdownTotal = Object.values(xpBreakdown).reduce((s, v) => s + v, 0);
+  const allClassified = sourceCheckIns + sourceStreaming + sourceTrivia + sourceStreakDirect;
+  const sourceStreak = sourceStreakDirect + Math.max(0, breakdownTotal - allClassified);
 
   const pointSources = [
     { id: 'checkins',  label: 'Verified check-ins', points: sourceCheckIns,  icon: 'check'   },

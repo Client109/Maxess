@@ -4,27 +4,27 @@ import { isArtistFollowed, getArtistListeningSummary } from '$lib/server/listens
 import { getArtistImage } from '$lib/server/music.js';
 import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
 import { getArtistProfile } from '$lib/data/artistProfiles.js';
+import { FOLLOWED_ARTISTS, FOLLOWED_TEAMS } from '$lib/data/seedFandoms.js';
 
-// Per-artist points the demo user has earned. Each artist's points map to
-// a real tier (Newcomer 0–9.9K, Fan 10K–99.9K, Loyal 100K–249.9K,
-// Superfan 250K–999.9K, Elite 1M+) via classifyArtistTier() so the hero
-// card can display the precise points value the user has *with* that artist
-// instead of a 0–100 normalized score.
-const ARTIST_POINTS: Record<string, number> = {
-  'weeknd':         1_180_000,  // Elite
-  'the-weeknd':     1_180_000,
-  'kaytranada':       280_000,  // Superfan
-  'daniel-caesar':    165_000,  // Loyal
-  'odesza':            42_000,  // Fan
-  'arctic-monkeys':     4_500,  // Newcomer
-  'kendrick-lamar':   320_000,  // Superfan
-  'sza':              180_000,  // Loyal
-  'ducks':            240_000,  // Superfan (sports)
-  'lakers':           185_000,  // Loyal
-  'rams':              55_000,  // Fan
-  'dodgers':           28_000,  // Fan
-  'kings':              7_500,  // Newcomer
+// Bonus artists (kendrick-lamar, sza) aren't in the canonical FOLLOWED_*
+// seed but still resolve via the ARTIST_PROFILES registry. Their points
+// live here so the hero card shows a sensible tier; canonical fandoms read
+// straight from seedFandoms.ts to avoid drift.
+const BONUS_ARTIST_POINTS: Record<string, number> = {
+  'kendrick-lamar': 320_000,  // Superfan
+  'sza':            180_000,  // Loyal
 };
+
+// Canonical seed lookup. The 'weeknd' / 'the-weeknd' alias collapses to one
+// canonical id so both URLs return the same lifetime points.
+function canonicalSeedPoints(id: string): number | null {
+  const lookup = id === 'the-weeknd' ? 'weeknd' : id;
+  const artist = FOLLOWED_ARTISTS.find(a => a.id === lookup);
+  if (artist) return artist.points;
+  const team = FOLLOWED_TEAMS.find(t => t.id === lookup);
+  if (team) return team.points;
+  return null;
+}
 
 export async function load({ params }) {
   const artist = getArtistProfile(params.id);
@@ -66,7 +66,14 @@ export async function load({ params }) {
   // Resolve precise points + canonical tier for this artist. Fall back to
   // deriving points from the mock superfan_score if no explicit entry exists
   // (kept so unmapped slugs still render coherently).
-  const points = ARTIST_POINTS[params.id] ?? Math.round((artist.superfan_score ?? 0) * 12_000);
+  // Resolution order, in priority of correctness:
+  //   1. Canonical seed (FOLLOWED_ARTISTS/FOLLOWED_TEAMS) — single source of
+  //      truth shared with /home, /score, /profile.
+  //   2. BONUS_ARTIST_POINTS — for kendrick-lamar / sza that aren't in seed.
+  //   3. Derive from the 0–100 mock superfan_score as a last resort.
+  const points = canonicalSeedPoints(params.id)
+    ?? BONUS_ARTIST_POINTS[params.id]
+    ?? Math.round((artist.superfan_score ?? 0) * 12_000);
   const tier = classifyArtistTier(points);
   const next = pointsToNextArtistTier(points);
 

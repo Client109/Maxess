@@ -4,9 +4,13 @@ import type { Fan, Event, LeaderboardEntry, Challenge, Pass, FriendActivity, Rec
 export const mockFanProfile: Fan = {
   fan_id: 'fan_001',
   name: 'Alex Chen',
-  xp_total: 750_000,
-  superfan_score: 75,
-  current_tier: 'Superfan',
+  // Mirrors totalSeededXp() from src/lib/data/seedFandoms.ts so a future
+  // consumer of this dead-code fallback path doesn't show a number that
+  // contradicts the live DB seed. Σ FOLLOWED_ARTISTS + Σ FOLLOWED_TEAMS +
+  // REWARDS_XP_TOTAL = 1,078,500 + 360,000 + 90,000 = 1,528,500.
+  xp_total: 1_528_500,
+  superfan_score: 100,            // xp_total ≥ 1M → score ceiling
+  current_tier: 'Elite',
   streak_days: 12,
   rank: 12,
   percentile: 3,

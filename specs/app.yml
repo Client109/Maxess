@@ -1,6 +1,6 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
-  version: "0.10.2-MVP"
+  version: "0.10.3-MVP"
   status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel, Apple Wallet attendance verification (unsigned-mode demo)"
 
   product_direction:
@@ -308,7 +308,7 @@ app_spec:
         leaderboard_entries: "240 — 3 periods (WEEKLY, MONTHLY, ALL_TIME) × 3 cities × ~ranked users per city. Weekly/monthly XP scaled by deterministic hash(name + period) so rankings differ from all-time."
         challenges: "8 — ch_001 Venue Explorer, ch_002 Streak Master, ch_003 Genre Hopper, ch_004 Social Butterfly, ch_005 First Timer, ch_006 Weekend Warrior, ch_007 Music Maven, ch_008 Refer a Friend"
         user_challenges: "7 rows for Alex Chen with mixed progress (33% / 40% / 67% / 86% / 100%)"
-        xp_transactions: "5 rows for Alex Chen — Event Attendance 3600, Streaming 2840, Watch XP 960, Spend XP 440, Challenges 910 (sums to 8750)"
+        xp_transactions: "4 rows for Alex Chen — Verified Check-ins 30,000 (60 × 500), Spotify Listening 30,000 (3000 hr × 10), Live Trivia 20,000 (400 × 50), Streak Bonus 10,000 (50 × 200). Sum = REWARDS_XP_TOTAL (90,000). fan.xp_total (1,528,500) = REWARDS_XP_TOTAL + Σ FanTier.lifetime_points (1,438,500 across followed fandoms — see src/lib/data/seedFandoms.ts)."
         passes: "8 — 3 owned by Alex Chen (1 ACTIVE Elite, 1 CLAIMED Elite, 1 ACTIVE Superfan) + 5 unassigned AVAILABLE offers across tier mix"
         friend_activities: "18 — 12 LA, 3 SF, 3 NYC friends acting on Alex Chen's feed"
         recent_activities: "20 entries for Alex Chen"
@@ -325,7 +325,7 @@ app_spec:
         - { name: "Noah Patel", city: "Toronto", artist: "PARTYNEXTDOOR", tier: "Gold", xp_today: 510, engagement: 93, streak: 15, attended: true }
       notes:
         - "Alex Chen city MUST be Los Angeles (not Toronto) for leaderboard demo"
-        - "Alex Chen xp_total MUST be 8,750 cumulative (not just today's 420)"
+        - "Alex Chen xp_total MUST equal totalSeededXp() — currently 1,528,500 (Σ FOLLOWED_ARTISTS + Σ FOLLOWED_TEAMS + REWARDS_XP_TOTAL). The historical 8,750 figure described the legacy 5-row CSV-style seed and is no longer authoritative."
 
     source_f_gmail_attachment:
       owner: "Kayah"
@@ -502,6 +502,24 @@ app_spec:
       route: "/artist/[id]"
       load_function: "src/routes/artist/[id]/+page.server.ts"
       data_sources: ["Per-artist detail registry (src/lib/data/artistProfiles.ts) keyed by fandom id", "Per-artist tier progress + Spotify/Last.fm enrichment via getArtistData()", "isArtistFollowed(fan_001, artistName) → drives follow-button state"]
+      points_resolution: |
+        Hero-card points are resolved in priority order so /artist/[id] never
+        drifts from the canonical seed:
+          1. canonicalSeedPoints(id) — looks the id up in FOLLOWED_ARTISTS /
+             FOLLOWED_TEAMS from src/lib/data/seedFandoms.ts (single source
+             of truth shared with /home, /score, /profile). Collapses the
+             'weeknd' / 'the-weeknd' alias to one canonical entry so both
+             URLs return identical lifetime points.
+          2. BONUS_ARTIST_POINTS — covers ids that exist as artist-detail
+             pages but are NOT in the canonical follow seed (currently
+             kendrick-lamar, sza). Editing this table is the right place
+             to add a non-followed artist's hero points.
+          3. Math.round(superfan_score * 12_000) — last-resort derivation
+             from the 0–100 mock superfan_score so unmapped slugs still
+             render a coherent tier.
+        Tier and "points to next tier" are then computed by
+        classifyArtistTier() / pointsToNextArtistTier() from the resolved
+        points value.
       id_resolution: |
         Page render lookup is `getArtistProfile(params.id)` from
         src/lib/data/artistProfiles.ts. The registry is keyed by the same id
@@ -579,8 +597,8 @@ app_spec:
     name: "Alex Chen"
     avatar_initials: "AC"
     city: "Los Angeles"
-    xp_total: 750000
-    current_tier: "Superfan"
+    xp_total: 1528500
+    current_tier: "Elite"
     streak_days: 12
     rank: 12
     percentile: 3
@@ -589,13 +607,31 @@ app_spec:
     top_venue: "SoFi Stadium"
     events_attended: 9
     lastfm_username: "alexchen_music"
+    xp_total_derivation: |
+      xp_total is the sum of FOLLOWED_ARTISTS.points (1,078,500) +
+      FOLLOWED_TEAMS.points (360,000) + REWARDS_XP_TOTAL (90,000) =
+      1,528,500. See src/lib/data/seedFandoms.ts → totalSeededXp() for the
+      canonical computation. The dead-code mockFanProfile fallback in
+      src/lib/data/mockData.ts must mirror this number; if you change a
+      fandom's points in seedFandoms.ts, re-run totalSeededXp() and update
+      mockFanProfile to match.
     xp_breakdown:
-      Event Attendance: 480000
-      Streaming: 215000
-      Watch XP: 30000
-      Spend XP: 15000
-      Challenges: 10000
-    note: "xp_breakdown keys match XpTransaction.source values written by prisma/seed.ts. UI maps them in transformUserToFan / getXpBreakdown."
+      Verified Check-ins: 30000
+      Spotify Listening:  30000
+      Live Trivia:        20000
+      Streak Bonus:       10000
+    note: |
+      xp_breakdown keys must match XpTransaction.source values written by
+      prisma/seed.ts. The four canonical labels above are the only sources
+      currently seeded; their sum equals REWARDS_XP_TOTAL (90,000) — NOT
+      xp_total. Per-fandom FanTier.lifetime_points are tracked separately
+      and not surfaced through xp_breakdown.
+      The /profile point-source rollup (sourceCheckIns / sourceStreaming /
+      sourceTrivia / sourceStreak) leads with the canonical label and
+      tolerates legacy aliases ('Event Attendance', 'Streaming', etc.) so
+      an unmigrated DB still classifies cleanly. Unlabeled XP rolls into
+      Streak — it must NOT subtract fan.xp_total or it would falsely
+      attribute every followed-fandom lifetime point to Streak Bonus.
 
   wallet_attendance:
     description: "Apple Wallet-backed attendance verification. A ticket-kind Pass owned by a user can be added to Apple Wallet as a signed (or in dev: unsigned) .pkpass. The pass embeds a QR/barcode whose payload is its apple_wallet_serial. When that serial is scanned at the venue, the scanner hits /api/passes/scan/[serial], which records an AttendanceVerification row and awards XP via the existing xp_transactions ledger."

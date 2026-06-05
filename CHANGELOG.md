@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] - 2026-06-05
+
+### Changed
+- `src/routes/artist/[id]/+page.server.ts` — hero-card points are now resolved from the canonical seed (`FOLLOWED_ARTISTS` / `FOLLOWED_TEAMS` in `src/lib/data/seedFandoms.ts`) first, then a small `BONUS_ARTIST_POINTS` table (kendrick-lamar, sza), then the legacy `superfan_score * 12_000` derivation. Replaces the inline `ARTIST_POINTS` map that had drifted from the seed (e.g. `weeknd` showed 1,180,000 vs the seeded 1,000,000). The `weeknd` / `the-weeknd` alias collapses to one canonical entry.
+- `src/routes/profile/+page.server.ts` — XP source rollup leads with the four canonical labels written by `prisma/seed.ts` (`Verified Check-ins`, `Spotify Listening`, `Live Trivia`, `Streak Bonus`) with legacy aliases retained as fallbacks. Unclassified XP rolls into Streak via `breakdownTotal − classified` instead of `fan.xp_total − classified` — the previous formula falsely attributed every followed-fandom lifetime point to "Streak Bonus".
+- `src/lib/data/mockData.ts` — `mockFanProfile.xp_total` (1,528,500), `superfan_score` (100), and `current_tier` (`Elite`) now mirror `totalSeededXp()`. The dead-code fallback no longer contradicts what the live DB shows.
+- `specs/app.yml` — refreshed `demo_user.xp_total`, `xp_breakdown`, `source_e_listener_activity.notes`, and the `xp_transactions` line to reflect the 4-row 90,000-XP canonical seed; documented the artist-detail points resolution chain under `screen_specifications.artist_detail.points_resolution`.
+
+### Added
+- `src/lib/data/seedFandoms.test.ts` — drift guard: asserts `mockFanProfile.xp_total === totalSeededXp()`, that the recorded tier matches `classifyTier()`, and that fandom ids are unique.
+
 ## [0.10.2] - 2026-06-05
 
 ### Added
