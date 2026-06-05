@@ -7,7 +7,7 @@
   import { recMusic, recSports, activeCategory } from '$lib/stores/settings.js';
   import { followedArtists, toggleFollowArtist } from '$lib/stores/followedArtists.js';
   import { progressByArtist, hydrateProgress } from '$lib/stores/progressByArtist.js';
-  import { locationMode, lastLocation, requestLocation, isFreshEnough, isGeolocationAvailable } from '$lib/stores/location.js';
+  import { locationMode, lastLocation, locationPromptStatus, requestLocation, isFreshEnough, isGeolocationAvailable } from '$lib/stores/location.js';
   import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
 
   export let data;
@@ -302,29 +302,18 @@
       </div>
     </section>
 
-    <!-- Near You This Week — music only -->
-    {#if $activeCategory === 'music'}
+    <!-- Near You This Week — music only. Hidden entirely when the user has
+         declined location sharing. When pending or accepted-but-no-fix, the
+         section stays hidden until a coordinate is captured (modal handles
+         first-run; Profile settings handles subsequent opt-in). -->
+    {#if $activeCategory === 'music' && locationActive && $locationPromptStatus !== 'declined'}
       <section class="section">
         <div class="section-header">
           <span class="section-label">
             NEAR YOU THIS WEEK
-            {#if locationActive}
-              <span class="near-you-loc-tag">· using your location</span>
-            {/if}
+            <span class="near-you-loc-tag">· using your location</span>
           </span>
           <div class="near-you-header-right">
-            {#if isGeolocationAvailable() && !locationActive}
-              <button
-                type="button"
-                class="near-you-loc-chip"
-                aria-label="Use my location for Near You"
-                disabled={nearYouRequesting}
-                on:click={useMyLocationInline}
-              >
-                <Navigation size={11} />
-                {nearYouRequesting ? 'Locating…' : 'Use my location'}
-              </button>
-            {/if}
             <a href="/events" class="see-all">See All</a>
           </div>
         </div>

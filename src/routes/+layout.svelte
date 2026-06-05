@@ -5,6 +5,7 @@
   import BottomNav from '$lib/components/BottomNav.svelte';
   import NotificationPanel from '$lib/components/NotificationPanel.svelte';
   import ToastHost from '$lib/components/ToastHost.svelte';
+  import LocationPromptModal from '$lib/components/LocationPromptModal.svelte';
 
   afterNavigate(() => {
     window.scrollTo(0, 0);
@@ -18,6 +19,7 @@
   </main>
   <BottomNav />
   <ToastHost />
+  <LocationPromptModal />
 </div>
 
 <style>

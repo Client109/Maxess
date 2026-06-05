@@ -3,7 +3,7 @@
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { showPointsGraph, activeCategory } from '$lib/stores/settings.js';
   import { followedSet, toggleFollowArtist } from '$lib/stores/followedArtists.js';
-  import { locationMode, requestLocation, isGeolocationAvailable } from '$lib/stores/location.js';
+  import { locationMode, requestLocation, isGeolocationAvailable, acceptLocationPrompt, declineLocationPrompt, locationPromptStatus } from '$lib/stores/location.js';
   import InviteCard from '$lib/components/InviteCard.svelte';
 
   /** @type {{ value: 'off' | 'once' | 'while_using'; label: string; desc: string }[]} */
@@ -18,7 +18,15 @@
     const prev = $locationMode;
     locationMode.set(next);
     if (prev === 'off' && (next === 'once' || next === 'while_using')) {
+      // Opting in from Profile counts as accepting the consent gate, even if
+      // the user previously declined the first-run modal. Hides the modal
+      // forever and re-enables "near me" content app-wide.
+      acceptLocationPrompt();
       await requestLocation();
+    } else if (next === 'off' && $locationPromptStatus === 'accepted') {
+      // Turning Off from an accepted state is a soft pause — we don't flip
+      // status back to 'declined' (that would hide all "near me" sections
+      // including the user's setting toggle context). Mode 'off' is enough.
     }
   }
 

@@ -3,11 +3,11 @@
   import { Home, Compass, Target, Crown, User } from 'lucide-svelte';
 
   const tabs = [
-    { id: 'home', label: 'Home', icon: Home, href: '/' },
-    { id: 'events', label: 'Events', icon: Compass, href: '/events' },
-    { id: 'score', label: 'Score', icon: Target, href: '/score' },
-    { id: 'access', label: 'Access', icon: Crown, href: '/access' },
-    { id: 'profile', label: 'Profile', icon: User, href: '/profile' }
+    { id: 'home', label: 'Home', icon: Home, href: '/', color: '#007AFF' },
+    { id: 'events', label: 'Events', icon: Compass, href: '/events', color: '#AF52DE' },
+    { id: 'score', label: 'Score', icon: Target, href: '/score', color: '#FF3B30' },
+    { id: 'access', label: 'Access', icon: Crown, href: '/access', color: '#FFB800' },
+    { id: 'profile', label: 'Profile', icon: User, href: '/profile', color: '#34C759' }
   ];
 
   $: activeTab = (() => {
@@ -25,10 +25,11 @@
         href={tab.href}
         class="nav-tab"
         class:active={activeTab === tab.id}
+        style="--tab-color: {tab.color};"
         data-sveltekit-preload-data="hover"
       >
         <div class="nav-icon">
-          <svelte:component this={tab.icon} size={22} />
+          <svelte:component this={tab.icon} size={22} strokeWidth={activeTab === tab.id ? 2.4 : 2} />
         </div>
         <span class="nav-label">{tab.label}</span>
       </a>
@@ -63,7 +64,7 @@
     align-items: center;
     gap: 2px;
     text-decoration: none;
-    color: #8E8E93;
+    color: var(--tab-color);
     min-height: 44px;
     min-width: 44px;
     justify-content: center;
@@ -71,15 +72,36 @@
     flex: 1;
   }
 
+  /* Labels stay subtle by default so the per-tab brand color reads on the icon
+     without overpowering the bottom-nav strip. Active tab still bumps to the
+     full brand color + bold weight (see .nav-tab.active .nav-label below). */
+  .nav-label {
+    color: #8E8E93;
+  }
+
   .nav-tab.active {
-    color: #FF5C00;
+    color: var(--tab-color);
+  }
+
+  .nav-tab.active .nav-label {
+    color: var(--tab-color);
   }
 
   .nav-icon {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 40px;
+    height: 28px;
+    border-radius: 14px;
     margin-bottom: 1px;
+    background: transparent;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .nav-tab.active .nav-icon {
+    background: color-mix(in srgb, var(--tab-color) 14%, transparent);
+    transform: translateY(-1px) scale(1.08);
   }
 
   .nav-label {
@@ -88,10 +110,15 @@
     font-weight: 500;
     line-height: 1;
     text-align: center;
+    transition: font-weight 0.2s ease;
+  }
+
+  .nav-tab.active .nav-label {
+    font-weight: 700;
   }
 
   .nav-tab:hover {
-    color: #FF5C00;
+    color: var(--tab-color);
   }
 
   @media (max-width: 375px) {

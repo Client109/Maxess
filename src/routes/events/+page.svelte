@@ -1,22 +1,27 @@
 <script>
-  import { Search, MapPin, Calendar, Flame, Bell, BellRing, ChevronRight, ExternalLink, Navigation } from 'lucide-svelte';
+  import { Search, MapPin, Calendar, Flame, Bell, BellRing, ChevronRight, ExternalLink, Navigation, Music2 } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { subscribedSet, toggleSubscription } from '$lib/stores/subscriptions.js';
+  import { followedArtists } from '$lib/stores/followedArtists.js';
+  import { progressByArtist } from '$lib/stores/progressByArtist.js';
   import { activeCategory } from '$lib/stores/settings.js';
-  import { lastLocation, requestLocation, isFreshEnough, isGeolocationAvailable } from '$lib/stores/location.js';
+  import { lastLocation, locationPromptStatus, requestLocation, isFreshEnough, isGeolocationAvailable, acceptLocationPrompt } from '$lib/stores/location.js';
 
   export let data;
 
   // "Events Near Me" CTA — triggers the native permission prompt (one-shot),
   // then pushes coords into the URL so the server load re-runs with latlong.
+  // Tapping this also flips the consent gate to 'accepted' so the first-run
+  // modal doesn't re-appear elsewhere.
   let nearMeRequesting = false;
   async function enableEventsNearMe() {
     if (nearMeRequesting) return;
     nearMeRequesting = true;
     try {
-      await requestLocation({ forceOnce: true });
+      const loc = await requestLocation({ forceOnce: true });
+      if (loc) acceptLocationPrompt();
     } finally {
       nearMeRequesting = false;
     }
@@ -57,7 +62,43 @@
 
   const filters = ['For you', 'Following', 'Music', 'Sports', 'This week'];
 
-  // Filter events based on search and category
+  // Names of followed artists / teams (lowercased) for matching against event
+  // title/subtitle. Followed IDs alone aren't enough — events from Ticketmaster
+  // expose artists in the title (e.g. "The Weeknd: After Hours Tour") rather
+  // than as a structured field.
+  $: followedNames = $followedArtists
+    .map(id => $progressByArtist[id]?.name)
+    .filter(/** @returns {n is string} */ (n) => typeof n === 'string' && n.length > 0)
+    .map(n => n.toLowerCase());
+
+  /** @param {{ title: string; subtitle?: string }} e */
+  function matchesFollowed(e) {
+    if (followedNames.length === 0) return false;
+    const hay = `${e.title} ${e.subtitle ?? ''}`.toLowerCase();
+    return followedNames.some(n => hay.includes(n));
+  }
+
+  // Returns the followed artists whose names appear in this event's
+  // title/subtitle. Used to surface "you follow X, Y" sub-rows under each
+  // upcoming event so the user instantly sees why an event is relevant.
+  /** @param {{ title: string; subtitle?: string }} e */
+  function followedArtistsAt(e) {
+    if ($followedArtists.length === 0) return [];
+    const hay = `${e.title} ${e.subtitle ?? ''}`.toLowerCase();
+    /** @type {Array<{ id: string; name: string }>} */
+    const out = [];
+    for (const id of $followedArtists) {
+      const name = $progressByArtist[id]?.name;
+      if (name && hay.includes(name.toLowerCase())) {
+        out.push({ id, name });
+      }
+    }
+    return out;
+  }
+
+  // Filter events based on search and category. "Following" matches both
+  // per-event notify subscriptions AND any event whose title/subtitle mentions
+  // a followed artist/team.
   $: allEvents = (data.events || []).filter(e => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -67,7 +108,10 @@
         e.city.toLowerCase().includes(q);
       if (!match) return false;
     }
-    if (activeFilter === 'Following' && !$subscribedSet.has(e.event_id)) return false;
+    if (activeFilter === 'Following') {
+      const subscribed = $subscribedSet.has(e.event_id);
+      if (!subscribed && !matchesFollowed(e)) return false;
+    }
     if (activeFilter === 'Music' && e.category !== 'music') return false;
     if (activeFilter === 'Sports' && e.category !== 'sports') return false;
     if (activeFilter === 'This week') {
@@ -125,14 +169,13 @@
 
   let selectedDay = 0;
 
-  // Any events near you this week — gates whether the section appears at all.
-  // When using location, Ticketmaster already returned a radius-bounded set so
-  // the city filter is unnecessary (and counter-productive — radius results
-  // span neighboring cities).
-  $: weekEventsNearYou = allEvents.filter(e =>
-    (data.usingLocation || e.city === 'Los Angeles')
-    && dayStrip.some(d => d.iso === e.date)
-  );
+  // Any events near you this week — only meaningful when the user has shared
+  // their location. Without a coordinate we don't render the "near me" section
+  // at all (no fake "near you = LA" fallback). When using location, the
+  // Ticketmaster query was radius-bounded so we trust whatever it returned.
+  $: weekEventsNearYou = data.usingLocation
+    ? allEvents.filter(e => dayStrip.some(d => d.iso === e.date))
+    : [];
 
   // Near you events for the currently selected day
   $: selectedDayIso = dayStrip[selectedDay]?.iso;
@@ -154,7 +197,7 @@
     </div>
     <div class="header-actions">
       <NotificationBell />
-      {#if isGeolocationAvailable()}
+      {#if isGeolocationAvailable() && $locationPromptStatus !== 'declined'}
         <button
           type="button"
           class="events-near-me-btn"
@@ -291,30 +334,43 @@
       </div>
       <div class="upcoming-list">
         {#each upcomingEvents as event}
-          <a
-            href="/events/{event.event_id}"
-            class="upcoming-row"
-          >
-            <div class="upcoming-thumb" style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"></div>
-            <div class="upcoming-info">
-              <h3 class="upcoming-name">{event.title}</h3>
-              <div class="upcoming-meta">
-                <span><Calendar size={10} color="#8E8E93" /> {event.date_display ?? event.date}</span>
-                <span>•</span>
-                <span>{event.venue}</span>
+          {@const matched = followedArtistsAt(event)}
+          <div class="upcoming-group" class:has-followed={matched.length > 0}>
+            <a
+              href="/events/{event.event_id}"
+              class="upcoming-row"
+            >
+              <div class="upcoming-thumb" style="background-color: {event.image_color}; {event.image_url ? `background-image: url(${event.image_url}); background-size: cover; background-position: center;` : ''}"></div>
+              <div class="upcoming-info">
+                <h3 class="upcoming-name">{event.title}</h3>
+                <div class="upcoming-meta">
+                  <span><Calendar size={10} color="#8E8E93" /> {event.date_display ?? event.date}</span>
+                  <span>•</span>
+                  <span>{event.venue}</span>
+                </div>
               </div>
-            </div>
-            {#if event.sale_status}
-              <span class="status-chip {event.sale_status === 'Selling Fast' ? 'hot' : event.sale_status === 'Limited' ? 'limited' : ''}">{event.sale_status}</span>
-            {/if}
-          </a>
+              {#if event.sale_status}
+                <span class="status-chip {event.sale_status === 'Selling Fast' ? 'hot' : event.sale_status === 'Limited' ? 'limited' : ''}">{event.sale_status}</span>
+              {/if}
+            </a>
+            {#each matched as artist}
+              <a href="/artist/{artist.id}" class="followed-artist-row">
+                <div class="followed-artist-dot"><Music2 size={12} /></div>
+                <div class="followed-artist-info">
+                  <span class="followed-artist-name">{artist.name}</span>
+                  <span class="followed-artist-sub">You follow • playing this event</span>
+                </div>
+                <ChevronRight size={14} color="#AF52DE" />
+              </a>
+            {/each}
+          </div>
         {/each}
       </div>
     </section>
   {/if}
 
   <!-- Near You This Week -->
-  {#if weekEventsNearYou.length > 0}
+  {#if weekEventsNearYou.length > 0 && $locationPromptStatus !== 'declined'}
     <section class="section near-you">
       <div class="section-head">
         <h2 class="section-title">Near you this week</h2>
@@ -706,17 +762,74 @@
     overflow: hidden;
   }
 
+  .upcoming-group {
+    border-bottom: 1px solid #F2F2F7;
+  }
+
+  .upcoming-group:last-child { border-bottom: none; }
+
+  /* When an upcoming event has matched followed artists, surface that on the
+     group itself with a subtle left accent so the eye groups the event row +
+     its artist sub-rows as one unit. */
+  .upcoming-group.has-followed {
+    background: linear-gradient(to right, rgba(175, 82, 222, 0.04), transparent 60%);
+    box-shadow: inset 3px 0 0 0 #AF52DE;
+  }
+
   .upcoming-row {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    border-bottom: 1px solid #F2F2F7;
     text-decoration: none;
     color: inherit;
   }
 
-  .upcoming-row:last-child { border-bottom: none; }
+  /* Followed-artist sub-rows: tinted purple to read as a distinct, related
+     entry under the event row. Tap-through goes to /artist/[id]. */
+  .followed-artist-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px 10px 22px;
+    background: rgba(175, 82, 222, 0.06);
+    border-top: 1px dashed rgba(175, 82, 222, 0.25);
+    text-decoration: none;
+    color: #6B21A8;
+  }
+
+  .followed-artist-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #AF52DE;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .followed-artist-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .followed-artist-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6B21A8;
+  }
+
+  .followed-artist-sub {
+    font-size: 10px;
+    font-weight: 500;
+    color: #AF52DE;
+    opacity: 0.85;
+  }
 
   .upcoming-thumb {
     width: 48px;

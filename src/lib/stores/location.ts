@@ -10,6 +10,11 @@ const hasNavigatorGeolocation = () =>
   typeof navigator !== 'undefined' && !!navigator.geolocation;
 
 export type LocationMode = 'off' | 'once' | 'while_using';
+// First-run consent gate. 'pending' = never asked → show the LocationPromptModal.
+// 'accepted' = user opted in (via modal or via Profile settings). 'declined' =
+// user explicitly said no → hide all "near me" UI until they change their mind
+// in Profile → Settings.
+export type LocationPromptStatus = 'pending' | 'accepted' | 'declined';
 export type StoredLocation = {
   lat: number;
   lon: number;
@@ -19,6 +24,7 @@ export type StoredLocation = {
 
 const MODE_KEY = 'maxess.locationMode';
 const LOC_KEY = 'maxess.lastLocation';
+const PROMPT_KEY = 'maxess.locationPromptStatus';
 
 // while_using cache window: re-use a fix taken within the last 30 min.
 const FRESH_MS = 30 * 60 * 1000;
@@ -51,8 +57,26 @@ function readLocation(): StoredLocation | null {
   }
 }
 
+const VALID_PROMPT: LocationPromptStatus[] = ['pending', 'accepted', 'declined'];
+
+function readPromptStatus(): LocationPromptStatus {
+  if (!hasLocalStorage()) return 'pending';
+  try {
+    const v = localStorage.getItem(PROMPT_KEY);
+    if (VALID_PROMPT.includes(v as LocationPromptStatus)) return v as LocationPromptStatus;
+    // Returning user from before this gate existed: if they already chose a
+    // non-off mode, treat them as accepted so we don't re-prompt.
+    const mode = readMode();
+    if (mode !== 'off') return 'accepted';
+    return 'pending';
+  } catch {
+    return 'pending';
+  }
+}
+
 export const locationMode = writable<LocationMode>(readMode());
 export const lastLocation = writable<StoredLocation | null>(readLocation());
+export const locationPromptStatus = writable<LocationPromptStatus>(readPromptStatus());
 
 if (hasLocalStorage()) {
   locationMode.subscribe((m) => {
@@ -63,6 +87,9 @@ if (hasLocalStorage()) {
       if (l) localStorage.setItem(LOC_KEY, JSON.stringify(l));
       else localStorage.removeItem(LOC_KEY);
     } catch { /* quota */ }
+  });
+  locationPromptStatus.subscribe((s) => {
+    try { localStorage.setItem(PROMPT_KEY, s); } catch { /* quota */ }
   });
 }
 
@@ -140,4 +167,18 @@ export async function requestLocation(opts: RequestLocationOptions = {}): Promis
 export function isFreshEnough(loc: StoredLocation | null, maxAgeMs: number = FRESH_MS): boolean {
   if (!loc) return false;
   return Date.now() - loc.capturedAt < maxAgeMs;
+}
+
+// First-run prompt helpers. Called by the LocationPromptModal and by Profile
+// settings (so a returning user who opens Settings → On counts as accepted
+// even if they previously declined in the modal).
+export function acceptLocationPrompt(): void {
+  locationPromptStatus.set('accepted');
+}
+
+export function declineLocationPrompt(): void {
+  locationPromptStatus.set('declined');
+  // Make sure we're not silently holding a stale fix.
+  lastLocation.set(null);
+  locationMode.set('off');
 }

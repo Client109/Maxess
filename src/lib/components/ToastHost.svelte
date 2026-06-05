@@ -5,7 +5,7 @@
 
 <div class="toast-host" aria-live="polite" aria-atomic="true">
   {#each $toasts as t (t.id)}
-    <div class="toast" in:fly={{ y: 24, duration: 220 }} out:fade={{ duration: 180 }}>
+    <div class="toast" class:success={t.kind === 'success'} in:fly={{ y: 24, duration: 220 }} out:fade={{ duration: 180 }}>
       {t.message}
     </div>
   {/each}
@@ -38,5 +38,10 @@
     width: 100%;
     text-align: center;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .toast.success {
+    background: #047857;
+    box-shadow: 0 8px 24px rgba(4, 120, 87, 0.32);
   }
 </style>
