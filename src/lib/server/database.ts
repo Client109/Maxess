@@ -306,9 +306,13 @@ export async function updateChallengeProgress(fanId: string, challengeId: string
 
 // Helper function to calculate tier based on XP (matches domain/xp.ts thresholds)
 function calculateTier(xp: number): 'GENERAL' | 'LOYAL' | 'SUPERFAN' | 'ELITE' {
-  if (xp >= 5000) return 'ELITE';
-  if (xp >= 2500) return 'SUPERFAN';
-  if (xp >= 1000) return 'LOYAL';
+  // GENERAL covers both pre-Fan ("Newcomer", 0–9,999) and the Fan band
+  // (10,000–99,999). The Prisma enum stays 4-wide; the display layer in
+  // src/lib/server/transforms.ts splits GENERAL into Newcomer vs Fan using
+  // the same 10,000 threshold.
+  if (xp >= 1_000_000) return 'ELITE';
+  if (xp >= 250_000) return 'SUPERFAN';
+  if (xp >= 100_000) return 'LOYAL';
   return 'GENERAL';
 }
 
@@ -420,15 +424,18 @@ export async function markPassWalletAdded(passId: string) {
   });
 }
 
-// Attendance verification — XP / confidence per method
+// Attendance verification — XP / confidence per method. Aligned with the
+// xp_scoring_model.xp_per_concert_attendance constant (10,000) in
+// src/lib/domain/xp-rules.ts. Verified methods (wallet scan, webhook) award
+// the full concert reward; lower-confidence methods award a proportional share.
 export const VERIFICATION_XP: Record<
   'WALLET_SCAN' | 'SELF_CHECKIN' | 'MANUAL' | 'TICKETMASTER_WEBHOOK',
   { xp: number; confidence: number }
 > = {
-  WALLET_SCAN: { xp: 200, confidence: 90 },
-  SELF_CHECKIN: { xp: 50, confidence: 30 },
-  MANUAL: { xp: 100, confidence: 70 },
-  TICKETMASTER_WEBHOOK: { xp: 200, confidence: 95 },
+  WALLET_SCAN: { xp: 10_000, confidence: 90 },
+  SELF_CHECKIN: { xp: 2_500, confidence: 30 },
+  MANUAL: { xp: 5_000, confidence: 70 },
+  TICKETMASTER_WEBHOOK: { xp: 10_000, confidence: 95 },
 };
 
 // Record an attendance verification (idempotent on user+event+method).

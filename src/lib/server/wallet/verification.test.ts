@@ -2,14 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { VERIFICATION_XP } from '../database.js';
 
 describe('VERIFICATION_XP', () => {
-  it('WALLET_SCAN matches the spec xp_scoring_model.eventAttended (+200)', () => {
-    expect(VERIFICATION_XP.WALLET_SCAN.xp).toBe(200);
+  it('WALLET_SCAN awards the full concert attendance reward (10,000)', () => {
+    expect(VERIFICATION_XP.WALLET_SCAN.xp).toBe(10_000);
     expect(VERIFICATION_XP.WALLET_SCAN.confidence).toBe(90);
   });
 
-  it('SELF_CHECKIN matches spec xp_scoring_model.concertCheckIns (+50)', () => {
-    expect(VERIFICATION_XP.SELF_CHECKIN.xp).toBe(50);
+  it('SELF_CHECKIN awards a low-confidence share (2,500)', () => {
+    expect(VERIFICATION_XP.SELF_CHECKIN.xp).toBe(2_500);
     expect(VERIFICATION_XP.SELF_CHECKIN.confidence).toBe(30);
+  });
+
+  it('WALLET_SCAN and TICKETMASTER_WEBHOOK both award the full reward; MANUAL is half', () => {
+    expect(VERIFICATION_XP.TICKETMASTER_WEBHOOK.xp).toBe(10_000);
+    expect(VERIFICATION_XP.MANUAL.xp).toBe(5_000);
   });
 
   it('orders confidence: WALLET_SCAN < TICKETMASTER_WEBHOOK; MANUAL > SELF_CHECKIN', () => {

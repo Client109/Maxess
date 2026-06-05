@@ -4,22 +4,22 @@ import type { Fan, Event, LeaderboardEntry, Challenge, Pass, FriendActivity, Rec
 export const mockFanProfile: Fan = {
   fan_id: 'fan_001',
   name: 'Alex Chen',
-  xp_total: 8750,
-  superfan_score: 91,
-  current_tier: 'Elite',
+  xp_total: 750_000,
+  superfan_score: 75,
+  current_tier: 'Superfan',
   streak_days: 12,
-  rank: 18,
+  rank: 12,
   percentile: 3,
   top_artist: 'The Weeknd',
   top_team: 'Anaheim Ducks',
   top_venue: 'SoFi Stadium',
   events_attended: 9,
   xp_breakdown: {
-    'Event Attendance': 3600,
-    'Streaming': 2840,
-    'Watch Points': 960,
-    'Spend Points': 440,
-    'Challenges': 910
+    'Event Attendance': 480_000,   // 48 verified concerts × 10,000
+    'Streaming': 215_000,
+    'Watch Points': 30_000,
+    'Spend Points': 15_000,
+    'Challenges': 10_000
   },
   city: 'Los Angeles',
   member_since: '2023-08-15',
@@ -276,7 +276,7 @@ export const mockLeaderboard: LeaderboardEntry[] = [
   { rank: 1, name: 'Sarah Kim', score: 12450, delta: 23, is_me: false, is_friend: false, city: 'LA', time_period: 'This week' },
   { rank: 2, name: 'Mike Rodriguez', score: 11890, delta: -5, is_me: false, is_friend: true, city: 'LA', time_period: 'This week' },
   { rank: 3, name: 'Emma Davis', score: 11200, delta: 18, is_me: false, is_friend: false, city: 'LA', time_period: 'This week' },
-  { rank: 18, name: 'Alex Chen', score: 8750, delta: 12, is_me: true, is_friend: false, city: 'LA', time_period: 'This week' },
+  { rank: 12, name: 'Alex Chen', score: 750_000, delta: 12, is_me: true, is_friend: false, city: 'LA', time_period: 'This week' },
   { rank: 19, name: 'Jordan Lee', score: 8690, delta: 8, is_me: false, is_friend: true, city: 'LA', time_period: 'This week' },
 
   // LA — This month

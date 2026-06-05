@@ -1,10 +1,15 @@
 import type { Tier } from './types.js';
 
+// Tier thresholds — canonical for the app. 0–9,999 is the unranked "Newcomer"
+// band (Prisma enum value stays GENERAL; display label is translated to
+// "Newcomer" in src/lib/server/transforms.ts). See specs/app.yml
+// → tier_thresholds for the canonical contract.
 export const TIERS: Tier[] = [
-  { name: 'General', xp_threshold: 0, perks: ['Early event updates', 'Basic support'], color_hex: '#8E8E93' },
-  { name: 'Loyal', xp_threshold: 1000, perks: ['Priority notifications', 'Early access'], color_hex: '#C0C0C0' },
-  { name: 'Superfan', xp_threshold: 2500, perks: ['Presale access', 'Exclusive content'], color_hex: '#FF5C00' },
-  { name: 'Elite', xp_threshold: 5000, perks: ['VIP access', 'Lounge + more'], color_hex: '#FFD700' }
+  { name: 'Newcomer', xp_threshold: 0, perks: ['Welcome to Maxess'], color_hex: '#8E8E93' },
+  { name: 'Fan', xp_threshold: 10_000, perks: ['Early event updates', 'Basic support'], color_hex: '#1A9E56' },
+  { name: 'Loyal', xp_threshold: 100_000, perks: ['Priority notifications', 'Early access'], color_hex: '#2667FF' },
+  { name: 'Superfan', xp_threshold: 250_000, perks: ['Presale access', 'Exclusive content'], color_hex: '#3B28CC' },
+  { name: 'Elite', xp_threshold: 1_000_000, perks: ['VIP access', 'Lounge + more'], color_hex: '#FF5C00' }
 ];
 
 // ── Levels System (gradual ramp up to 1,000,000 points) ───────────────────

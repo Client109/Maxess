@@ -2,6 +2,7 @@
 import { getUserByFanId, getXpBreakdown } from '$lib/server/database.js';
 import { transformUserToFan } from '$lib/server/transforms.js';
 import { TicketmasterClient } from '$lib/api/ticketmaster.js';
+import { getArtistImage } from '$lib/server/music.js';
 import { serverConfig } from '$lib/config/env.js';
 
 type ProfileTeam = {
@@ -195,12 +196,23 @@ export async function load() {
     },
   ];
 
-  const topConnection = artists[0];
+  // Pull real portrait images from Spotify (falls back to Last.fm, then null).
+  // Done in parallel so the four lookups don't serialize the page load.
+  // Each lookup is independently wrapped so one failure doesn't blank the row.
+  const artistImages = await Promise.all(
+    artists.map(a => getArtistImage(a.name).catch(() => null)),
+  );
+  const artistsWithImages = artists.map((a, i) => ({
+    ...a,
+    image: artistImages[i] ?? a.image,
+  }));
+
+  const topConnection = artistsWithImages[0];
   const topTeamConnection = teams[0] ?? null;
 
   return {
     fan,
-    artists,
+    artists: artistsWithImages,
     teams,
     topConnection,
     topTeamConnection,

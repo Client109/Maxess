@@ -34,6 +34,54 @@ export function enrichEventsWithMusicData(
   });
 }
 
+// Resolve a portrait image URL for an artist. Spotify-first (artist endpoint
+// returns square portrait images at multiple resolutions), Last.fm-fallback.
+// Returns null when no API key is configured or the artist isn't found.
+export async function getArtistImage(artistName: string): Promise<string | null> {
+  const spotify = getSpotifyClient();
+  if (spotify) {
+    try {
+      const result = await spotify.searchArtists(artistName, 1);
+      const item = (result as any)?.data?.artists?.items?.[0];
+      const images: Array<{ url: string; width: number; height: number }> = item?.images ?? [];
+      if (images.length > 0) {
+        // Prefer ~300px for the connection avatar; fall back to first available.
+        const mid = images.find(im => im.width >= 200 && im.width <= 640);
+        return (mid ?? images[0]).url;
+      }
+    } catch { /* fall through */ }
+  }
+
+  const lastfm = getLastFmClient();
+  if (lastfm) {
+    try {
+      const result = await lastfm.getArtistInfo(artistName);
+      const images: Array<{ '#text': string; size: string }> = (result as any)?.data?.artist?.image ?? [];
+      const extraLarge = images.find(im => im.size === 'extralarge')?.['#text'];
+      const large = images.find(im => im.size === 'large')?.['#text'];
+      const url = extraLarge || large || images.find(im => im['#text'])?.['#text'];
+      if (url && url.length > 0) return url;
+    } catch { /* fall through */ }
+  }
+
+  // No-auth fallback: Deezer's public search returns artist portraits without
+  // a key. Resilient enough for the demo when Spotify/Last.fm aren't configured.
+  try {
+    const res = await fetch(
+      `https://api.deezer.com/search/artist?q=${encodeURIComponent(artistName)}&limit=1`,
+      { headers: { 'User-Agent': 'Maxxes/1.0.0' } },
+    );
+    if (res.ok) {
+      const json = await res.json() as { data?: Array<{ picture_xl?: string; picture_big?: string; picture_medium?: string; picture?: string }> };
+      const first = json.data?.[0];
+      const url = first?.picture_xl || first?.picture_big || first?.picture_medium || first?.picture;
+      if (url && url.length > 0) return url;
+    }
+  } catch { /* network/parse failure — give up gracefully */ }
+
+  return null;
+}
+
 // Get artist data with Spotify-first, Last.fm-fallback
 export async function getArtistData(artistName: string) {
   const spotify = getSpotifyClient();

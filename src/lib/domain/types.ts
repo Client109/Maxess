@@ -7,7 +7,7 @@ export const FanSchema = z.object({
   name: z.string(),
   xp_total: z.number(),
   superfan_score: z.number().optional(),  // 0–100 normalized engagement score
-  current_tier: z.enum(['General', 'Loyal', 'Superfan', 'Elite']),
+  current_tier: z.enum(['Newcomer', 'Fan', 'Loyal', 'Superfan', 'Elite']),
   streak_days: z.number(),
   rank: z.number(),
   percentile: z.number(),
@@ -528,7 +528,7 @@ export const FriendActivitySchema = z.object({
 export type FriendActivity = z.infer<typeof FriendActivitySchema>;
 
 export const TierSchema = z.object({
-  name: z.enum(['General', 'Loyal', 'Superfan', 'Elite']),
+  name: z.enum(['Newcomer', 'Fan', 'Loyal', 'Superfan', 'Elite']),
   xp_threshold: z.number(),
   perks: z.array(z.string()),
   color_hex: z.string()

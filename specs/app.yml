@@ -1,6 +1,6 @@
 app_spec:
   name: "Maxxes MVP - Fan Ranking & Community Platform"
-  version: "0.7.0-MVP"
+  version: "0.8.0-MVP"
   status: "Light theme, 4-tier system (General/Loyal/Superfan/Elite), Prisma 7.8 + @prisma/adapter-pg on PostgreSQL, 5-tab bottom nav, server-side data loading, deployed to Vercel, Apple Wallet attendance verification (unsigned-mode demo)"
 
   product_direction:
@@ -16,7 +16,7 @@ app_spec:
       - "Which events should I attend for maximum fan engagement?"
 
   mvp_boundary:
-    version_target: "0.7.0 — currently shipping"
+    version_target: "0.8.0 — currently shipping"
     must_build:
       - "Home screen with Momentum Score card, sparkline, upcoming events, ranking summary, community activity, and trending section"
       - "Events screen with filtering, search, and booking capabilities"
@@ -499,10 +499,10 @@ app_spec:
     name: "Alex Chen"
     avatar_initials: "AC"
     city: "Los Angeles"
-    xp_total: 8750
-    current_tier: "Elite"
+    xp_total: 750000
+    current_tier: "Superfan"
     streak_days: 12
-    rank: 18
+    rank: 12
     percentile: 3
     percentile_display: "Top 3%"
     top_artist: "The Weeknd"
@@ -510,11 +510,11 @@ app_spec:
     events_attended: 9
     lastfm_username: "alexchen_music"
     xp_breakdown:
-      Event Attendance: 3600
-      Streaming: 2840
-      Watch XP: 960
-      Spend XP: 440
-      Challenges: 910
+      Event Attendance: 480000
+      Streaming: 215000
+      Watch XP: 30000
+      Spend XP: 15000
+      Challenges: 10000
     note: "xp_breakdown keys match XpTransaction.source values written by prisma/seed.ts. UI maps them in transformUserToFan / getXpBreakdown."
 
   wallet_attendance:
@@ -537,34 +537,47 @@ app_spec:
             POST: "JSON API for venue scanner integrations. Returns { status: 'ok'|'duplicate'|'not_found', xp_awarded, attendance_id }"
           idempotency: "AttendanceVerification has @@unique([user_id, event_id, method]) — re-scans of the same pass return status='duplicate' and no additional XP is awarded"
     verification_xp:
-      WALLET_SCAN: { xp: 200, confidence: 90, source: "Event Attendance" }
-      SELF_CHECKIN: { xp: 50, confidence: 30, source: "Event Attendance" }
-      MANUAL: { xp: 100, confidence: 70, source: "Event Attendance" }
-      TICKETMASTER_WEBHOOK: { xp: 200, confidence: 95, source: "Event Attendance" }
-      notes: "XP amounts align with xp_scoring_model.eventAttended (200) and concertCheckIns (50)."
+      WALLET_SCAN: { xp: 10000, confidence: 90, source: "Event Attendance" }
+      SELF_CHECKIN: { xp: 2500, confidence: 30, source: "Event Attendance" }
+      MANUAL: { xp: 5000, confidence: 70, source: "Event Attendance" }
+      TICKETMASTER_WEBHOOK: { xp: 10000, confidence: 95, source: "Event Attendance" }
+      notes: "WALLET_SCAN / TICKETMASTER_WEBHOOK award the full concert reward (xp_per_concert_attendance = 10000); MANUAL is half, SELF_CHECKIN is one quarter. Single source of truth is VERIFICATION_XP in src/lib/server/database.ts."
     signing_modes:
       unsigned_default: "When any of APPLE_PASS_TYPE_ID / APPLE_TEAM_ID / APPLE_PASS_CERT_P12_BASE64 / APPLE_PASS_CERT_PASSWORD is missing, the generator emits a valid .pkpass zip with pass.json + manifest.json but no signature.bin. iOS will refuse to add it but the download flow, scan endpoint, attendance ledger, and XP wiring are fully exercised."
       signed: "When all four env vars are set, generator inserts a PKCS#7 detached signature of manifest.json under Apple's WWDR cert chain. Implementation slot present; full PKCS#7 path is a follow-up (current ship: unsigned-only)."
 
   xp_scoring_model:
-    description: "Signal-based XP calculation from listener activity data"
+    description: "Signal-based XP calculation. Music-listening and concert-attendance rates are the canonical earn rules for the points economy. Constants live in src/lib/domain/xp-rules.ts; helpers there are unit-tested in xp-rules.test.ts."
+    constants:
+      xp_per_track_listen: 1
+      xp_per_listening_hour: 10
+      daily_listening_xp_cap: 100
+      xp_per_concert_attendance: 10000
+      min_listen_seconds: 30
     signals:
-      - { field: "minutesListened", rule: "+3 XP per hour", calculation: "(minutesListened / 60) × 3", example: "173 min → 8.6 XP" }
-      - { field: "eventAttended", rule: "+200 XP per verified attendance", calculation: "if true → +200 XP", example: "true → +200 XP" }
-      - { field: "concertCheckIns", rule: "In-venue engagement signal", calculation: "concertCheckIns × 50", example: "1 check-in → +50 XP" }
-      - { field: "playlistSaves", rule: "Music engagement depth", calculation: "playlistSaves × 5", example: "12 saves → +60 XP" }
-      - { field: "setlistSongsPlayed", rule: "Setlist engagement", calculation: "setlistSongsPlayed × 3", example: "9 songs → +27 XP" }
+      - { field: "trackListens", rule: "+1 XP per track played ≥30s (Last.fm/Spotify scrobble threshold)", calculation: "trackListens × 1, contributes to daily cap", example: "42 tracks → 42 XP (subject to daily cap)" }
+      - { field: "minutesListened", rule: "+10 XP per full hour of audio", calculation: "floor((minutesListened / 60) × 10), contributes to daily cap", example: "180 min → 30 XP" }
+      - { field: "dailyListeningCap", rule: "Hard daily cap on all listening signals combined", calculation: "min(track + hour XP, 100) per UTC day", example: "Caps out at ~10 hr listening OR 100 tracks/day" }
+      - { field: "concertAttended", rule: "+10,000 XP per verified concert (idempotent via AttendanceVerification @@unique)", calculation: "verified × 10,000", example: "1 verified concert → +10,000 XP" }
+      - { field: "playlistSaves", rule: "Music engagement depth (legacy)", calculation: "playlistSaves × 5", example: "12 saves → +60 XP" }
+      - { field: "setlistSongsPlayed", rule: "Setlist engagement (legacy)", calculation: "setlistSongsPlayed × 3", example: "9 songs → +27 XP" }
       - { field: "streakDays", rule: "Streak multiplier 1.0x–2.0x", calculation: "0–7 days: 1.0x | 8–14: 1.3x | 15–28: 1.5x | 28+: 2.0x", example: "12 days → 1.3x" }
       - { field: "engagementScore", rule: "Composite signal for leaderboard sort", calculation: "Use directly as score proxy 0–100", example: "91 → rank signal" }
-      - { field: "xpEarnedToday", rule: "Today's XP adds to cumulative total", calculation: "xp_total + xpEarnedToday", example: "420 today → adds to 8,750 total" }
+    anti_grind:
+      - "Daily cap on listening (100 XP/day) bounds the headphones-on-loop attack — meaningful earn requires sustained engagement across many days."
+      - "Per-track minimum playback (30s) prevents skip-spam farming."
+      - "Concert XP requires a verification row (WALLET_SCAN / TICKETMASTER_WEBHOOK preferred); see wallet_attendance.verification_xp."
+      - "Concert attendance is idempotent per (user, event, method) tuple — re-scanning the same pass awards 0 XP."
+      - "Estimated earn rates: active fan (10 concerts/yr + 2 hr/day listening) ≈ 107K XP/yr → Fan in 1–2 months, Loyal in ~1 yr, Superfan in ~2–3 yr, Elite well over a decade. Casual fan (3 concerts/yr + 1 hr/day) ≈ 33K XP/yr → Fan in ~4 months."
 
   tier_thresholds:
-    description: "Single source of truth — matches Prisma enum and calculateTier() in database.ts"
+    description: "Single source of truth — Prisma enum (4-wide) + calculateTier() in database.ts + classifyTier()/TIERS in src/lib/domain/xp.ts + tierDisplayName() in src/lib/server/transforms.ts. The display layer splits the GENERAL enum value into 'Newcomer' (0–9,999) vs 'Fan' (10,000–99,999) so users see five named bands while the DB keeps four."
     tiers:
-      - { name: "General", min_xp: 0, color: "#8E8E93" }
-      - { name: "Loyal", min_xp: 1000, color: "#2667FF" }
-      - { name: "Superfan", min_xp: 2500, color: "#FFD700" }
-      - { name: "Elite", min_xp: 5000, color: "#FF5C00" }
+      - { name: "Newcomer", min_xp: 0, max_xp: 9999, color: "#8E8E93", prisma_enum: "GENERAL", display_only: true }
+      - { name: "Fan", min_xp: 10000, max_xp: 99999, color: "#1A9E56", prisma_enum: "GENERAL", display_only: true }
+      - { name: "Loyal", min_xp: 100000, max_xp: 249999, color: "#2667FF", prisma_enum: "LOYAL" }
+      - { name: "Superfan", min_xp: 250000, max_xp: 999999, color: "#3B28CC", prisma_enum: "SUPERFAN" }
+      - { name: "Elite", min_xp: 1000000, max_xp: null, color: "#FF5C00", prisma_enum: "ELITE" }
 
   referral_program:
     description: "Invite-a-friend flow. The current user sends an email-tagged referral link; when the recipient lands on the link and completes the invite-accept step, the referrer receives an XP award via addXpTransaction(source='Referral')."
@@ -614,7 +627,7 @@ app_spec:
         name: "string"
         city: "string"
         xp_total: "number"
-        current_tier: "General | Loyal | Superfan | Elite"
+        current_tier: "Newcomer | Fan | Loyal | Superfan | Elite (display); GENERAL | LOYAL | SUPERFAN | ELITE (DB)"
         streak_days: "number"
         rank: "number"
         percentile: "string"

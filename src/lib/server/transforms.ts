@@ -2,15 +2,15 @@
 import { classifyTier } from '$lib/domain/xp.js';
 import type { Fan, LeaderboardEntry, Challenge, ChallengeTask, Pass, FriendActivity, RecentActivity } from '$lib/domain/types.js';
 
-// Map Prisma tier enum to UI tier name
-function tierDisplayName(prismaTier: string): 'General' | 'Loyal' | 'Superfan' | 'Elite' {
-  const map: Record<string, 'General' | 'Loyal' | 'Superfan' | 'Elite'> = {
-    'GENERAL': 'General',
-    'LOYAL': 'Loyal',
-    'SUPERFAN': 'Superfan',
-    'ELITE': 'Elite',
-  };
-  return map[prismaTier] || 'General';
+// Map Prisma tier enum + xp to UI tier name. The Prisma enum stays 4-wide
+// (GENERAL | LOYAL | SUPERFAN | ELITE), but the display layer splits GENERAL
+// into "Newcomer" (0–9,999) vs "Fan" (10,000–99,999) at the 10K Fan-floor.
+const FAN_THRESHOLD = 10_000;
+function tierDisplayName(prismaTier: string, xpTotal: number): 'Newcomer' | 'Fan' | 'Loyal' | 'Superfan' | 'Elite' {
+  if (prismaTier === 'ELITE') return 'Elite';
+  if (prismaTier === 'SUPERFAN') return 'Superfan';
+  if (prismaTier === 'LOYAL') return 'Loyal';
+  return xpTotal >= FAN_THRESHOLD ? 'Fan' : 'Newcomer';
 }
 
 export function transformUserToFan(user: any): Fan {
@@ -18,8 +18,8 @@ export function transformUserToFan(user: any): Fan {
     fan_id: user.fan_id,
     name: user.name,
     xp_total: user.xp_total,
-    superfan_score: Math.min(100, Math.round((user.xp_total / 12000) * 100)),
-    current_tier: tierDisplayName(user.current_tier),
+    superfan_score: Math.min(100, Math.round((user.xp_total / 1_000_000) * 100)),
+    current_tier: tierDisplayName(user.current_tier, user.xp_total),
     streak_days: user.streak_days,
     rank: user.rank ?? 0,
     percentile: user.percentile ?? 0,

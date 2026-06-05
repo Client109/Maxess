@@ -1,5 +1,5 @@
 <script>
-  import { ChevronRight, ChevronUp, UserPlus, Search, Plus, Check } from 'lucide-svelte';
+  import { ChevronRight, ChevronUp, Search, Plus, Check } from 'lucide-svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import { showPointsGraph, activeCategory } from '$lib/stores/settings.js';
   import { followedSet, toggleFollowArtist } from '$lib/stores/followedArtists.js';
@@ -57,10 +57,10 @@
   $: rowHref = (id) => isMusic ? `/artist/${id}` : `/score`;
 
   const tiers = [
-    { name: 'Fan', range: '0 – 999', color: '#1A9E56', icon: '✓' },
-    { name: 'Loyal', range: '1,000 – 2,999', color: '#1A9E56', icon: '✓' },
-    { name: 'Superfan', range: '3,000 – 4,999', color: '#3B28CC', icon: '★' },
-    { name: 'Elite', range: '5,000+', color: '#FF5C00', icon: '◆' },
+    { name: 'Fan', range: '10K – 99K', color: '#1A9E56', icon: '✓' },
+    { name: 'Loyal', range: '100K – 249K', color: '#2667FF', icon: '✓' },
+    { name: 'Superfan', range: '250K – 999K', color: '#3B28CC', icon: '★' },
+    { name: 'Elite', range: '1M+', color: '#FF5C00', icon: '◆' },
   ];
 </script>
 
@@ -331,13 +331,6 @@
       </div>
     </section>
 
-    <!-- Follow a New Artist / Team -->
-    <div class="follow-cta">
-      <button class="follow-btn" style:background={categoryColor}>
-        <UserPlus size={18} />
-        Follow a new {isMusic ? 'artist' : 'team'}
-      </button>
-    </div>
   {:else}
     <div class="empty">
       <p>Unable to load profile. Please try again later.</p>
@@ -948,26 +941,6 @@
     padding: 12px;
     text-align: center;
     flex: 1;
-  }
-
-  /* Follow CTA */
-  .follow-cta { padding: 0 16px; }
-
-  .follow-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding: 14px;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 99px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background 0.2s;
   }
 
   .empty {

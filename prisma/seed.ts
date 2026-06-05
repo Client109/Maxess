@@ -24,9 +24,10 @@ function seedHash(s: string): number {
 }
 
 function tierFromXp(xp: number): 'GENERAL' | 'LOYAL' | 'SUPERFAN' | 'ELITE' {
-  if (xp >= 5000) return 'ELITE';
-  if (xp >= 2500) return 'SUPERFAN';
-  if (xp >= 1000) return 'LOYAL';
+  // Mirrors calculateTier() in src/lib/server/database.ts. Keep these in sync.
+  if (xp >= 1_000_000) return 'ELITE';
+  if (xp >= 250_000) return 'SUPERFAN';
+  if (xp >= 100_000) return 'LOYAL';
   return 'GENERAL';
 }
 
@@ -57,8 +58,8 @@ async function main() {
       name: 'Alex Chen',
       avatar_initials: 'AC',
       city: 'Los Angeles',
-      xp_total: 8750,
-      current_tier: 'ELITE',
+      xp_total: 750_000,
+      current_tier: 'SUPERFAN',
       streak_days: 12,
       rank: 18,
       percentile: 3,
@@ -70,94 +71,97 @@ async function main() {
   });
 
   // ── LA Users (29) ───────────────────────────────────────────────────────
+  // Re-authored to span all five display tiers under the 10K/100K/250K/1M
+  // scale: ~2 Elite, several Superfan, a band of Loyal, a band of Fan, and a
+  // tail of Newcomer (sub-Fan) so demo screens can show every state.
   const laUsers: { name: string; xp: number }[] = [
-    { name: 'Sarah Kim', xp: 12450 },
-    { name: 'Mike Rodriguez', xp: 11890 },
-    { name: 'Emma Davis', xp: 11200 },
-    { name: 'Jordan Lee', xp: 8690 },
-    { name: 'Aaliyah Thompson', xp: 8200 },
-    { name: 'Kai Morales', xp: 7800 },
-    { name: 'Sofia Ramirez', xp: 7200 },
-    { name: 'Marcus Davis', xp: 6800 },
-    { name: 'Zoe Park', xp: 6400 },
-    { name: 'Liam Foster', xp: 5900 },
-    { name: 'Maya Chen', xp: 5500 },
-    { name: 'Noah Williams', xp: 4900 },
-    { name: 'Olivia Nguyen', xp: 4500 },
-    { name: 'Ethan Brooks', xp: 4100 },
-    { name: 'Isabella Torres', xp: 3700 },
-    { name: 'Aiden Rivera', xp: 3300 },
-    { name: 'Mia Jackson', xp: 2900 },
-    { name: 'Lucas Hernandez', xp: 2600 },
-    { name: 'Ava Mitchell', xp: 2200 },
-    { name: 'Jayden Cooper', xp: 1900 },
-    { name: 'Chloe Anderson', xp: 1600 },
-    { name: 'Ryan Evans', xp: 1300 },
-    { name: 'Lily Morgan', xp: 1100 },
-    { name: 'Tyler Reed', xp: 900 },
-    { name: 'Grace Kim', xp: 700 },
-    { name: 'David Patel', xp: 500 },
-    { name: 'Hannah Scott', xp: 350 },
-    { name: 'Brandon White', xp: 200 },
-    { name: 'Emily Flores', xp: 100 },
+    { name: 'Sarah Kim', xp: 1_180_000 },       // Elite
+    { name: 'Mike Rodriguez', xp: 1_080_000 },  // Elite
+    { name: 'Emma Davis', xp: 970_000 },        // Superfan
+    { name: 'Jordan Lee', xp: 880_000 },
+    { name: 'Aaliyah Thompson', xp: 800_000 },
+    { name: 'Kai Morales', xp: 720_000 },
+    { name: 'Sofia Ramirez', xp: 650_000 },
+    { name: 'Marcus Davis', xp: 580_000 },
+    { name: 'Zoe Park', xp: 510_000 },
+    { name: 'Liam Foster', xp: 440_000 },
+    { name: 'Maya Chen', xp: 380_000 },
+    { name: 'Noah Williams', xp: 320_000 },
+    { name: 'Olivia Nguyen', xp: 270_000 },     // Superfan floor
+    { name: 'Ethan Brooks', xp: 230_000 },      // Loyal
+    { name: 'Isabella Torres', xp: 190_000 },
+    { name: 'Aiden Rivera', xp: 160_000 },
+    { name: 'Mia Jackson', xp: 130_000 },
+    { name: 'Lucas Hernandez', xp: 105_000 },   // Loyal floor
+    { name: 'Ava Mitchell', xp: 88_000 },       // Fan
+    { name: 'Jayden Cooper', xp: 65_000 },
+    { name: 'Chloe Anderson', xp: 48_000 },
+    { name: 'Ryan Evans', xp: 35_000 },
+    { name: 'Lily Morgan', xp: 25_000 },
+    { name: 'Tyler Reed', xp: 18_000 },
+    { name: 'Grace Kim', xp: 12_000 },          // Fan floor
+    { name: 'David Patel', xp: 8_500 },         // Newcomer
+    { name: 'Hannah Scott', xp: 5_200 },
+    { name: 'Brandon White', xp: 2_800 },
+    { name: 'Emily Flores', xp: 1_100 },
   ];
 
   // ── SF Users (25) ──────────────────────────────────────────────────────
   const sfUsers: { name: string; xp: number }[] = [
-    { name: 'Ryan Nakamura', xp: 11200 },
-    { name: 'Priya Sharma', xp: 10600 },
-    { name: 'Derek Chang', xp: 9800 },
-    { name: 'Nina Volkov', xp: 9200 },
-    { name: 'Tommy Tran', xp: 8500 },
-    { name: 'Jasmine Wu', xp: 7900 },
-    { name: 'Connor Bailey', xp: 7300 },
-    { name: 'Aisha Okafor', xp: 6700 },
-    { name: 'Leo Tanaka', xp: 6100 },
-    { name: 'Rachel Meyer', xp: 5600 },
-    { name: 'Kevin Huang', xp: 5100 },
-    { name: 'Simone Baptiste', xp: 4600 },
-    { name: 'Danny Ortiz', xp: 4100 },
-    { name: 'Megan Fitzgerald', xp: 3600 },
-    { name: 'Andre Williams', xp: 3100 },
-    { name: 'Yuki Sato', xp: 2700 },
-    { name: 'Tessa Grant', xp: 2300 },
-    { name: 'Omar Hassan', xp: 1900 },
-    { name: 'Jade Liu', xp: 1500 },
-    { name: 'Carlos Medina', xp: 1200 },
-    { name: 'Natalie Ross', xp: 900 },
-    { name: 'Finn Callahan', xp: 650 },
-    { name: 'Vera Kim', xp: 400 },
-    { name: 'Isaac Brown', xp: 250 },
-    { name: 'Amara Jackson', xp: 120 },
+    { name: 'Ryan Nakamura', xp: 1_030_000 },   // Elite
+    { name: 'Priya Sharma', xp: 880_000 },      // Superfan
+    { name: 'Derek Chang', xp: 760_000 },
+    { name: 'Nina Volkov', xp: 660_000 },
+    { name: 'Tommy Tran', xp: 570_000 },
+    { name: 'Jasmine Wu', xp: 490_000 },
+    { name: 'Connor Bailey', xp: 420_000 },
+    { name: 'Aisha Okafor', xp: 360_000 },
+    { name: 'Leo Tanaka', xp: 310_000 },        // Superfan floor
+    { name: 'Rachel Meyer', xp: 265_000 },
+    { name: 'Kevin Huang', xp: 220_000 },       // Loyal
+    { name: 'Simone Baptiste', xp: 175_000 },
+    { name: 'Danny Ortiz', xp: 140_000 },
+    { name: 'Megan Fitzgerald', xp: 115_000 },  // Loyal floor
+    { name: 'Andre Williams', xp: 95_000 },     // Fan
+    { name: 'Yuki Sato', xp: 75_000 },
+    { name: 'Tessa Grant', xp: 55_000 },
+    { name: 'Omar Hassan', xp: 40_000 },
+    { name: 'Jade Liu', xp: 28_000 },
+    { name: 'Carlos Medina', xp: 19_000 },
+    { name: 'Natalie Ross', xp: 13_000 },       // Fan floor
+    { name: 'Finn Callahan', xp: 7_500 },       // Newcomer
+    { name: 'Vera Kim', xp: 4_200 },
+    { name: 'Isaac Brown', xp: 1_800 },
+    { name: 'Amara Jackson', xp: 500 },
   ];
 
   // ── NYC Users (25) ─────────────────────────────────────────────────────
   const nycUsers: { name: string; xp: number }[] = [
-    { name: 'Darius Washington', xp: 13100 },
-    { name: 'Lucia Fernandez', xp: 12200 },
-    { name: 'Brian O\'Malley', xp: 11400 },
-    { name: 'Zara Ahmed', xp: 10700 },
-    { name: 'Marcus Thompson', xp: 10000 },
-    { name: 'Hannah Goldstein', xp: 9200 },
-    { name: 'Jake Martinez', xp: 9500 },
-    { name: 'Tyler Jefferson', xp: 8400 },
-    { name: 'Chiara Romano', xp: 7800 },
-    { name: 'Devon Clarke', xp: 7200 },
-    { name: 'Sonia Patel', xp: 6600 },
-    { name: 'James Kowalski', xp: 6000 },
-    { name: 'Destiny Robinson', xp: 5400 },
-    { name: 'Antoine Dubois', xp: 4800 },
-    { name: 'Michelle Santos', xp: 4300 },
-    { name: 'Keith Washington', xp: 3800 },
-    { name: 'Gabriella Cruz', xp: 3300 },
-    { name: 'Trevor Simmons', xp: 2800 },
-    { name: 'Nina Petrova', xp: 2400 },
-    { name: 'Isaiah Moore', xp: 2000 },
-    { name: 'Lauren McCarthy', xp: 1600 },
-    { name: 'Vincent Tao', xp: 1300 },
-    { name: 'Daniela Ruiz', xp: 850 },
-    { name: 'Nathan Foster', xp: 500 },
-    { name: 'Alana Mitchell', xp: 200 },
+    { name: 'Darius Washington', xp: 1_210_000 },  // Elite (top global)
+    { name: 'Lucia Fernandez', xp: 950_000 },      // Superfan
+    { name: 'Brian O\'Malley', xp: 820_000 },
+    { name: 'Zara Ahmed', xp: 700_000 },
+    { name: 'Marcus Thompson', xp: 600_000 },
+    { name: 'Hannah Goldstein', xp: 520_000 },
+    { name: 'Jake Martinez', xp: 450_000 },
+    { name: 'Tyler Jefferson', xp: 390_000 },
+    { name: 'Chiara Romano', xp: 330_000 },
+    { name: 'Devon Clarke', xp: 280_000 },         // Superfan floor
+    { name: 'Sonia Patel', xp: 235_000 },          // Loyal
+    { name: 'James Kowalski', xp: 195_000 },
+    { name: 'Destiny Robinson', xp: 155_000 },
+    { name: 'Antoine Dubois', xp: 125_000 },
+    { name: 'Michelle Santos', xp: 100_000 },      // Loyal floor (exact)
+    { name: 'Keith Washington', xp: 80_000 },      // Fan
+    { name: 'Gabriella Cruz', xp: 60_000 },
+    { name: 'Trevor Simmons', xp: 45_000 },
+    { name: 'Nina Petrova', xp: 32_000 },
+    { name: 'Isaiah Moore', xp: 22_000 },
+    { name: 'Lauren McCarthy', xp: 14_000 },
+    { name: 'Vincent Tao', xp: 10_500 },           // Fan floor (just above)
+    { name: 'Daniela Ruiz', xp: 6_500 },           // Newcomer
+    { name: 'Nathan Foster', xp: 3_200 },
+    { name: 'Alana Mitchell', xp: 800 },
   ];
 
   // Create all users with auto-generated fan_ids

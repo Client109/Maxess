@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-06-04
+
+### Changed
+- **Tier thresholds rescaled** to a "lifetime fan" curve: Fan 10,000 / Loyal 100,000 / Superfan 250,000 / Elite 1,000,000 XP (previously 0 / 1,000 / 2,500 / 5,000).
+- **Display tiers** now expose a 5th band: "Newcomer" covers 0–9,999 XP. Prisma `Tier` enum stays 4-wide (`GENERAL | LOYAL | SUPERFAN | ELITE`); the display layer in `src/lib/server/transforms.ts:tierDisplayName(prismaTier, xpTotal)` splits `GENERAL` into "Newcomer" vs "Fan" at 10,000 XP.
+- `superfan_score` normalization in `transforms.ts:transformUserToFan` now scales `xp_total / 1_000_000` (was `/ 12000`) so the 0–100 score tracks the new Elite ceiling.
+- `VERIFICATION_XP` in `src/lib/server/database.ts` realigned with the 10,000 concert reward: WALLET_SCAN / TICKETMASTER_WEBHOOK = 10,000, MANUAL = 5,000, SELF_CHECKIN = 2,500. Tests in `src/lib/server/wallet/verification.test.ts` updated.
+- `prisma/seed.ts`: Alex Chen and all 79 city users re-authored to land across all five display tiers (≥4 Elite, broad Superfan/Loyal/Fan bands, sub-Fan Newcomer tail). Alex now sits at 750,000 XP (Superfan, rank 12 globally).
+- Mock data (`src/lib/data/mockData.ts`) and `specs/app.yml:demo_user` updated to match Alex's new totals.
+- Profile page tier reference list (`src/routes/profile/+page.svelte`) shows the new XP ranges (10K–99K / 100K–249K / 250K–999K / 1M+).
+
+### Added
+- `src/lib/domain/xp-rules.ts` — canonical constants for the points economy: `XP_PER_TRACK_LISTEN = 1`, `XP_PER_LISTENING_HOUR = 10`, `DAILY_LISTENING_XP_CAP = 100`, `XP_PER_CONCERT_ATTENDANCE = 10_000`, `MIN_LISTEN_SECONDS = 30`. Exports `computeDailyListeningXp({ signal, alreadyToday? })` (clamps to the daily cap, returns the awardable delta) and `concertAttendanceXp()`.
+- `src/lib/domain/xp-rules.test.ts` — 9 vitest cases covering constants, daily cap clamping, partial-day deltas, fractional-hour flooring, and negative-input handling.
+- `specs/app.yml:xp_scoring_model` rewritten around the new constants plus an `anti_grind` section documenting the daily cap, 30-second listen threshold, idempotent concert verification, and worked earn-rate estimates (active fan ≈ 107K XP/yr, casual fan ≈ 33K XP/yr).
+- `specs/app.yml:tier_thresholds` expanded to a 5-row table with `prisma_enum`, `display_only`, and explicit `min_xp` / `max_xp` columns so the GENERAL → Newcomer/Fan split is unambiguous.
+
 ## [0.7.0] - 2026-06-04
 
 ### Added
