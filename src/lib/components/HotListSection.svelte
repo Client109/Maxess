@@ -10,6 +10,7 @@
     connectAppleMusic
   } from '$lib/stores/appleMusic.js';
 
+  /** @type {Record<string, string>} */
   const genreColors = {
     'R&B': '#9B59B6',
     'Hip-Hop': '#E74C3C',
@@ -17,15 +18,18 @@
     'Pop': '#3498DB'
   };
 
+  /** @param {string} genre */
   function getGenreColor(genre) {
     return genreColors[genre] || '#8E8E93';
   }
 
+  /** @param {string} artistId */
   function getProgress(artistId) {
     const p = $hotListProgress.find(h => h.artist_id === artistId);
     return p || { user_play_count: 0, xp_earned: 0, current_bonus_tier: 0, next_bonus_at: 25 };
   }
 
+  /** @param {import('$lib/domain/types').HotListArtist} artist */
   function getProgressPercent(artist) {
     const p = getProgress(artist.artist_id);
     const maxPlays = artist.bonus_tiers[artist.bonus_tiers.length - 1]?.plays_required || 100;

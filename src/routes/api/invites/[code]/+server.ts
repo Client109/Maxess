@@ -5,7 +5,7 @@ import { revokeInvitation } from '$lib/server/database.js';
 
 const CURRENT_FAN_ID = 'fan_001';
 
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params }: { params: { code: string } }) => {
   const code = params.code;
   if (!code) throw error(400, 'missing_code');
   const result = await revokeInvitation(code, CURRENT_FAN_ID);

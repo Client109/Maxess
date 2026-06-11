@@ -4,6 +4,7 @@ import { resolve } from 'path';
 
 const VALID_ROUTES = ['/', '/events', '/score', '/access', '/profile'];
 
+/** @param {string} route */
 function routeExists(route) {
   if (route === '/') {
     return existsSync(resolve('src/routes/+page.svelte'));
@@ -32,7 +33,9 @@ describe('Navigation links', () => {
     const nav = readFileSync(resolve('src/lib/components/BottomNav.svelte'), 'utf-8');
     const hrefMatches = nav.match(/href:\s*'([^']+)'/g) || [];
     for (const match of hrefMatches) {
-      const route = match.match(/href:\s*'([^']+)'/)[1];
+      const m = match.match(/href:\s*'([^']+)'/);
+      if (!m) continue;
+      const route = m[1];
       expect(VALID_ROUTES, `BottomNav href "${route}" should be a valid route`).toContain(route);
     }
   });

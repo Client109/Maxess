@@ -110,7 +110,10 @@ export async function syncUserListens(fanId: string): Promise<{
     orderBy: { played_at: 'desc' },
     select: { played_at: true },
   });
-  const sinceUnix = latest ? Math.floor(latest.played_at.getTime() / 1000) + 1 : undefined;
+  // No `+ 1` here: the @@unique([user_id, source, played_at, track_name]) constraint
+  // dedupes the cursor row on insert, so we can safely include same-second scrobbles
+  // that would otherwise be dropped forever.
+  const sinceUnix = latest ? Math.floor(latest.played_at.getTime() / 1000) : undefined;
 
   const raws = await fetchLastFmListens(user.lastfm_username, sinceUnix);
   const spotifyRaws = await fetchSpotifyListens(user.id);
@@ -151,8 +154,20 @@ export async function syncUserListens(fanId: string): Promise<{
   // included) and award the XP delta.
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
   const todayPlays = await db.listeningEvent.findMany({
-    where: { user_id: user.id, is_followed: true, played_at: { gte: todayStart } },
+    where: {
+      user_id: user.id,
+      is_followed: true,
+      played_at: { gte: todayStart, lt: todayEnd },
+      // Match attributeListens(): short explicit-duration plays are excluded;
+      // null-duration plays (Last.fm omits some) still count as a listen.
+      OR: [
+        { duration_seconds: null },
+        { duration_seconds: { gte: MIN_LISTEN_SECONDS } },
+      ],
+    },
     select: { duration_seconds: true },
   });
   const signal: ListeningSignal = {

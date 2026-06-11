@@ -175,8 +175,9 @@ export function calculateRank(userXP: number, allScores: number[]): number {
 }
 
 export function calculatePercentile(userXP: number, allScores: number[]): number {
-  const sortedScores = [...allScores].sort((a, b) => a - b);
-  const position = sortedScores.findIndex(score => score >= userXP);
-  if (position === -1) return 100;
-  return Math.round((position / sortedScores.length) * 100);
+  if (allScores.length === 0) return 100;
+  const sorted = [...allScores].sort((a, b) => b - a);
+  const aboveOrEqual = sorted.filter(s => s > userXP).length;
+  const percentile = Math.round((1 - aboveOrEqual / sorted.length) * 100);
+  return Math.max(0, Math.min(100, percentile));
 }

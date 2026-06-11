@@ -11,17 +11,20 @@
   $: filteredEvents = mockEvents
     .filter(e => e.category === eventType)
     .sort((a, b) => {
+      /** @param {import('$lib/domain/types').Event} e */
       const score = e => (e.featured ? 2 : 0) + (e.trending ? 1 : 0);
       return score(b) - score(a);
     })
     .slice(0, 2);
 
+  /** @param {string} id */
   function toggleBookmark(id) {
     if (bookmarkedEvents.has(id)) bookmarkedEvents.delete(id);
     else bookmarkedEvents.add(id);
     bookmarkedEvents = bookmarkedEvents;
   }
 
+  /** @param {import('$lib/domain/types').Event} event */
   function formatDatetime(event) {
     const date = event.date_display ?? event.date;
     return event.time ? `${date} • ${event.time}` : date;

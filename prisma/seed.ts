@@ -4,7 +4,7 @@ import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { totalSeededXp, REWARDS_XP_TOTAL, FOLLOWED_ARTISTS, FOLLOWED_TEAMS } from '../src/lib/data/seedFandoms.js';
-import { XP_PER_CHECKIN, XP_PER_LISTENING_HOUR, XP_PER_TRIVIA_CORRECT, XP_PER_STREAK_BONUS } from '../src/lib/domain/xp-rules.js';
+import { XP_PER_CHECKIN, XP_PER_CONCERT_ATTENDANCE, XP_PER_LISTENING_HOUR, XP_PER_TRIVIA_CORRECT, XP_PER_STREAK_BONUS } from '../src/lib/domain/xp-rules.js';
 
 // pg.Pool only speaks raw postgres. If DATABASE_URL is a `prisma+postgres://`
 // proxy URL (from `prisma dev`), fall back to the embedded raw-postgres port.
@@ -349,14 +349,25 @@ async function main() {
   // from the canonical rate constants in src/lib/domain/xp-rules.js so the
   // "Universal Point System" card on /score (which displays the same per-unit
   // rates) is internally consistent with the ledger.
-  //   60 × +500   = 30,000  Verified check-ins
-  //   3000 × +10  = 30,000  Spotify listening hours
-  //   400 × +50   = 20,000  Live trivia correct answers
-  //   50 × +200   = 10,000  Consecutive event streak bonus
+  //
+  // Event check-ins split into two distinct sources, mirroring the two
+  // distinct rates in xp-rules.ts:
+  //   - 'Event Check-ins'    = soft "I'm going" / on-arrival tap (500 ea).
+  //   - 'Verified Check-ins' = true attendance scan via WALLET_SCAN /
+  //                            TICKETMASTER_WEBHOOK (10,000 ea).
+  // The Score page's "Universal Point System" card reads these source labels
+  // directly, so they must stay as the exact two literals below.
+  //
+  //   20 × +500    = 10,000  Event Check-ins (going-signal)
+  //    2 × +10000  = 20,000  Verified Check-ins (attendance scan)
+  //   3000 × +10   = 30,000  Spotify listening hours
+  //   400 × +50    = 20,000  Live trivia correct answers
+  //   50 × +200    = 10,000  Consecutive event streak bonus
   //                ─────
   //                90,000  = REWARDS_XP_TOTAL
   const xpTransactions = [
-    { amount: 60 * XP_PER_CHECKIN,             source: 'Verified Check-ins',       description: '60 verified event check-ins × 500' },
+    { amount: 20 * XP_PER_CHECKIN,             source: 'Event Check-ins',          description: '20 event check-ins × 500 (going-signal)' },
+    { amount: 2 * XP_PER_CONCERT_ATTENDANCE,   source: 'Verified Check-ins',       description: '2 verified attendance scans × 10,000' },
     { amount: 3000 * XP_PER_LISTENING_HOUR,    source: 'Spotify Listening',        description: '3000 listening hours × 10/hr' },
     { amount: 400 * XP_PER_TRIVIA_CORRECT,     source: 'Live Trivia',              description: '400 trivia correct answers × 50' },
     { amount: 50 * XP_PER_STREAK_BONUS,        source: 'Streak Bonus',             description: '50 consecutive-event streak bonuses × 200' },

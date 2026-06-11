@@ -235,25 +235,26 @@ export async function load() {
   // prisma/seed.ts (the four xp_transactions rows: 'Verified Check-ins',
   // 'Spotify Listening', 'Live Trivia', 'Streak Bonus'). Trailing aliases
   // catch legacy seed data so an unmigrated DB still resolves cleanly.
-  const sourceCheckIns  = pickXp('Verified Check-ins', 'Event Attendance', 'Venue Check-ins', 'Attendance', 'Check-ins');
+  const sourceCheckIns  = pickXp('Event Check-ins', 'Verified Check-ins', 'Event Attendance', 'Venue Check-ins', 'Attendance', 'Check-ins');
   const sourceStreaming = pickXp('Spotify Listening', 'Streaming', 'Spotify', 'Listening');
-  const sourceTrivia    = pickXp('Live Trivia', 'Trivia', 'Challenges');
-  const sourceStreakDirect = pickXp('Streak Bonus', 'Streak Bonuses');
-  // Any unlabeled XP transactions (legacy 'Watch XP' / 'Spend XP' / etc.)
-  // roll into Streak so the four point-sources still sum to the rewards
-  // total. xp_breakdown only aggregates xp_transactions (NOT FanTier lifetime
-  // points), so this leftover is bounded by REWARDS_XP_TOTAL — we must NOT
-  // subtract fan.xp_total here, which would incorrectly attribute every
-  // followed-fandom lifetime point to "Streak bonuses".
+  const sourceTrivia    = pickXp('Live Trivia', 'Trivia');
+  const sourceStreak    = pickXp('Streak Bonus', 'Streak Bonuses');
+  // Any unlabeled XP transactions (legacy 'Watch XP' / 'Spend XP' / 'Challenges'
+  // / etc.) roll into an explicit 'Other' bucket so the streak row reflects ONLY
+  // real streak XP. xp_breakdown only aggregates xp_transactions (NOT FanTier
+  // lifetime points), so this leftover is bounded by REWARDS_XP_TOTAL — we must
+  // NOT subtract fan.xp_total here, which would incorrectly attribute every
+  // followed-fandom lifetime point to "Other".
   const breakdownTotal = Object.values(xpBreakdown).reduce((s, v) => s + v, 0);
-  const allClassified = sourceCheckIns + sourceStreaming + sourceTrivia + sourceStreakDirect;
-  const sourceStreak = sourceStreakDirect + Math.max(0, breakdownTotal - allClassified);
+  const allClassified = sourceCheckIns + sourceStreaming + sourceTrivia + sourceStreak;
+  const sourceOther = Math.max(0, breakdownTotal - allClassified);
 
   const pointSources = [
     { id: 'checkins',  label: 'Verified check-ins', points: sourceCheckIns,  icon: 'check'   },
     { id: 'spotify',   label: 'Spotify listening',  points: sourceStreaming, icon: 'spotify' },
     { id: 'trivia',    label: 'Live trivia',        points: sourceTrivia,    icon: 'trivia'  },
     { id: 'streak',    label: 'Streak bonuses',     points: sourceStreak,    icon: 'flame'   },
+    { id: 'other',     label: 'Other',              points: sourceOther,     icon: 'sparkle' },
   ];
 
   return {

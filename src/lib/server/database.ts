@@ -1,5 +1,6 @@
 // Database client and utilities for Maxxes
 import prismaPkg from '@prisma/client';
+import type { Tier } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { dev } from '$app/environment';
@@ -81,7 +82,7 @@ export async function createUser(data: {
 
 export async function updateUserProfile(fanId: string, data: {
   xp_total?: number;
-  current_tier?: string;
+  current_tier?: Tier;
   streak_days?: number;
   events_attended?: number;
   top_artist?: string;
@@ -98,11 +99,20 @@ export async function getLeaderboard(period: 'WEEKLY' | 'MONTHLY' | 'ALL_TIME' =
   const where: any = { period };
   if (city) where.city = city;
 
-  return await db.leaderboardEntry.findMany({
+  // For city slices, the stored `rank` is global — re-rank by xp_total so the
+  // filtered view shows 1..N within the city.
+  const rows = await db.leaderboardEntry.findMany({
     where,
-    orderBy: { rank: 'asc' },
+    orderBy: city
+      ? [{ xp_total: 'desc' }, { name: 'asc' }]
+      : [{ rank: 'asc' }],
     take: 100,
   });
+
+  if (city) {
+    return rows.map((row, i) => ({ ...row, rank: i + 1 }));
+  }
+  return rows;
 }
 
 export async function getAllLeaderboardEntries() {
@@ -124,10 +134,19 @@ export async function getFriendUserIds(fanId: string): Promise<string[]> {
   const friendNames = [...new Set(activities.map(a => a.friend_name))];
   if (friendNames.length === 0) return [];
 
+  // User.name is not unique — distinct prevents duplicate ids and warns
+  // when a friend_name resolves to multiple users (or none).
   const friends = await db.user.findMany({
     where: { name: { in: friendNames } },
-    select: { id: true },
+    select: { id: true, name: true },
+    distinct: ['name'],
   });
+
+  if (friends.length < friendNames.length) {
+    console.warn(
+      `[getFriendUserIds] ambiguous or missing friend resolves: requested ${friendNames.length} names, got ${friends.length} unique users (fan_id=${fanId})`,
+    );
+  }
 
   return friends.map(f => f.id);
 }
@@ -228,32 +247,32 @@ export async function addXpTransaction(fanId: string, data: {
     },
   });
 
-  // Update user's total XP
-  const user = await db.user.findUnique({
+  // Atomic increment avoids the read-modify-write race when two awards land at once.
+  const updated = await db.user.update({
     where: { fan_id: fanId },
+    data: { xp_total: { increment: data.amount } },
+    select: { xp_total: true, current_tier: true },
   });
 
-  if (user) {
-    const newTotal = user.xp_total + data.amount;
-    const newTier = calculateTier(newTotal);
-
+  const newTier = calculateTier(updated.xp_total);
+  if (newTier !== updated.current_tier) {
     await db.user.update({
       where: { fan_id: fanId },
-      data: {
-        xp_total: newTotal,
-        current_tier: newTier,
-      },
+      data: { current_tier: newTier },
     });
   }
 
   return transaction;
 }
 
-export async function toggleEventBookmark(fanId: string, eventId: string) {
+export async function toggleEventBookmark(fanId: string, eventId: string): Promise<Awaited<ReturnType<typeof db.userEvent.update>> | null> {
+  const user = await db.user.findUnique({ where: { fan_id: fanId } });
+  if (!user) return null;
+
   const existing = await db.userEvent.findUnique({
     where: {
       user_id_event_id: {
-        user_id: (await db.user.findUnique({ where: { fan_id: fanId } }))!.id,
+        user_id: user.id,
         event_id: eventId,
       },
     },
@@ -275,11 +294,14 @@ export async function toggleEventBookmark(fanId: string, eventId: string) {
   }
 }
 
-export async function updateChallengeProgress(fanId: string, challengeId: string, progress: number, completed: boolean = false) {
+export async function updateChallengeProgress(fanId: string, challengeId: string, progress: number, completed: boolean = false): Promise<Awaited<ReturnType<typeof db.userChallenge.update>> | null> {
+  const user = await db.user.findUnique({ where: { fan_id: fanId } });
+  if (!user) return null;
+
   const existing = await db.userChallenge.findUnique({
     where: {
       user_id_challenge_id: {
-        user_id: (await db.user.findUnique({ where: { fan_id: fanId } }))!.id,
+        user_id: user.id,
         challenge_id: challengeId,
       },
     },
@@ -467,17 +489,35 @@ export async function recordAttendanceVerification(opts: {
 
   const { xp, confidence } = VERIFICATION_XP[opts.method];
 
-  const attendance = await db.attendanceVerification.create({
-    data: {
-      user_id: opts.userId,
-      event_id: opts.eventId,
-      pass_id: opts.passId ?? null,
-      method: opts.method,
-      confidence,
-      xp_awarded: xp,
-      scanner_ip: opts.scannerIp ?? null,
-      metadata: (opts.metadata as any) ?? undefined,
-    },
+  // The unique constraint is (user, event, method) — a fan can verify the same
+  // event via multiple methods. Only count events_attended on the FIRST method.
+  const attendance = await db.$transaction(async (tx) => {
+    const hadAny = await tx.attendanceVerification.findFirst({
+      where: { user_id: opts.userId, event_id: opts.eventId },
+      select: { id: true },
+    });
+
+    const created = await tx.attendanceVerification.create({
+      data: {
+        user_id: opts.userId,
+        event_id: opts.eventId,
+        pass_id: opts.passId ?? null,
+        method: opts.method,
+        confidence,
+        xp_awarded: xp,
+        scanner_ip: opts.scannerIp ?? null,
+        metadata: (opts.metadata as any) ?? undefined,
+      },
+    });
+
+    if (!hadAny) {
+      await tx.user.update({
+        where: { id: opts.userId },
+        data: { events_attended: { increment: 1 } },
+      });
+    }
+
+    return created;
   });
 
   // Award XP via the existing ledger (recomputes xp_total + current_tier).
@@ -488,12 +528,6 @@ export async function recordAttendanceVerification(opts: {
       source: 'Event Attendance',
       reference: opts.eventId,
       description: `Attendance verified via ${opts.method.toLowerCase()}`,
-    });
-
-    // Bump the events_attended counter on the user row.
-    await db.user.update({
-      where: { id: opts.userId },
-      data: { events_attended: { increment: 1 } },
     });
   }
 
@@ -571,65 +605,100 @@ export async function acceptInvitation(opts: {
   const code = opts.code;
   const inputEmail = opts.newUserEmail.trim().toLowerCase();
 
-  const invite = await db.invitation.findUnique({
-    where: { code },
-    include: { referrer: true },
-  });
-  if (!invite) return { ok: false as const, reason: 'not_found' as const };
-  if (invite.status === 'ACCEPTED') return { ok: false as const, reason: 'already_accepted' as const };
-  if (invite.status === 'REVOKED') return { ok: false as const, reason: 'revoked' as const };
+  // Pre-fetch is fine for the not_found / revoked branches, but the
+  // already_accepted + email_in_use checks need to live inside the tx so two
+  // concurrent callers can't both pass validation.
+  const inviteCheck = await db.invitation.findUnique({ where: { code } });
+  if (!inviteCheck) return { ok: false as const, reason: 'not_found' as const };
+  if (inviteCheck.status === 'REVOKED') return { ok: false as const, reason: 'revoked' as const };
 
-  const existing = await db.user.findUnique({ where: { email: inputEmail } });
-  if (existing) return { ok: false as const, reason: 'email_in_use' as const };
+  try {
+    return await db.$transaction(async tx => {
+      // Re-read invite + referrer inside the tx so we have current status.
+      const invite = await tx.invitation.findUnique({
+        where: { code },
+        include: { referrer: true },
+      });
+      if (!invite) return { ok: false as const, reason: 'not_found' as const };
+      if (invite.status === 'REVOKED') return { ok: false as const, reason: 'revoked' as const };
 
-  // Transaction: create user → mark invite ACCEPTED → award referrer XP.
-  return await db.$transaction(async tx => {
-    const newFanId = `fan_${Math.random().toString(36).slice(2, 11)}`;
-    const newUser = await tx.user.create({
-      data: {
-        fan_id: newFanId,
-        email: inputEmail,
-        name: opts.newUserName.trim(),
-        city: opts.newUserCity?.trim() || invite.referrer.city,
-        avatar_initials: opts.newUserName.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase(),
-        xp_total: 0,
-        current_tier: 'GENERAL',
-        streak_days: 0,
-        events_attended: 0,
-      },
-    });
+      // Email-in-use check must be inside the tx to race-protect signup.
+      const emailTaken = await tx.user.findUnique({ where: { email: inputEmail } });
+      if (emailTaken) return { ok: false as const, reason: 'email_in_use' as const };
 
-    await tx.invitation.update({
-      where: { code },
-      data: {
-        status: 'ACCEPTED',
-        accepted_at: new Date(),
-        accepted_user_id: newUser.id,
-        xp_awarded: REFERRAL_XP_REWARD,
-      },
-    });
+      // Conditional update on status='SENT' so a concurrent acceptor's update
+      // affects 0 rows and throws P2025; we surface that as already_accepted.
+      try {
+        await tx.invitation.update({
+          where: { code, status: 'SENT' },
+          data: {
+            status: 'ACCEPTED',
+            accepted_at: new Date(),
+            xp_awarded: REFERRAL_XP_REWARD,
+          },
+        });
+      } catch (err: unknown) {
+        const e = err as { code?: string };
+        if (e.code === 'P2025') return { ok: false as const, reason: 'already_accepted' as const };
+        throw err;
+      }
 
-    await tx.xpTransaction.create({
-      data: {
-        user_id: invite.referrer.id,
-        amount: REFERRAL_XP_REWARD,
-        source: REFERRAL_XP_SOURCE,
-        reference: code,
-        description: `Referred ${newUser.name}`,
-      },
-    });
-    const refreshedReferrer = await tx.user.update({
-      where: { id: invite.referrer.id },
-      data: { xp_total: { increment: REFERRAL_XP_REWARD } },
-    });
-    // Recompute tier outside the increment so we use the new total.
-    await tx.user.update({
-      where: { id: invite.referrer.id },
-      data: { current_tier: calculateTier(refreshedReferrer.xp_total) },
-    });
+      const newFanId = `fan_${Math.random().toString(36).slice(2, 11)}`;
+      const newUser = await tx.user.create({
+        data: {
+          fan_id: newFanId,
+          email: inputEmail,
+          name: opts.newUserName.trim(),
+          city: opts.newUserCity?.trim() || invite.referrer.city,
+          avatar_initials: opts.newUserName.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+          xp_total: 0,
+          current_tier: 'GENERAL',
+          streak_days: 0,
+          events_attended: 0,
+        },
+      });
 
-    return { ok: true as const, newUser, xp_awarded: REFERRAL_XP_REWARD };
-  });
+      // Backfill accepted_user_id now that we know the new user's id.
+      await tx.invitation.update({
+        where: { code },
+        data: { accepted_user_id: newUser.id },
+      });
+
+      await tx.xpTransaction.create({
+        data: {
+          user_id: invite.referrer.id,
+          amount: REFERRAL_XP_REWARD,
+          source: REFERRAL_XP_SOURCE,
+          reference: code,
+          description: `Referred ${newUser.name}`,
+        },
+      });
+
+      // Single atomic increment; only do a second write if the tier changed.
+      const refreshedReferrer = await tx.user.update({
+        where: { id: invite.referrer.id },
+        data: { xp_total: { increment: REFERRAL_XP_REWARD } },
+        select: { xp_total: true, current_tier: true },
+      });
+      const newTier = calculateTier(refreshedReferrer.xp_total);
+      if (newTier !== refreshedReferrer.current_tier) {
+        await tx.user.update({
+          where: { id: invite.referrer.id },
+          data: { current_tier: newTier },
+        });
+      }
+
+      return { ok: true as const, newUser, xp_awarded: REFERRAL_XP_REWARD };
+    });
+  } catch (err: unknown) {
+    const e = err as { code?: string; meta?: { target?: string[] } };
+    // Unique email constraint can still trip if two parallel txs both pass the
+    // email check and race to create — surface as email_in_use.
+    if (e.code === 'P2002' && (e.meta?.target ?? []).includes('email')) {
+      return { ok: false as const, reason: 'email_in_use' as const };
+    }
+    throw err;
+  }
 }
 
 // Cleanup function

@@ -6,7 +6,7 @@ import { normalizeTicketmasterEvent } from '$lib/server/events.js';
 import { serverConfig } from '$lib/config/env.js';
 import { mockEvents } from '$lib/data/mockData.js';
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url }: { url: URL }) => {
   const keyword = url.searchParams.get('q') || '';
   const category = url.searchParams.get('category') || '';
   // `city=any` opts out of the city filter — used by the Events page Following
@@ -42,7 +42,8 @@ export const GET: RequestHandler = async ({ url }) => {
     });
 
     if (result.success && result.data?._embedded?.events) {
-      const events = result.data._embedded.events.map(normalizeTicketmasterEvent);
+      const now = new Date();
+      const events = result.data._embedded.events.map(tmEvent => normalizeTicketmasterEvent(tmEvent, now));
       return json({ events });
     }
 

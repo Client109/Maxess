@@ -43,10 +43,12 @@
     declineLocationPrompt();
   }
 
+  /** @param {MouseEvent} event */
   function onBackdropClick(event) {
     if (event.target === event.currentTarget) notNow();
   }
 
+  /** @param {KeyboardEvent} event */
   function onKeydown(event) {
     if (event.key === 'Escape' && open) notNow();
   }

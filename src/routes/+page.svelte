@@ -23,10 +23,10 @@
     const SEEDED_KEY = 'maxess.followsSeeded';
     if (localStorage.getItem(SEEDED_KEY) === '1') return;
     if (catalog.length === 0) return;
-    hydrateProgress(catalog.map(c => ({
+    hydrateProgress(catalog.map((/** @type {any} */ c) => ({
       id: c.id, name: c.name, category: c.category, points: c.points,
     })));
-    const ids = catalog.map(c => c.id);
+    const ids = catalog.map((/** @type {any} */ c) => c.id);
     followedArtists.update(list => Array.from(new Set([...list, ...ids])));
     localStorage.setItem(SEEDED_KEY, '1');
   });
@@ -34,7 +34,7 @@
   $: progressThreads = $followedArtists
     .map(id => {
       const stored = $progressByArtist[id];
-      const seed = catalog.find(c => c.id === id);
+      const seed = catalog.find((/** @type {any} */ c) => c.id === id);
       if (!stored && !seed) return null;
       const name = stored?.name ?? seed?.name ?? id;
       const category = (stored?.category ?? seed?.category ?? 'music');
@@ -43,6 +43,7 @@
       const next = pointsToNextArtistTier(points);
       return {
         id, name, category, points,
+        image: seed?.image ?? null,
         tier_name: tier.name,
         tier_color: tier.color_hex,
         next_tier_name: next.nextTier?.name ?? null,
@@ -56,7 +57,7 @@
   // lifetime_points (tier-driving total) so the displayed per-row number
   // matches /score and /profile (Weeknd 1M Elite / Lakers 240K Loyal /
   // Ducks 105K Loyal) instead of the much smaller post-redemption balance.
-  $: serverFandoms = (data.topFandomsByBalance ?? []).map(f => ({
+  $: serverFandoms = (data.topFandomsByBalance ?? []).map((/** @type {any} */ f) => ({
     id: f.fandom_id,
     name: f.name,
     image: f.image,
@@ -67,7 +68,7 @@
   }));
   $: topFandoms = serverFandoms.length > 0
     ? serverFandoms
-    : [...progressThreads].sort((a, b) => b.points - a.points).slice(0, 3);
+    : [...progressThreads].sort((/** @type {any} */ a, /** @type {any} */ b) => b.points - a.points).slice(0, 3);
 
   // Hero pill: tier for the user's *selected* fandom (User.selected_fandom_id).
   // Falls back to the top fandom by balance.
@@ -76,7 +77,7 @@
         name: data.selectedFandomTier.fandom_name,
         tier_name: data.selectedFandomTier.name,
         tier_color: data.selectedFandomTier.color_hex,
-        points: topFandoms.find(f => f.name === data.selectedFandomTier?.fandom_name)?.points
+        points: topFandoms.find((/** @type {any} */ f) => f.name === data.selectedFandomTier?.fandom_name)?.points
           ?? topFandoms[0]?.points
           ?? 0,
       }
@@ -84,9 +85,9 @@
 
   // Top upcoming event (1 card).
   $: nextEvent = (data.upcomingEvents ?? [])
-    .filter(e => e.date)
+    .filter((/** @type {any} */ e) => e.date)
     .slice()
-    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))[0] ?? null;
+    .sort((/** @type {any} */ a, /** @type {any} */ b) => (a.date || '').localeCompare(b.date || ''))[0] ?? null;
 
   // Greeting based on local hour.
   const greeting = (() => {
@@ -96,10 +97,12 @@
     return 'Good evening';
   })();
 
+  /** @param {string | undefined | null} fullName */
   function firstName(fullName) {
     return (fullName || '').split(/\s+/)[0] || 'there';
   }
 
+  /** @param {string} tier */
   function tierTone(tier) {
     switch (tier) {
       case 'Elite': return { fg: '#FF5C00', Icon: Diamond };
@@ -114,17 +117,18 @@
   // baseline so the card never renders broken geometry. ViewBox is a flat
   // 600×60 (10:1) so the rendered aspect matches the long, thin sparkline
   // look in the mockup without preserveAspectRatio="none" distortion.
+  /** @param {number[] | undefined | null} series */
   function buildSparkline(series) {
     const W = 600, H = 60, PAD = 3;
-    const pts = (series && series.length > 0 ? series : [0, 0]).map(n => Math.max(0, Number(n) || 0));
+    const pts = (series && series.length > 0 ? series : [0, 0]).map((/** @type {any} */ n) => Math.max(0, Number(n) || 0));
     const max = Math.max(...pts, 1);
     const dx = (W - 2 * PAD) / Math.max(1, pts.length - 1);
-    const coords = pts.map((v, i) => {
+    const coords = pts.map((/** @type {number} */ v, /** @type {number} */ i) => {
       const x = PAD + i * dx;
       const y = H - PAD - (v / max) * (H - 2 * PAD);
       return [x, y];
     });
-    const linePath = coords.map(([x, y], i) => (i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`)).join(' ');
+    const linePath = coords.map((/** @type {number[]} */ pt, /** @type {number} */ i) => (i === 0 ? `M ${pt[0]} ${pt[1]}` : `L ${pt[0]} ${pt[1]}`)).join(' ');
     const areaPath = `${linePath} L ${coords[coords.length - 1][0]} ${H} L ${coords[0][0]} ${H} Z`;
     const last = coords[coords.length - 1];
     return { linePath, areaPath, lastX: last[0], lastY: last[1], W, H };
@@ -211,7 +215,7 @@
                   {#if t.image}
                     <img src={t.image} alt={t.name} />
                   {:else}
-                    {t.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                    {t.name.split(' ').map((/** @type {string} */ p) => p[0]).join('').slice(0, 2).toUpperCase()}
                   {/if}
                 </span>
                 <span class="fandom-name">{t.name}</span>

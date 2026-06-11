@@ -16,6 +16,7 @@
   // music/sports hard gate (introduced in 0.8.x) still applies so when the
   // shared toggle is sports, even "All" hides music.
   let primaryFilter = $activeCategory === 'sports' ? 'Sports' : 'Music';
+  /** @param {string} chip */
   function setPrimary(chip) {
     primaryFilter = chip;
     if (chip === 'Music') activeCategory.set('music');
@@ -32,6 +33,7 @@
     .map(id => $progressByArtist[id]?.name)
     .filter(n => typeof n === 'string' && n.length > 0)
     .map(n => n.toLowerCase());
+  /** @param {any} e */
   function matchesFollowed(e) {
     if ($subscribedSet.has(e.event_id)) return true;
     if (followedNames.length === 0) return false;
@@ -42,12 +44,14 @@
   // Derive the event's required-tier badge. Explicit `required_tier` wins;
   // otherwise infer from heat/featured so the demo data still produces a
   // sensible mix of Elite/Loyal/Fan badges without hand-tagging every row.
+  /** @param {any} e */
   function tierFor(e) {
     if (e.required_tier) return e.required_tier;
     if (e.featured && (e.trending || (e.heat_score ?? 0) >= 90)) return 'Elite';
     if (e.featured || e.trending || (e.heat_score ?? 0) >= 80) return 'Loyal';
     return 'Fan';
   }
+  /** @param {string} tier */
   function tierTone(tier) {
     switch (tier) {
       case 'Elite': return { fg: '#FF5C00', icon: Diamond };
@@ -58,7 +62,7 @@
     }
   }
 
-  $: featuredEvents = (data.events || []).filter(e => {
+  $: featuredEvents = (data.events || []).filter((/** @type {any} */ e) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const match = e.title.toLowerCase().includes(q)
@@ -84,6 +88,7 @@
     return true;
   });
 
+  /** @param {any} e */
   function formatDateTime(e) {
     const date = e.date_display ?? e.date;
     return e.time ? `${date} • ${e.time}` : date;
@@ -389,6 +394,7 @@
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
   }
   .event-line {

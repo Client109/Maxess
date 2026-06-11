@@ -63,4 +63,21 @@ describe('generatePkpass', () => {
 
     expect(manifest['pass.json']).toBe(expected);
   });
+
+  it('bundles required wallet image assets and lists their hashes in the manifest', async () => {
+    const { bytes } = await generatePkpass(SAMPLE);
+    const zip = await JSZip.loadAsync(bytes);
+    const manifest = JSON.parse(await zip.file('manifest.json')!.async('string'));
+    const { createHash } = await import('node:crypto');
+
+    for (const name of ['icon.png', 'icon@2x.png', 'logo.png', 'logo@2x.png']) {
+      const entry = zip.file(name);
+      expect(entry, `${name} should be present in zip`).not.toBeNull();
+      const buf = await entry!.async('uint8array');
+      expect(buf.byteLength, `${name} should not be empty`).toBeGreaterThan(0);
+
+      const expected = createHash('sha1').update(buf).digest('hex');
+      expect(manifest[name], `${name} hash should be in manifest`).toBe(expected);
+    }
+  });
 });

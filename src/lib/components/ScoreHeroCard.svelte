@@ -14,6 +14,7 @@
     animateScore(fan.superfan_score);
   }
 
+  /** @param {number} target */
   function animateScore(target) {
     const duration = 800;
     const start = Date.now();

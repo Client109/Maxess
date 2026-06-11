@@ -1,6 +1,9 @@
 // Transform database records to UI-compatible types
 import { classifyTier } from '$lib/domain/xp.js';
 import type { Fan, LeaderboardEntry, Challenge, ChallengeTask, Pass, FriendActivity, RecentActivity } from '$lib/domain/types.js';
+import type { Tier } from '@prisma/client';
+
+type PassTier = 'elite' | 'diamond' | 'loyal' | 'superfan' | 'general';
 
 // Map Prisma tier enum + xp to UI tier name. The Prisma enum stays 4-wide
 // (GENERAL | LOYAL | SUPERFAN | ELITE), but the display layer splits GENERAL
@@ -43,7 +46,10 @@ export function transformUserToFan(user: any): Fan {
   };
 }
 
-export function transformLeaderboardEntry(entry: any, currentFanId: string, friendIds: string[] = []): LeaderboardEntry {
+// `currentUserId` is the canonical DB CUID (User.id), not the `fan_id`. Callers
+// pass it positionally; the LeaderboardEntry.user_id column we compare against is
+// the same User.id, so we match on that.
+export function transformLeaderboardEntry(entry: any, currentUserId: string, friendIds: string[] = []): LeaderboardEntry {
   // Deterministic delta based on name + period so it doesn't change on every page load
   let hash = 0;
   const key = entry.name + entry.period;
@@ -57,7 +63,7 @@ export function transformLeaderboardEntry(entry: any, currentFanId: string, frie
     name: entry.name,
     score: entry.xp_total,
     delta,
-    is_me: entry.user_id === currentFanId,
+    is_me: entry.user_id === currentUserId,
     is_friend: friendIds.includes(entry.user_id),
     city: entry.city || 'Los Angeles',
     time_period: entry.period === 'WEEKLY' ? 'This week' : entry.period === 'MONTHLY' ? 'This month' : 'All time',
@@ -93,26 +99,32 @@ export function transformChallenge(uc: any): Challenge {
 }
 
 export function transformPass(pass: any): Pass {
-  const statusMap: Record<string, 'active' | 'starts_soon' | 'waiting'> = {
+  const statusMap: Record<string, 'active' | 'starts_soon' | 'waiting' | 'unclaimed'> = {
     'ACTIVE': 'active',
     'CLAIMED': 'starts_soon',
     'AVAILABLE': 'waiting',
     'EXPIRED': 'waiting',
   };
 
-  const tierMap: Record<string, 'elite' | 'diamond' | 'general'> = {
-    'ELITE': 'elite',
-    'SUPERFAN': 'diamond',
-    'LOYAL': 'general',
-    'GENERAL': 'general',
+  const tierMap: Record<Tier, PassTier> = {
+    GENERAL: 'general',
+    LOYAL: 'loyal',
+    SUPERFAN: 'superfan',
+    ELITE: 'elite',
   };
 
-  const colorMap: Record<string, string> = {
-    'ELITE': '#FF5C00',
-    'SUPERFAN': '#3B28CC',
-    'LOYAL': '#CD7F32',
-    'GENERAL': '#8E8E93',
+  // LOYAL resolves to #2667FF (Loyal blue, matches xp.ts TIERS palette).
+  const colorMap: Record<Tier, string> = {
+    GENERAL: '#8E8E93',
+    LOYAL: '#2667FF',
+    SUPERFAN: '#3B28CC',
+    ELITE: '#FF5C00',
   };
+
+  // An AVAILABLE pass with no claimant (user_id === null) hasn't been picked up
+  // by anyone yet — surface that as 'unclaimed' instead of the generic 'waiting'.
+  const baseStatus = statusMap[pass.status] || 'waiting';
+  const status = pass.status === 'AVAILABLE' && pass.user_id == null ? 'unclaimed' : baseStatus;
 
   return {
     pass_id: pass.pass_id,
@@ -121,10 +133,10 @@ export function transformPass(pass: any): Pass {
     date: pass.valid_until
       ? `Valid through ${new Date(pass.valid_until).toLocaleDateString('en-US', { month: 'long' })}`
       : '',
-    status: statusMap[pass.status] || 'waiting',
-    pass_type: tierMap[pass.tier] || 'general',
+    status,
+    pass_type: tierMap[pass.tier as Tier] || 'general',
     xp_tier_required: pass.tier === 'ELITE' ? 1_000_000 : pass.tier === 'SUPERFAN' ? 250_000 : pass.tier === 'LOYAL' ? 100_000 : 10_000,
-    icon_color: colorMap[pass.tier] || '#8E8E93',
+    icon_color: colorMap[pass.tier as Tier] || '#8E8E93',
     metadata: pass.description,
   };
 }
@@ -159,10 +171,16 @@ export function transformRecentActivity(ra: any, index: number): RecentActivity 
     'Welcome bonus': '👋',
   };
 
-  const timeAgo = index === 0 ? '2 hours ago' :
-                  index === 1 ? '1 day ago' :
-                  index < 5 ? `${index + 1} days ago` :
-                  `${Math.ceil(index / 3)} weeks ago`;
+  // Derive timeAgo from the row's actual created_at, not the array index — the
+  // index-based version made every newly-inserted activity appear "2 hours ago"
+  // regardless of when it was actually written.
+  let timeAgo: string;
+  const ms = Date.now() - new Date(ra.created_at).getTime();
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) timeAgo = 'Just now';
+  else if (min < 60) timeAgo = `${min} min ago`;
+  else if (min < 24 * 60) timeAgo = `${Math.floor(min / 60)} h ago`;
+  else timeAgo = `${Math.floor(min / (24 * 60))} d ago`;
 
   return {
     activity_id: ra.id || `act_${index}`,

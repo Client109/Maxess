@@ -24,21 +24,24 @@
     GENERAL: ['Basic event access', 'Standard ticketing', 'Community membership'],
   };
 
-  $: color = tierColors[tier] || '#8E8E93';
-  $: perks = tierPerks[tier] || tierPerks.GENERAL;
+  $: color = tierColors[/** @type {keyof typeof tierColors} */ (tier)] || '#8E8E93';
+  $: perks = tierPerks[/** @type {keyof typeof tierPerks} */ (tier)] || tierPerks.GENERAL;
 
+  /** @param {string} s */
   function statusLabel(s) {
     if (s === 'active') return 'Active';
     if (s === 'starts_soon') return 'Starts soon';
     return 'Available';
   }
 
+  /** @param {string} s */
   function statusColor(s) {
     if (s === 'active') return '#34D399';
     if (s === 'starts_soon') return '#FF5C00';
     return '#8E8E93';
   }
 
+  /** @param {Date | null} d */
   function formatDate(d) {
     if (!d) return '—';
     return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });

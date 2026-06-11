@@ -11,7 +11,33 @@
 // adding the same id to ARTIST_PROFILES below.
 
 import { FOLLOWED_ARTISTS, FOLLOWED_TEAMS, type FollowedFandom } from './seedFandoms.js';
-import { classifyArtistTier } from '$lib/domain/xp.js';
+import { classifyArtistTier, TIERS } from '$lib/domain/xp.js';
+
+// Compute (tier, tier_color, tier_progress) from a canonical points value so
+// the curated registry below can't drift from seedFandoms.ts. tier_progress is
+// the 0–1 share of the way from the current band's threshold to the next band's
+// threshold; the max tier reports 1.
+function tierTripletForPoints(points: number): { tier: string; tier_color: string; tier_progress: number } {
+  const tier = classifyArtistTier(points);
+  const idx = TIERS.findIndex(t => t.name === tier.name);
+  const next = idx >= 0 && idx < TIERS.length - 1 ? TIERS[idx + 1] : null;
+  let progress = 1;
+  if (next) {
+    const lower = tier.xp_threshold;
+    const upper = next.xp_threshold;
+    progress = Math.min(1, Math.max(0, (points - lower) / (upper - lower)));
+  }
+  return { tier: tier.name, tier_color: tier.color_hex, tier_progress: progress };
+}
+
+// Bonus artists (kendrick-lamar, sza) aren't in the canonical FOLLOWED_*
+// seed but still resolve via the curated registry. Their points live here so
+// the tier triplet stays in sync with classifyArtistTier — kept in lockstep
+// with the same map in src/routes/artist/[id]/+page.server.ts.
+const BONUS_ARTIST_POINTS: Record<string, number> = {
+  'kendrick-lamar': 320_000,  // Superfan
+  'sza':            180_000,  // Loyal
+};
 
 export type ArtistProfile = {
   id: string;
@@ -345,7 +371,7 @@ function derivedImageColor(id: string): string {
 }
 
 function deriveProfile(seed: FollowedFandom): ArtistProfile {
-  const tier = classifyArtistTier(seed.points);
+  const triplet = tierTripletForPoints(seed.points);
   const superfan_score = Math.min(100, Math.round((seed.points / 1_000_000) * 100));
   // Sports rows carry their sport label in `sport`; surface it as the genre so
   // the artist page subtitle reads e.g. "Basketball" instead of falling back
@@ -358,9 +384,9 @@ function deriveProfile(seed: FollowedFandom): ArtistProfile {
     image_color: derivedImageColor(seed.id),
     image: seed.image ?? undefined,
     superfan_score,
-    tier: tier.name,
-    tier_color: tier.color_hex,
-    tier_progress: 0,        // pointsToNextArtistTier is computed in the route
+    tier: triplet.tier,
+    tier_color: triplet.tier_color,
+    tier_progress: triplet.tier_progress,
     shows_attended: 0,
     hours_listened: 0,
     listener_rank: 0,
@@ -376,6 +402,17 @@ function deriveProfile(seed: FollowedFandom): ArtistProfile {
   };
 }
 
+// Resolve the canonical points for a curated id so we can derive the tier
+// triplet at read time instead of trusting whatever was hardcoded in the
+// registry literal. Handles the weeknd / the-weeknd alias.
+function canonicalPointsForId(id: string, pool: FollowedFandom[]): number | null {
+  const lookup = id === 'the-weeknd' ? 'weeknd' : id;
+  const seed = pool.find(s => s.id === lookup);
+  if (seed) return seed.points;
+  if (BONUS_ARTIST_POINTS[id] !== undefined) return BONUS_ARTIST_POINTS[id];
+  return null;
+}
+
 // Optional second arg is for tests that want to inject a synthetic seed list
 // without mutating the canonical FOLLOWED_ARTISTS/FOLLOWED_TEAMS arrays.
 export function getArtistProfile(
@@ -383,10 +420,21 @@ export function getArtistProfile(
   seedOverride?: FollowedFandom[],
 ): ArtistProfile | null {
   if (!id) return null;
-  const curated = ARTIST_PROFILES[id];
-  if (curated) return curated;
-
   const pool = seedOverride ?? [...FOLLOWED_ARTISTS, ...FOLLOWED_TEAMS];
+  const curated = ARTIST_PROFILES[id];
+  if (curated) {
+    // Override the (tier, tier_color, tier_progress) triplet with the value
+    // derived from canonical points so the registry literal can't drift away
+    // from seedFandoms.ts. Curated entries without any canonical points (e.g.
+    // future hand-authored slugs absent from both seed and bonus map) keep
+    // their literal values as a back-compat fallback.
+    const points = canonicalPointsForId(id, pool);
+    if (points !== null) {
+      return { ...curated, ...tierTripletForPoints(points) };
+    }
+    return curated;
+  }
+
   const seed = pool.find(s => s.id === id);
   if (seed) return deriveProfile(seed);
 

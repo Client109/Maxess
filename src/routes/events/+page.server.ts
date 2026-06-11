@@ -40,7 +40,8 @@ export async function load({ url }) {
       });
 
       if (result.success && result.data?._embedded?.events) {
-        const normalized = result.data._embedded.events.map(normalizeTicketmasterEvent);
+        const now = new Date();
+        const normalized = result.data._embedded.events.map(tmEvent => normalizeTicketmasterEvent(tmEvent, now));
 
         // Enrich with user's listening data
         const dbUser = await getUserByFanId('fan_001');

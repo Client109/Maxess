@@ -20,15 +20,17 @@
   // event.presale_starts_at is an ISO datetime from Ticketmaster's
   // sales.presales[0].startDateTime (see src/lib/server/events.ts).
   let now = Date.now();
-  let nowTimer;
+  /** @type {ReturnType<typeof setInterval> | null} */
+  let nowTimer = null;
   onMount(() => { nowTimer = setInterval(() => { now = Date.now(); }, 60_000); });
   onDestroy(() => { if (nowTimer) clearInterval(nowTimer); });
 
   $: presaleMs = event.presale_starts_at ? Date.parse(event.presale_starts_at) - now : null;
   $: presaleOpenNow = presaleMs !== null && presaleMs <= 0;
   $: presaleUpcoming = presaleMs !== null && presaleMs > 0;
-  $: presaleHours = presaleUpcoming ? Math.floor(presaleMs / (60 * 60 * 1000)) : 0;
-  $: presaleMinutes = presaleUpcoming ? Math.floor((presaleMs % (60 * 60 * 1000)) / 60_000) : 0;
+  $: presaleSafe = presaleMs ?? Number.POSITIVE_INFINITY;
+  $: presaleHours = presaleUpcoming ? Math.floor(presaleSafe / (60 * 60 * 1000)) : 0;
+  $: presaleMinutes = presaleUpcoming ? Math.floor((presaleSafe % (60 * 60 * 1000)) / 60_000) : 0;
   $: presaleDays = presaleUpcoming ? Math.floor(presaleHours / 24) : 0;
   // Past 48h, switch from "Xh Ym" to "Xd Yh" to stay readable.
   $: presaleLabel = !event.presale_starts_at
@@ -46,6 +48,7 @@
     { tier: 'General', color: '#8E8E93', perks: ['Standard ticketing', 'Basic event access'] },
   ];
 
+  /** @param {string} s */
   function statusBadge(s) {
     if (s === 'limited') return { text: 'Limited', bg: '#FF3B30' };
     if (s === 'upcoming') return { text: 'Upcoming', bg: '#FF5C00' };

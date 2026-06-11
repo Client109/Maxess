@@ -75,7 +75,7 @@ export async function ensurePushSubscription(eventId: string): Promise<EnsurePus
     const key = await getVapidPublicKey();
     subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(key)
+      applicationServerKey: new Uint8Array(urlBase64ToUint8Array(key)) as BufferSource
     });
   }
 

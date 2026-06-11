@@ -73,6 +73,7 @@
    // "1,180,000") overflows the 96px circle, so >=1K rolls into K and >=1M
    // into M with a single decimal when needed. The precise number sits on
    // the bar below (its labels are tier ranges).
+  /** @param {number | null | undefined} n */
   function fmtPoints(n) {
     if (n == null || !Number.isFinite(n)) return '0';
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
@@ -137,7 +138,8 @@
         class:follow-btn--on={isFollowing}
         aria-pressed={isFollowing}
         on:click={() => {
-          toggleFollowArtist(artist.id, artist.name, { category: followCategory, points: followPointsSeed });
+          const category = (followCategory === 'music' || followCategory === 'sports') ? followCategory : undefined;
+          toggleFollowArtist(artist.id, artist.name, { category, points: followPointsSeed });
           persistFollowToggle();
         }}
       >

@@ -9,6 +9,7 @@
   let city = '';
   let submitting = false;
   let errorMsg = '';
+  /** @type {{ ok: boolean; new_user: { fan_id: string; name: string }; xp_awarded: number } | null} */
   let success = null;
 
   async function submit() {

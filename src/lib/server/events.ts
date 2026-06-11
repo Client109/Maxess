@@ -109,7 +109,12 @@ function mapSaleStatus(code: string): string {
 
 // Filter events to "Near You This Week" — same-city, single category, within an
 // N-day window from `now`. `now` is injected so callers (and tests) control the
-// clock; date math uses ISO YYYY-MM-DD string compare to avoid timezone drift.
+// clock; date math uses YYYY-MM-DD string compare in the user's local timezone
+// so a show that starts at 9pm LA time on Friday isn't suddenly "tomorrow" just
+// because the Vercel server runs UTC and it's already past midnight UTC.
+//
+// `timezone` accepts any IANA name; until we ship a `User.timezone` column we
+// default to America/Los_Angeles (the launch market).
 export function filterNearYouThisWeek(
   events: Event[],
   options: {
@@ -121,11 +126,22 @@ export function filterNearYouThisWeek(
     // When the upstream Ticketmaster query was a radius search (latlong),
     // skip the city filter — events in the radius may sit in adjacent cities.
     skipCityFilter?: boolean;
+    timezone?: string;
   },
 ): Event[] {
-  const { city, category, now, days = 7, limit = 5, skipCityFilter = false } = options;
-  const start = now.toISOString().slice(0, 10);
-  const end = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const {
+    city,
+    category,
+    now,
+    days = 7,
+    limit = 5,
+    skipCityFilter = false,
+    timezone = 'America/Los_Angeles',
+  } = options;
+  // `en-CA` formats as YYYY-MM-DD which matches `e.date` (TM's localDate).
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
+  const start = fmt.format(now);
+  const end = fmt.format(new Date(now.getTime() + days * 24 * 60 * 60 * 1000));
   return events
     .filter(e => e.category === category
       && (skipCityFilter || e.city === city)

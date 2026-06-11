@@ -11,9 +11,23 @@
 //     ship leaves a stub that warns and falls back to unsigned.
 
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import JSZip from 'jszip';
 import { serverConfig } from '$lib/config/env.js';
 import { publicConfig } from '$lib/config/env.js';
+
+// Apple Wallet requires icon.png (and ideally icon@2x.png / logo[ @2x ].png) to
+// be present in the bundle AND listed in manifest.json. Without these, iOS
+// Wallet silently refuses to add the pass even when the signature is valid.
+// The placeholders live in static/wallet/ and can be regenerated via
+// static/wallet/_generate-placeholders.mjs — replace with the real Maxxes mark
+// before launch.
+const WALLET_ASSETS = ['icon.png', 'icon@2x.png', 'logo.png', 'logo@2x.png'] as const;
+
+function loadWalletAsset(name: string): Buffer {
+  return readFileSync(join(process.cwd(), 'static', 'wallet', name));
+}
 
 export interface PkpassInput {
   serialNumber: string;
@@ -46,11 +60,27 @@ export async function generatePkpass(input: PkpassInput): Promise<PkpassResult> 
   });
 
   const passBuf = Buffer.from(JSON.stringify(passJson, null, 2), 'utf8');
-  const manifest = { 'pass.json': sha1(passBuf) };
+
+  // Load required Wallet assets (icon/logo) and hash them into the manifest
+  // alongside pass.json. Any read failure is fatal — a pass missing icon.png
+  // is rejected by iOS Wallet, so there's no point shipping a bundle without
+  // it.
+  const assetBufs: Record<string, Buffer> = {};
+  for (const name of WALLET_ASSETS) {
+    assetBufs[name] = loadWalletAsset(name);
+  }
+
+  const manifest: Record<string, string> = { 'pass.json': sha1(passBuf) };
+  for (const [name, buf] of Object.entries(assetBufs)) {
+    manifest[name] = sha1(buf);
+  }
   const manifestBuf = Buffer.from(JSON.stringify(manifest), 'utf8');
 
   const zip = new JSZip();
   zip.file('pass.json', passBuf);
+  for (const [name, buf] of Object.entries(assetBufs)) {
+    zip.file(name, buf);
+  }
   zip.file('manifest.json', manifestBuf);
 
   let signed = false;

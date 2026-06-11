@@ -36,10 +36,21 @@ export function computeDailyListeningXp(opts: {
   signal: ListeningSignal;
   alreadyToday?: number;
 }): { rawXp: number; cappedXp: number; awarded: number } {
-  const rawXp =
-    Math.max(0, Math.floor(opts.signal.trackListens)) * XP_PER_TRACK_LISTEN +
-    Math.max(0, opts.signal.minutesListened / 60) * XP_PER_LISTENING_HOUR;
-  const cappedXp = Math.min(DAILY_LISTENING_XP_CAP, Math.floor(rawXp));
+  // Defensive coercion — bad upstream signals (e.g. a missing aggregate that
+  // arrived as NaN) used to poison the whole chain and end up as NaN in the
+  // xp_transactions.amount column. Treat non-finite numbers as zero.
+  const minutes = Number.isFinite(opts.signal.minutesListened)
+    ? opts.signal.minutesListened
+    : 0;
+  const tracks = Number.isFinite(opts.signal.trackListens)
+    ? opts.signal.trackListens
+    : 0;
+  const listenXp = Math.max(0, Math.floor(tracks)) * XP_PER_TRACK_LISTEN;
+  // Round instead of floor so a 59-minute session still pays out ~10 XP
+  // (9.83 → 10) instead of being silently truncated to 9.
+  const minuteXp = Math.round(Math.max(0, minutes) * (XP_PER_LISTENING_HOUR / 60));
+  const rawXp = listenXp + minuteXp;
+  const cappedXp = Math.min(DAILY_LISTENING_XP_CAP, rawXp);
   const already = Math.max(0, Math.floor(opts.alreadyToday ?? 0));
   const awarded = Math.max(0, cappedXp - already);
   return { rawXp, cappedXp, awarded };

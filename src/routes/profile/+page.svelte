@@ -100,7 +100,7 @@
             <span class="row-points-unit">pts</span>
           </div>
           <span class="tier-chip" style:--chip-color={f.tier_color}>
-            <svelte:component this={tierIcons[f.tier] ?? Heart} size={12} />
+            <svelte:component this={tierIcons[/** @type {keyof typeof tierIcons} */ (f.tier)] ?? Heart} size={12} />
             {f.tier}
           </span>
         </a>

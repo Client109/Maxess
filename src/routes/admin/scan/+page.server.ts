@@ -35,7 +35,7 @@ export async function load() {
     },
   });
   const scannedKey = new Set(
-    verifications.map(v => `${v.event_id}|${v.pass_id ?? ''}`)
+    verifications.map(v => `${v.event_id}|${v.user_id}`)
   );
 
   const items = passes.map(p => {
@@ -49,7 +49,7 @@ export async function load() {
       event_title: ev?.title ?? p.event_id,
       event_venue: ev?.venue ?? '—',
       event_date: ev?.date.toISOString() ?? null,
-      already_scanned: scannedKey.has(`${p.event_id}|${p.id}`),
+      already_scanned: scannedKey.has(`${p.event_id}|${p.user_id}`),
     };
   });
 

@@ -15,10 +15,13 @@
 
   // Map icon_name -> lucide component for included perks.
   const iconMap = { Ticket, Users, UtensilsCrossed };
+  /** @param {string | null | undefined} name */
   function iconFor(name) {
-    return iconMap[name] ?? Ticket;
+    if (!name) return Ticket;
+    return iconMap[/** @type {keyof typeof iconMap} */ (name)] ?? Ticket;
   }
 
+  /** @param {string} fandom_id */
   async function selectFandom(fandom_id) {
     if (switching) return;
     switching = true;
@@ -201,7 +204,7 @@
           <button
             class="sheet-row"
             type="button"
-            class:sheet-row--active={f.fandom_id === selected.fandom_id}
+            class:sheet-row--active={f.fandom_id === selected?.fandom_id}
             on:click={() => selectFandom(f.fandom_id)}
             disabled={switching}
           >

@@ -11,6 +11,21 @@ describe('tierRank', () => {
   it('is case-insensitive', () => {
     expect(tierRank('elite')).toBe(tierRank('ELITE'));
   });
+  it('returns +Infinity for an unknown tier label', () => {
+    expect(tierRank('bogus')).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+describe('partitionRewards with unknown tier labels', () => {
+  it('locks a reward whose tier_required is unknown rather than silently including it', () => {
+    const rewards = [
+      { id: 'rx', tier_required: 'MYTHIC', is_included_perk: false },
+    ];
+    const out = partitionRewards(rewards, 'ELITE');
+    expect(out.locked.map(r => r.id)).toEqual(['rx']);
+    expect(out.included).toEqual([]);
+    expect(out.unlocked).toEqual([]);
+  });
 });
 
 describe('partitionRewards', () => {

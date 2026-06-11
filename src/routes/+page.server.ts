@@ -1,5 +1,5 @@
 // Home page server load — fan profile, upcoming events, leaderboard preview
-import { db, getUserByFanId, getLeaderboard, getFriendActivity, getXpBreakdown, getXpHistory } from '$lib/server/database.js';
+import { db, getUserByFanId, getLeaderboard, getFriendActivity, getFriendUserIds, getXpBreakdown, getXpHistory } from '$lib/server/database.js';
 import { transformUserToFan, transformLeaderboardEntry, transformFriendActivity } from '$lib/server/transforms.js';
 import { TicketmasterClient } from '$lib/api/ticketmaster.js';
 import { normalizeTicketmasterEvent, filterNearYouThisWeek } from '$lib/server/events.js';
@@ -8,7 +8,7 @@ import { serverConfig } from '$lib/config/env.js';
 import { mockEvents } from '$lib/data/mockData.js';
 import { FOLLOWED_ARTISTS, FOLLOWED_TEAMS, type FollowedFandom } from '$lib/data/seedFandoms.js';
 import { classifyArtistTier, pointsToNextArtistTier } from '$lib/domain/xp.js';
-import { universalBalance, topByLifetime } from '$lib/server/home.js';
+import { universalBalance, topByBalance, topByLifetime } from '$lib/server/home.js';
 import {
   XP_PER_CHECKIN,
   XP_PER_LISTENING_HOUR,
@@ -36,11 +36,15 @@ export async function load({ url }) {
     ? { ...transformUserToFan(dbUser), xp_breakdown: xpBreakdown }
     : null;
 
-  // Load leaderboard preview
+  // Load leaderboard preview. Weekly drives the UI card; all-time is used
+  // separately below for peer-compare math (the user's xp_total is all-time,
+  // so comparing it to weekly peers is meaningless — see #7).
+  const friendIds = dbUser ? await getFriendUserIds('fan_001') : [];
   const dbLeaderboard = await getLeaderboard('WEEKLY');
+  const dbLeaderboardAllTime = await getLeaderboard('ALL_TIME');
   const leaderboardPreview = dbLeaderboard
     .slice(0, 5)
-    .map(e => transformLeaderboardEntry(e, dbUser?.id ?? ''));
+    .map(e => transformLeaderboardEntry(e, dbUser?.id ?? '', friendIds));
 
   // Load friend activity
   const dbFriendActivity = await getFriendActivity('fan_001', 5);
@@ -61,9 +65,10 @@ export async function load({ url }) {
         tmClient.searchEvents({ ...baseQuery, classificationName: 'Sports' }),
       ]);
 
+      const now = new Date();
       const tmEvents = [musicResult, sportsResult]
         .filter(r => r.success && r.data?._embedded?.events)
-        .flatMap(r => r.data!._embedded!.events!.map(normalizeTicketmasterEvent));
+        .flatMap(r => r.data!._embedded!.events!.map(tmEvent => normalizeTicketmasterEvent(tmEvent, now)));
 
       if (tmEvents.length > 0) {
         const userArtists = await getUserTopArtists(dbUser?.lastfm_username ?? undefined);
@@ -74,21 +79,29 @@ export async function load({ url }) {
     }
   }
 
-  // Progress threads — per-artist/team tier progression sourced from the
-  // canonical follow seed (src/lib/data/seedFandoms.ts). Same values feed the
-  // Profile page so the points the user sees here match per-row totals there.
-  // The user's xp_total = Σ FOLLOWED_ARTISTS + Σ FOLLOWED_TEAMS + REWARDS_XP_TOTAL.
-  const progressThreadsRaw = [...FOLLOWED_ARTISTS, ...FOLLOWED_TEAMS].map(f => ({
-    id: f.id,
-    name: f.name,
-    category: f.category,
-    points: f.points,
-  }));
-  const progressThreads = progressThreadsRaw.map(t => {
-    const tier = classifyArtistTier(t.points);
-    const next = pointsToNextArtistTier(t.points);
+  // Progress threads — per-artist/team tier progression sourced from the live
+  // FanTier table so points stay in sync with /access (which writes
+  // points_balance + lifetime_points on every redemption / award). Previously
+  // these were read from the compile-time seed constants in seedFandoms.ts,
+  // which meant the hero pill and /access disagreed any time a user actually
+  // earned or spent points. Canonical metadata (name, category, image) still
+  // comes from FOLLOWED_ARTISTS / FOLLOWED_TEAMS — only the numeric points
+  // value is sourced from the DB row.
+  const allFandomMeta: FollowedFandom[] = [...FOLLOWED_ARTISTS, ...FOLLOWED_TEAMS];
+  const fanTiers = dbUser
+    ? await db.fanTier.findMany({ where: { user_id: dbUser.id } })
+    : [];
+  const progressThreads = fanTiers.map(ft => {
+    const meta = allFandomMeta.find(m => m.id === ft.fandom_id);
+    const points = ft.lifetime_points;
+    const tier = classifyArtistTier(points);
+    const next = pointsToNextArtistTier(points);
     return {
-      ...t,
+      id: ft.fandom_id,
+      name: meta?.name ?? ft.fandom_id,
+      category: meta?.category ?? 'music',
+      image: meta?.image ?? null,
+      points,
       tier_name: tier.name,
       tier_color: tier.color_hex,
       next_tier_name: next.nextTier?.name ?? null,
@@ -99,9 +112,12 @@ export async function load({ url }) {
 
   // Rank comparison — your score vs nearby peers. Real friend/avg numbers if we
   // can compute them from the leaderboard; otherwise derive from the user score.
+  // myScore is the user's all-time xp_total, so peer-compare must use the
+  // ALL_TIME leaderboard slice — comparing against WEEKLY peers (orders of
+  // magnitude smaller) produced a nonsense delta.
   const myScore = fan?.xp_total ?? 0;
   const friendsAhead = friendActivity.filter(f => f.delta_type === 'up').length;
-  const peerScores = dbLeaderboard
+  const peerScores = dbLeaderboardAllTime
     .map(e => e.xp_total)
     .filter(s => Math.abs(s - myScore) < myScore * 0.3 && s !== myScore);
   const peerAvg = peerScores.length > 0
@@ -156,7 +172,7 @@ export async function load({ url }) {
   // Universal Balance = sum of FanTier.points_balance across all of Alex's
   // fandoms (the spendable, post-redemption number — distinct from xp_total).
   // Top 3 by balance drives the "Your fandoms" preview list.
-  const allFandomMeta: FollowedFandom[] = [...FOLLOWED_ARTISTS, ...FOLLOWED_TEAMS];
+  // (allFandomMeta + fanTiers were already loaded above for progressThreads.)
   let universalBalanceTotal = 0;
   let topFandomsByBalance: Array<{
     fan_tier_id: string;
@@ -171,14 +187,12 @@ export async function load({ url }) {
   let selectedFandomTier: { name: string; color_hex: string; fandom_name: string } | null = null;
 
   if (dbUser) {
-    const fanTiers = await db.fanTier.findMany({
-      where: { user_id: dbUser.id },
-    });
     universalBalanceTotal = universalBalance(fanTiers);
 
-    // Top fandoms by LIFETIME points (tier-driving total), not spendable
-    // balance — keeps the row points consistent with /score and /profile.
-    const top3 = topByLifetime(fanTiers, 3);
+    // Top fandoms by spendable points_balance — the "Your fandoms" preview
+    // list is sorted by current balance so the row order matches what the
+    // user could redeem right now. Tier chip still uses lifetime_points.
+    const top3 = topByBalance(fanTiers, 3);
     topFandomsByBalance = top3.map(t => {
       const meta = allFandomMeta.find(m => m.id === t.fandom_id);
       const tier = classifyArtistTier(t.lifetime_points);
@@ -194,8 +208,15 @@ export async function load({ url }) {
       };
     });
 
-    // Hero pill: tier for the user's selected fandom (or top-points fallback).
-    const selectedId = dbUser.selected_fandom_id ?? topFandomsByBalance[0]?.fandom_id;
+    // Hero pill: tier for the user's selected fandom. Fallback chain is
+    // (1) top fandom by spendable balance, then (2) top fandom by lifetime
+    // points — covers the case where every fandom has been redeemed down to
+    // a 0 balance (topByBalance filters those out) but the user still has
+    // tier-driving lifetime totals on record.
+    const topByLifetime3 = topByLifetime(fanTiers, 3);
+    const selectedId = dbUser.selected_fandom_id
+      ?? topFandomsByBalance[0]?.fandom_id
+      ?? topByLifetime3[0]?.fandom_id;
     if (selectedId) {
       const selected = fanTiers.find(f => f.fandom_id === selectedId);
       const meta = allFandomMeta.find(m => m.id === selectedId);

@@ -1,11 +1,14 @@
 <script>
   import { Music, X, RefreshCw } from 'lucide-svelte';
 
+  /** @type {Array<{ id: string; display_name: string; image_url?: string }>} */
   export let followedArtists = [];
 
   let syncing = false;
+  /** @type {{ error?: string; skipped?: string; new_plays?: number; xp_awarded?: number } | null} */
   let lastResult = null;
 
+  /** @param {string} id */
   async function unfollow(id) {
     if (!confirm('Unfollow this artist?')) return;
     const res = await fetch(`/api/artists/follow/${id}`, { method: 'DELETE' });

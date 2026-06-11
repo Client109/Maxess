@@ -3,15 +3,14 @@ import { db } from '$lib/server/database.js';
 import { syncUserListens } from '$lib/server/listens.js';
 import { env } from '$env/dynamic/private';
 
-// Vercel Cron entry point. Recognized as a legitimate cron invocation if the
-// request carries Vercel's `x-vercel-cron` header (Vercel sets it on cron
-// pings). Manual invocations must present `Authorization: Bearer ${CRON_SECRET}`.
+// Vercel Cron entry point. Vercel signs every cron ping with
+// `Authorization: Bearer ${CRON_SECRET}` (configured via env). The
+// `x-vercel-cron` header alone is not trusted — it can be forged by any
+// inbound caller, so we require the bearer secret unconditionally.
 export async function GET({ request }) {
-  const isVercelCron = request.headers.get('x-vercel-cron') !== null;
   const auth = request.headers.get('authorization') ?? '';
   const expected = env.CRON_SECRET ? `Bearer ${env.CRON_SECRET}` : '';
-  const isAuthorized = isVercelCron || (expected && auth === expected);
-  if (!isAuthorized) throw error(401, 'Unauthorized');
+  if (!expected || auth !== expected) throw error(401, 'Unauthorized');
 
   const users = await db.user.findMany({
     where: { lastfm_username: { not: null } },

@@ -11,7 +11,7 @@ const AcceptBody = z.object({
   city: z.string().min(1).max(80).optional(),
 });
 
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request }: { params: { code: string }; request: Request }) => {
   const code = params.code;
   if (!code) throw error(400, 'missing_code');
 

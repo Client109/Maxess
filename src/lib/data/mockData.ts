@@ -18,16 +18,19 @@ export const mockFanProfile: Fan = {
   top_team: 'Anaheim Ducks',
   top_venue: 'SoFi Stadium',
   events_attended: 9,
+  // Σ = xp_total (1,528,500). Distribution mirrors the canonical seed:
+  // verified concerts 60×10,000 = 600,000, plus streaming and minor buckets.
   xp_breakdown: {
-    'Event Attendance': 480_000,   // 48 verified concerts × 10,000
-    'Streaming': 215_000,
-    'Watch Points': 30_000,
-    'Spend Points': 15_000,
-    'Challenges': 10_000
+    'Event Attendance': 600_000,
+    'Streaming': 700_000,
+    'Watch Points': 120_000,
+    'Spend Points': 60_000,
+    'Challenges': 48_500
   },
   city: 'Los Angeles',
   member_since: '2023-08-15',
-  avatar_initials: 'AC'
+  avatar_initials: 'AC',
+  connected_accounts: []
 };
 
 // Mock Events
@@ -280,7 +283,7 @@ export const mockLeaderboard: LeaderboardEntry[] = [
   { rank: 1, name: 'Sarah Kim', score: 12450, delta: 23, is_me: false, is_friend: false, city: 'LA', time_period: 'This week' },
   { rank: 2, name: 'Mike Rodriguez', score: 11890, delta: -5, is_me: false, is_friend: true, city: 'LA', time_period: 'This week' },
   { rank: 3, name: 'Emma Davis', score: 11200, delta: 18, is_me: false, is_friend: false, city: 'LA', time_period: 'This week' },
-  { rank: 12, name: 'Alex Chen', score: 750_000, delta: 12, is_me: true, is_friend: false, city: 'LA', time_period: 'This week' },
+  { rank: 12, name: 'Alex Chen', score: 9_400, delta: 12, is_me: true, is_friend: false, city: 'LA', time_period: 'This week' },
   { rank: 19, name: 'Jordan Lee', score: 8690, delta: 8, is_me: false, is_friend: true, city: 'LA', time_period: 'This week' },
 
   // LA — This month

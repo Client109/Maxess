@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getArtistProfile, ARTIST_PROFILES } from './artistProfiles.js';
 import { FOLLOWED_ARTISTS, FOLLOWED_TEAMS } from './seedFandoms.js';
+import { classifyArtistTier } from '$lib/domain/xp.js';
 
 describe('getArtistProfile', () => {
   it('returns null for unknown ids', () => {
@@ -81,6 +82,18 @@ describe('getArtistProfile', () => {
     expect(elite?.tier_color).toBe('#FF5C00');
     expect(fan?.tier).toBe('Fan');
     expect(fan?.tier_color).toBe('#1A9E56');
+  });
+
+  it('derived tier for every canonical follow matches classifyArtistTier(points)', () => {
+    for (const seed of [...FOLLOWED_ARTISTS, ...FOLLOWED_TEAMS]) {
+      const profile = getArtistProfile(seed.id);
+      const expectedTier = classifyArtistTier(seed.points);
+      expect(profile, `expected /artist/${seed.id} to resolve`).not.toBeNull();
+      expect(profile?.tier, `${seed.id} tier should match canonical`).toBe(expectedTier.name);
+      expect(profile?.tier_color, `${seed.id} tier_color should match canonical`).toBe(expectedTier.color_hex);
+      expect(profile?.tier_progress, `${seed.id} tier_progress must be 0..1`).toBeGreaterThanOrEqual(0);
+      expect(profile?.tier_progress, `${seed.id} tier_progress must be 0..1`).toBeLessThanOrEqual(1);
+    }
   });
 
   it('ARTIST_PROFILES still includes every previously-handcrafted entry', () => {

@@ -299,7 +299,10 @@ export class SimpleCache {
 // Global cache instance
 export const apiCache = new SimpleCache();
 
-// Periodic cleanup
+// Periodic cleanup — guard against Vite HMR stacking intervals on every reload
 if (typeof window !== 'undefined') {
-  setInterval(() => apiCache.cleanup(), 5 * 60 * 1000); // Cleanup every 5 minutes
+  const w = window as any;
+  if (!w.__maxessCacheInterval) {
+    w.__maxessCacheInterval = setInterval(() => apiCache.cleanup(), 5 * 60 * 1000); // Cleanup every 5 minutes
+  }
 }

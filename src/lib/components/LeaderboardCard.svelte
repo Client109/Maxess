@@ -2,7 +2,9 @@
   import { ChevronRight } from 'lucide-svelte';
   import { mockFriendActivity } from '$lib/data/mockData.js';
 
+  /** @type {{ top_team?: string; [key: string]: unknown } | null} */
   export let fan = null;     // optional: used for contextual description
+  /** @type {'music' | 'sports'} */
   export let mode = 'sports'; // 'music' | 'sports'
 
   // Use first 3 friends for the avatar stack

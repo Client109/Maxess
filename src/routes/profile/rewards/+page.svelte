@@ -11,8 +11,10 @@
   // /access page uses for included-perk rows, so icon-only rewards render
   // consistently across the marketplace and the redeemed log.
   const iconMap = { Ticket, Users, UtensilsCrossed, Gift };
+  /** @param {string | null | undefined} name */
   function iconFor(name) {
-    return iconMap[name] ?? Gift;
+    if (!name) return Gift;
+    return iconMap[/** @type {keyof typeof iconMap} */ (name)] ?? Gift;
   }
 </script>
 

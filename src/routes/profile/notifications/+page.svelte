@@ -1,9 +1,9 @@
 <script>
-  import { ArrowLeft, Bell, Check, Star, Calendar, Diamond } from 'lucide-svelte';
+  import { ArrowLeft, Bell, Check, Star, Calendar, Diamond, Users, Gift } from 'lucide-svelte';
   import { notifications, markRead, markAllRead, unreadCount } from '$lib/stores/notifications.js';
 
   // Lucide component per notification type. Falls back to Bell for unknown types.
-  const iconFor = { tier: Diamond, event: Calendar, system: Star, default: Bell };
+  const iconFor = { tier: Diamond, event: Calendar, system: Star, social: Users, reward: Gift, default: Bell };
 
   /** @param {string} id */
   function open(id) {

@@ -1,8 +1,10 @@
 <script>
   import { Headphones, Heart } from 'lucide-svelte';
 
+  /** @type {Array<{ track: string; artist: string; played_at: string; xp_awarded?: number; is_followed?: boolean }>} */
   export let recentListens = [];
 
+  /** @param {string} iso */
   function timeAgo(iso) {
     const then = new Date(iso).getTime();
     const diff = Date.now() - then;

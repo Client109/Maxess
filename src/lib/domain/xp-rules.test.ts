@@ -60,11 +60,29 @@ describe('computeDailyListeningXp', () => {
     expect(result.awarded).toBe(15);
   });
 
-  it('floors fractional XP — partial hours do not award fractional points', () => {
+  it('rounds fractional XP so partial hours do not get silently truncated', () => {
     const result = computeDailyListeningXp({
-      signal: { trackListens: 0, minutesListened: 75 }, // 75/60 * 10 = 12.5
+      signal: { trackListens: 0, minutesListened: 75 }, // 75/60 * 10 = 12.5 → 13
     });
-    expect(result.cappedXp).toBe(12);
+    expect(result.cappedXp).toBe(13);
+  });
+
+  it('rounds a 59-minute session up to 10 XP (was 9 under the old floor)', () => {
+    const result = computeDailyListeningXp({
+      signal: { trackListens: 0, minutesListened: 59 }, // 59/60 * 10 ≈ 9.83 → 10
+    });
+    expect(result.rawXp).toBe(10);
+    expect(result.cappedXp).toBe(10);
+    expect(result.awarded).toBe(10);
+  });
+
+  it('still awards 10 XP for exactly 60 minutes of listening', () => {
+    const result = computeDailyListeningXp({
+      signal: { trackListens: 0, minutesListened: 60 },
+    });
+    expect(result.rawXp).toBe(10);
+    expect(result.cappedXp).toBe(10);
+    expect(result.awarded).toBe(10);
   });
 
   it('rejects negative inputs by clamping to zero', () => {
@@ -72,6 +90,35 @@ describe('computeDailyListeningXp', () => {
       signal: { trackListens: -10, minutesListened: -60 },
     });
     expect(result.rawXp).toBe(0);
+    expect(result.awarded).toBe(0);
+  });
+
+  it('coerces NaN minutesListened to 0 instead of poisoning the result', () => {
+    const result = computeDailyListeningXp({
+      signal: { trackListens: 3, minutesListened: Number.NaN },
+    });
+    expect(Number.isNaN(result.rawXp)).toBe(false);
+    expect(Number.isNaN(result.cappedXp)).toBe(false);
+    expect(Number.isNaN(result.awarded)).toBe(false);
+    expect(result.rawXp).toBe(3);
+    expect(result.cappedXp).toBe(3);
+    expect(result.awarded).toBe(3);
+  });
+
+  it('coerces NaN trackListens to 0 instead of poisoning the result', () => {
+    const result = computeDailyListeningXp({
+      signal: { trackListens: Number.NaN, minutesListened: 60 },
+    });
+    expect(Number.isNaN(result.awarded)).toBe(false);
+    expect(result.awarded).toBe(10);
+  });
+
+  it('coerces both NaN inputs to 0 and returns 0 XP', () => {
+    const result = computeDailyListeningXp({
+      signal: { trackListens: Number.NaN, minutesListened: Number.NaN },
+    });
+    expect(result.rawXp).toBe(0);
+    expect(result.cappedXp).toBe(0);
     expect(result.awarded).toBe(0);
   });
 });

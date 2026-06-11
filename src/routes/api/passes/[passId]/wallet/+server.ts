@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { getPassByPassId, markPassWalletAdded } from '$lib/server/database.js';
+import { db, getPassByPassId, markPassWalletAdded } from '$lib/server/database.js';
 import { generatePkpass } from '$lib/server/wallet/pkpass.js';
 
 export async function GET({ params }) {
@@ -8,9 +8,7 @@ export async function GET({ params }) {
   if (!dbPass.apple_wallet_serial) throw error(400, 'Pass is not wallet-enabled');
   if (!dbPass.event_id) throw error(400, 'Pass has no linked event');
 
-  const event = await import('$lib/server/database.js').then(({ db }) =>
-    db.event.findUnique({ where: { event_id: dbPass.event_id! } })
-  );
+  const event = await db.event.findUnique({ where: { event_id: dbPass.event_id! } });
   if (!event) throw error(404, 'Linked event not found');
 
   const { bytes, signed } = await generatePkpass({
@@ -27,7 +25,7 @@ export async function GET({ params }) {
     await markPassWalletAdded(dbPass.pass_id);
   }
 
-  return new Response(bytes, {
+  return new Response(new Blob([new Uint8Array(bytes)]), {
     status: 200,
     headers: {
       'content-type': 'application/vnd.apple.pkpass',

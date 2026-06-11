@@ -3,9 +3,12 @@
 
   export let data;
 
+  /** @type {{ serial: string; ok: boolean; status?: string; xp_awarded?: number; error?: string } | null} */
   let lastResult = null;
+  /** @type {string | null} */
   let inFlight = null;
 
+  /** @param {string} serial */
   async function simulateScan(serial) {
     inFlight = serial;
     lastResult = null;
@@ -24,6 +27,7 @@
     }
   }
 
+  /** @param {string | null | undefined} iso */
   function formatDate(iso) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString('en-US', {

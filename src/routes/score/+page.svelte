@@ -12,12 +12,14 @@
   const tierIcons = { Newcomer: Heart, Fan: Heart, Loyal: Shield, Superfan: Star, Elite: Diamond };
 
   // Compact number formatter for the tier range labels (1K/100K/1M).
+  /** @param {number | null | undefined} n */
   function fmtCompact(n) {
     if (n == null) return '∞';
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}K`;
     return n.toLocaleString();
   }
+  /** @param {{ range_low: number; range_high: number | null }} t */
   function tierRangeLabel(t) {
     return t.range_high == null
       ? `${fmtCompact(t.range_low)}+ pts`
@@ -68,7 +70,7 @@
                 class:chip--filled={f.tier_name === 'Elite'}
                 style:--chip-color={f.tier_color}
               >
-                <svelte:component this={tierIcons[f.tier_name] ?? Heart} size={11} />
+                <svelte:component this={tierIcons[/** @type {keyof typeof tierIcons} */ (f.tier_name)] ?? Heart} size={11} />
                 {f.tier_name}
               </span>
             </div>
@@ -135,7 +137,7 @@
             {#if t.is_active}
               <Diamond size={20} color="#FF5C00" fill="#FF5C00" />
             {:else}
-              <svelte:component this={tierIcons[t.name] ?? Heart} size={20} color="#8E8E93" />
+              <svelte:component this={tierIcons[/** @type {keyof typeof tierIcons} */ (t.name)] ?? Heart} size={20} color="#8E8E93" />
             {/if}
           </div>
 
@@ -302,6 +304,7 @@
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
   }
   .fandom-pts { display: inline-flex; align-items: baseline; gap: 3px; }

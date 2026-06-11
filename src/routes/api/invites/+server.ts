@@ -35,7 +35,7 @@ export const GET: RequestHandler = async () => {
   });
 };
 
-export const POST: RequestHandler = async ({ request, url }) => {
+export const POST: RequestHandler = async ({ request, url }: { request: Request; url: URL }) => {
   let body: unknown;
   try { body = await request.json(); } catch { throw error(400, 'invalid_json'); }
   const parsed = PostBody.safeParse(body);

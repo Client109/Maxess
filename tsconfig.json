@@ -10,5 +10,23 @@
     "sourceMap": true,
     "strict": true,
     "moduleResolution": "bundler"
-  }
+  },
+  "exclude": [
+    "node_modules/**",
+    "src/service-worker.js",
+    "src/service-worker/**/*.js",
+    "src/service-worker.ts",
+    "src/service-worker/**/*.ts",
+    "src/service-worker.d.ts",
+    "src/service-worker/**/*.d.ts",
+    "legacy/**",
+    "_archive/**",
+    "_llm-artifacts/**",
+    "static-preview/**",
+    "build/**",
+    "generated/**",
+    "research/**",
+    "backend-setup/**",
+    "tools/**"
+  ]
 }

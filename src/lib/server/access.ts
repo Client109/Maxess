@@ -4,7 +4,12 @@ export const TIER_ORDER = ['NEWCOMER', 'FAN', 'LOYAL', 'SUPERFAN', 'ELITE'] as c
 export type TierBand = (typeof TIER_ORDER)[number];
 
 export function tierRank(t: string): number {
-  return TIER_ORDER.indexOf(t.toUpperCase() as TierBand);
+  const i = TIER_ORDER.indexOf(t.toUpperCase() as TierBand);
+  if (i === -1) {
+    console.warn(`[access] unknown tier label: ${t}`);
+    return Number.POSITIVE_INFINITY; // locks reward defensively
+  }
+  return i;
 }
 
 export interface RewardLike {
